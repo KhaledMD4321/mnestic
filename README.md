@@ -13,6 +13,21 @@ local link to your own Anki.
 > AnKing deck. **MIT-licensed** and open source. Inspired by the idea behind
 > [Atlas](https://github.com/TheEverion/Atlas) — see *Credits* at the bottom.
 
+## Screenshots
+
+| The panel, card composer & weak areas | The popup |
+|:---:|:---:|
+| ![Mnestic resource panel, Make-a-card, and weak-area breakdown](docs/shot-ui.png) | ![Mnestic popup — study tracker, settings, AI prompt](docs/shot-popup.png) |
+| Matched resources, **Make a card** (with the *From this question* picker), and the weakest-first breakdown. | Streak, 16-week heatmap, targets, settings, and the editable AI prompt. |
+
+<details><summary>🌙 Dark mode</summary>
+
+| Interface | Popup |
+|:---:|:---:|
+| ![Mnestic interface in dark mode](docs/shot-ui-dark.png) | ![Mnestic popup in dark mode](docs/shot-popup-dark.png) |
+
+</details>
+
 ## At a glance
 
 ![Features at a glance](docs/features.svg)
