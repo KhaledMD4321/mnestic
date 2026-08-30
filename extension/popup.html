@@ -1,0 +1,147 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    :root { color-scheme: light dark; --mn: #3b5bdb; --mn-600: #2f49b3; }
+    body { width: 264px; margin: 0; padding: 14px 16px; font-family: system-ui, Arial, sans-serif; color: #243240; background: #fff; }
+    body.dark { color: #e6ebf4; background: #1f2430; }
+    h1 { font-size: 14px; margin: 0 0 2px; }
+    .sub { font-size: 11px; color: #8a8f98; margin: 0 0 12px; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 9px 0; font-size: 13px; }
+    select { font: inherit; padding: 3px 6px; border-radius: 6px; }
+    .saved { font-size: 11px; color: #2e9e4f; min-height: 14px; margin: 2px 0 8px; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 12px; }
+    .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #aaa; }
+    .pill.on { background: #e3f4e8; color: #1f7a3d; } .pill.on::before { background: #2e9e4f; }
+    .pill.off { background: #fdecec; color: #b3261e; } .pill.off::before { background: #d3402f; }
+    .pill.pair { background: #fdf0dd; color: #a86412; } .pill.pair::before { background: #e0901f; }
+    .pill.checking { background: #eef0f2; color: #667; }
+    .hint { font-size: 11px; color: #8a8f98; margin-top: 6px; line-height: 1.45; }
+    a { color: var(--mn); }
+    hr { border: none; border-top: 1px solid #e6e9ec; margin: 12px 0; }
+    body.dark hr { border-top-color: #333b49; }
+    .trk { margin: 0 0 4px; }
+    .trk-h { display:flex; align-items:center; justify-content:space-between; margin: 0 0 4px; }
+    .trk-h b { font-size: 12.5px; color:#16395b; }
+    body.dark .trk-h b { color:#cdd6e5; }
+    .trk-row { display:flex; align-items:baseline; justify-content:space-between; font-size:12px; margin: 8px 0 3px; }
+    .trk-row b { font-size:13px; }
+    .bar { height:7px; border-radius:5px; background:#e6e9ec; overflow:hidden; }
+    body.dark .bar { background:#2c3340; }
+    .bar i { display:block; height:100%; width:0; background:var(--mn); border-radius:5px; transition:width .3s; }
+    .bar i.over { background:#2e9e4f; }
+    .trk-tg { display:flex; gap:8px; margin-top:10px; }
+    .trk-tg label { flex:1; font-size:11px; color:#8a8f98; display:flex; flex-direction:column; gap:3px; }
+    .trk-tg input { font:inherit; padding:4px 6px; border:1px solid #cfd6dd; border-radius:6px; background:transparent; color:inherit; }
+    body.dark .trk-tg input { border-color:#3a4150; }
+    .muted { color:#8a8f98; }
+    .trk-streak { font-size:11px; font-weight:700; color:#e0901f; }
+    .trk-cal { display:grid; grid-auto-flow:column; grid-template-rows:repeat(7,9px); grid-auto-columns:9px; gap:2px; margin:10px 0 3px; }
+    .trk-day { width:9px; height:9px; border-radius:2px; background:#eaeef2; }
+    .trk-day.l1{background:#cfe0ff} .trk-day.l2{background:#8fb8f6} .trk-day.l3{background:#4f86f7} .trk-day.l4{background:#2559d0}
+    .trk-day.future{background:transparent}
+    body.dark .trk-day{background:#2c3340}
+    body.dark .trk-day.l1{background:#274063} body.dark .trk-day.l2{background:#2f5aa0} body.dark .trk-day.l3{background:#4f86f7} body.dark .trk-day.l4{background:#7aa7ff}
+    body.dark .trk-day.future{background:transparent}
+    .trk-callbl { display:flex; justify-content:space-between; font-size:10px; color:#8a8f98; }
+    .trk-proj { font-size:11px; margin-top:7px; line-height:1.4; }
+    .chip { font:inherit; font-size:11px; padding:3px 9px; border-radius:12px; border:1px solid #cfd6dd; background:transparent; color:var(--mn); cursor:pointer; }
+    .chip:hover { background:#eef4fb; }
+    body.dark .chip { border-color:#3a4150; color:#7aa0f5; }
+    body.dark .chip:hover { background:#262c38; }
+    .field { display:flex; gap:6px; }
+    .field input { flex:1; font:inherit; padding:5px 8px; border:1px solid #cfd6dd; border-radius:6px; color:inherit; background:transparent; }
+    body.dark .field input { border-color:#3a4150; }
+    .btn { font:inherit; border:none; background:var(--mn); color:#fff; border-radius:6px; padding:6px 11px; cursor:pointer; font-weight:600; }
+    .btn:hover { background:var(--mn-600); }
+    .adv { font-size:11px; color:#8a8f98; }
+    .adv summary { cursor:pointer; margin-top:8px; }
+    .adv .field { margin-top:6px; }
+  </style>
+</head>
+<body>
+  <h1>Mnestic</h1>
+  <p class="sub">Your AnKing cards, wired to every question</p>
+
+  <div class="trk">
+    <div class="trk-h"><b>Study tracker</b><span id="trkStreak" class="trk-streak"></span></div>
+    <div class="trk-row"><span>Today</span><b id="trkToday">0</b></div>
+    <div class="bar"><i id="trkTodayFill"></i></div>
+    <div class="trk-row"><span>This week</span><b id="trkWeek">0</b></div>
+    <div class="bar"><i id="trkWeekFill"></i></div>
+    <div id="trkCal" class="trk-cal"></div>
+    <div class="trk-callbl"><span>last 16 weeks</span><span id="trkCalHint"></span></div>
+    <div class="trk-row"><span id="trkRemainLbl">Remaining</span><b id="trkRemain">—</b></div>
+    <div class="bar"><i id="trkRemainFill"></i></div>
+    <div id="trkProj" class="trk-proj muted"></div>
+    <div class="trk-tg">
+      <label>Daily target<input type="number" id="trkDaily" min="0" placeholder="0"></label>
+      <label>Weekly target<input type="number" id="trkWeekly" min="0" placeholder="0"></label>
+    </div>
+  </div>
+  <hr>
+
+  <div class="row">
+    <span>Step</span>
+    <select id="sv">
+      <option value="1">Step 1</option>
+      <option value="2">Step 2</option>
+      <option value="3">Step 3</option>
+    </select>
+  </div>
+  <div class="saved" id="saved"></div>
+
+  <div class="row"><span>Dark panel</span><input type="checkbox" id="darkToggle"></div>
+  <div class="row"><span>Expected score (beta)</span><input type="checkbox" id="esToggle"></div>
+  <div class="row"><span>Easy mode (auto-unsuspend)</span><input type="checkbox" id="easyToggle"></div>
+  <div class="row"><span>High-yield only</span><input type="checkbox" id="hyToggle"></div>
+  <div class="row"><span>Keyboard shortcuts <span class="muted" style="font-size:10px">(press ?)</span></span><input type="checkbox" id="kbToggle"></div>
+
+  <hr>
+  <div class="row" style="margin-bottom:4px"><span>Find a topic in Anki</span></div>
+  <div class="field">
+    <input type="text" id="topicInput" placeholder="e.g. horseshoe kidney">
+    <button id="topicGo" class="btn">Find</button>
+  </div>
+  <p class="hint">Opens Anki's Browser with matching AnKing Step cards — for a tough topic you want to drill.</p>
+
+  <hr>
+  <div class="row" style="margin-bottom:4px"><span>AI prompt <span class="muted" style="font-size:10px">for “Copy for AI”</span></span></div>
+  <div id="aiPresets" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px"></div>
+  <textarea id="aiPrompt" rows="4"
+    style="width:100%;box-sizing:border-box;font:inherit;font-size:12px;padding:6px 8px;border:1px solid #cfd6dd;border-radius:6px;color:inherit;background:transparent;resize:vertical;line-height:1.4"></textarea>
+  <p class="hint">Prepended when you click <b>🤖 Copy for AI</b> on a question. Leave empty for the raw question.</p>
+
+  <hr>
+  <div class="row">
+    <span class="pill checking" id="pill"><span id="pillText">Checking…</span></span>
+    <a href="#" id="retry">Recheck</a>
+  </div>
+
+  <!-- shown when the bridge is running but this browser isn't paired yet -->
+  <div id="pairBox" hidden>
+    <p class="hint" style="margin-top:8px">In Anki: <b>Tools → Mnestic: pairing code…</b> (it copies the code), then paste it here:</p>
+    <div class="field" style="margin-top:6px">
+      <input type="text" id="tokenInput" placeholder="paste pairing code" autocomplete="off">
+      <button id="tokenSave" class="btn">Save</button>
+    </div>
+  </div>
+
+  <!-- shown when the bridge can't be reached at all -->
+  <p class="hint" id="offHint" hidden>
+    Can't reach Anki. Open <b>Anki</b> with the <b>Mnestic Bridge</b> add-on installed, then click Recheck.
+  </p>
+
+  <details class="adv">
+    <summary>Advanced</summary>
+    <div class="field">
+      <input type="number" id="portInput" min="1" max="65535" placeholder="8790">
+      <button id="portSave" class="btn">Set port</button>
+    </div>
+    <p style="margin:6px 0 0">Bridge port — only change it if you changed it in the add-on config.</p>
+  </details>
+
+  <script src="popup.js"></script>
+</body>
+</html>
