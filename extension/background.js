@@ -1,6 +1,6 @@
-// Mnemo — background service worker.
+// Mnestic — background service worker.
 //
-// Every call to the local Mnemo Bridge add-on happens here (not in the page), so
+// Every call to the local Mnestic Bridge add-on happens here (not in the page), so
 // the site's in-page request rules can't interfere. The content script and popup
 // send a {type:"bridge", op, args} message; we forward it to 127.0.0.1:<port>
 // with the pairing token and hand back {ok, data} / {ok:false, error}.
@@ -19,7 +19,7 @@ async function bridge(op, args) {
   const { port, token } = await settings();
   const res = await fetch(`http://127.0.0.1:${port}/`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Mnemo-Token": token },
+    headers: { "Content-Type": "application/json", "X-Mnestic-Token": token },
     body: JSON.stringify({ op, token, args: args || {} }),
   });
   let data;

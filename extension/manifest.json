@@ -1,6 +1,6 @@
 {
     "manifest_version": 3,
-    "name": "Mnemo",
+    "name": "Mnestic",
     "version": "1.0.0",
     "description": "Link your question bank to your Anki cards: resource overlays on each question, one-click cards, weak-area breakdowns, and a study tracker.",
     "icons": {
