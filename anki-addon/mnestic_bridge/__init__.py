@@ -1,4 +1,4 @@
-# Mnemo Bridge — a small local companion for the Mnemo browser extension.
+# Mnestic Bridge — a small local companion for the Mnestic browser extension.
 #
 # It runs a tiny HTTP server on 127.0.0.1:<port> (default 8790). The extension
 # talks to it to search your collection, open the Browser, read card media, and
@@ -33,7 +33,7 @@ from aqt import gui_hooks, mw
 from aqt.qt import QAction
 from aqt.utils import showText, tooltip
 
-ADDON_NAME = "Mnemo Bridge"
+ADDON_NAME = "Mnestic Bridge"
 ADDON_VERSION = "1.0.0"
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8790
@@ -480,7 +480,7 @@ class _Handler(BaseHTTPRequestHandler):
         body = json.dumps(payload).encode("utf-8") if payload is not None else b""
         self.send_response(code)
         self.send_header("Access-Control-Allow-Origin", origin or "*")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Mnemo-Token")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Mnestic-Token")
         self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
@@ -492,7 +492,7 @@ class _Handler(BaseHTTPRequestHandler):
         origin = self.headers.get("Origin") or "*"
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", origin)
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Mnemo-Token")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Mnestic-Token")
         self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
         if self.headers.get("Access-Control-Request-Private-Network", "").lower() == "true":
             self.send_header("Access-Control-Allow-Private-Network", "true")
@@ -520,7 +520,7 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(200, {"ok": True, "data": {"name": ADDON_NAME, "version": ADDON_VERSION}}, echo)
             return
 
-        token = self.headers.get("X-Mnemo-Token") or req.get("token")
+        token = self.headers.get("X-Mnestic-Token") or req.get("token")
         if not _token_ok(token):
             self._send(403, {"ok": False, "error": "invalid or missing pairing code"}, echo)
             return
@@ -565,18 +565,18 @@ def show_pairing_code():
     except Exception:
         copied = ""
     showText(
-        "Mnemo pairing code%s:\n\n    %s\n\n"
-        "Open the Mnemo extension, paste this into the “Pairing code” box, and "
+        "Mnestic pairing code%s:\n\n    %s\n\n"
+        "Open the Mnestic extension, paste this into the “Pairing code” box, and "
         "click Save. It links the extension to this Anki — nothing else on your "
         "computer can use the bridge without it.\n\n"
         "Keep it private. To rotate it, clear \"token\" in the add-on config and "
         "restart Anki." % (copied, tok),
-        title="Mnemo Bridge",
+        title="Mnestic Bridge",
     )
 
 
 def _add_menu():
-    action = QAction("Mnemo: pairing code…", mw)
+    action = QAction("Mnestic: pairing code…", mw)
     action.triggered.connect(show_pairing_code)
     mw.form.menuTools.addAction(action)
 
