@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/*.zip
+
+# Editor
+.vscode/
+.idea/
