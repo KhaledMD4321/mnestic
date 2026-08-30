@@ -1,5 +1,8 @@
 # Mnestic
 
+[![AnkiWeb add-on](https://img.shields.io/badge/AnkiWeb-Mnestic%20Bridge-1f9d57)](https://ankiweb.net/shared/info/199262916)
+[![License: MIT](https://img.shields.io/badge/license-MIT-7c4dff)](LICENSE)
+
 ![How it works — question to AnKing](docs/demo.svg)
 
 **Mnestic** links every question in your qbank to your **AnKing** Anki cards. On a
@@ -96,7 +99,19 @@ LICENSE                    ← MIT
 
 ### 1. Anki add-on — "Mnestic Bridge"
 
-Copy the `anki-addon/mnestic_bridge/` folder into your Anki add-ons directory:
+In Anki: **Tools → Add-ons → Get Add-ons…** and paste the code:
+
+```
+199262916
+```
+
+Then **restart Anki**. ([AnkiWeb listing](https://ankiweb.net/shared/info/199262916).)
+It listens on `127.0.0.1:8790` — a **local** add-on that never auto-updates or
+overwrites your changes.
+
+<details><summary>Prefer to install it manually?</summary>
+
+Copy `anki-addon/mnestic_bridge/` into your Anki add-ons folder, then restart Anki:
 
 | OS | Add-ons folder |
 |----|----------------|
@@ -104,8 +119,7 @@ Copy the `anki-addon/mnestic_bridge/` folder into your Anki add-ons directory:
 | macOS | `~/Library/Application Support/Anki2/addons21/mnestic_bridge/` |
 | Linux | `~/.local/share/Anki2/addons21/mnestic_bridge/` |
 
-Then **restart Anki**. It listens on `127.0.0.1:8790` — a **local** add-on that
-Anki never auto-updates or overwrites.
+</details>
 
 ### 2. Browser extension
 

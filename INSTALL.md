@@ -18,15 +18,21 @@ with a one-time code.
 
 ## Step 1 — Install the Anki add-on
 
-1. Open the unzipped Mnestic folder → open `anki-addon/`.
-2. Copy the whole **`mnestic_bridge`** folder.
-3. Open Anki → **Tools ▸ Add-ons ▸ View Files**. A folder called `addons21`
-   opens.
-4. Paste **`mnestic_bridge`** into `addons21`. You should now have
-   `addons21/mnestic_bridge/` with `__init__.py` inside it.
-5. **Close and reopen Anki.**
+**The easy way (from AnkiWeb):**
 
-That's the add-on installed. Leave Anki open.
+1. Open Anki → **Tools ▸ Add-ons ▸ Get Add-ons…**
+2. Paste this code: **`199262916`** → **OK**.
+3. **Close and reopen Anki.**
+
+That's it. Leave Anki open.
+
+<details><summary>Or install manually (from this repo)</summary>
+
+1. Open the unzipped Mnestic folder → `anki-addon/` → copy the **`mnestic_bridge`** folder.
+2. Anki → **Tools ▸ Add-ons ▸ View Files** (opens `addons21`).
+3. Paste **`mnestic_bridge`** into `addons21`, then **close and reopen Anki**.
+
+</details>
 
 ---
 
