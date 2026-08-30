@@ -525,6 +525,12 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(403, {"ok": False, "error": "invalid or missing pairing code"}, echo)
             return
 
+        # Pairing check: the token is valid — say so without touching the
+        # collection, so the extension can show a green "Ready".
+        if op == "auth":
+            self._send(200, {"ok": True, "data": {"paired": True}}, echo)
+            return
+
         try:
             data = _on_main(lambda: dispatch(op, req.get("args") or {}))
             self._send(200, {"ok": True, "data": data}, echo)
