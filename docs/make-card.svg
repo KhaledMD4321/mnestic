@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 560" width="720" height="560" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,system-ui,Roboto,Arial,sans-serif">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="14" stdDeviation="20" flood-color="#000" flood-opacity="0.5"/></filter>
+    <style>
+      .t{fill:#e7edf7}.m{fill:#9aa7bd}.ink{fill:#e6d9fb}
+      @keyframes cur{0%{transform:translate(600px,470px);opacity:0}6%{opacity:1}30%{transform:translate(250px,352px)}34%{transform:translate(250px,359px)}38%{transform:translate(250px,352px)}88%{transform:translate(250px,352px);opacity:1}96%,100%{transform:translate(600px,470px);opacity:0}}
+      #cursor{animation:cur 6s ease-in-out infinite;transform-box:view-box}
+      @keyframes rip{0%,32%{opacity:0;transform:scale(.2)}36%{opacity:.55;transform:scale(.6)}48%{opacity:0;transform:scale(1.6)}100%{opacity:0}}
+      #ripple{animation:rip 6s ease-out infinite;transform-box:view-box;transform-origin:262px 364px}
+      @keyframes sel{0%,36%{opacity:0}42%,90%{opacity:1}96%,100%{opacity:0}}
+      #selring{animation:sel 6s ease-in-out infinite}
+      @keyframes chk{0%,38%{opacity:0;transform:scale(.4)}44%{opacity:1;transform:scale(1.18)}50%{transform:scale(1)}90%{opacity:1;transform:scale(1)}96%,100%{opacity:0}}
+      #check{animation:chk 6s ease-in-out infinite;transform-box:view-box;transform-origin:322px 322px}
+      @keyframes chip{0%,40%{opacity:0;transform:translateY(6px)}46%,90%{opacity:1;transform:translateY(0)}96%,100%{opacity:0}}
+      #attached{animation:chip 6s ease-in-out infinite;transform-box:view-box}
+    </style>
+  </defs>
+
+  <rect x="20" y="20" width="680" height="520" rx="18" fill="#1b2333" stroke="#2c3850" filter="url(#s)"/>
+  <!-- header -->
+  <text x="44" y="62" class="t" font-size="18" font-weight="800">✚ Make a card</text>
+  <text x="676" y="60" class="m" font-size="20" text-anchor="end">×</text>
+  <line x1="44" y1="76" x2="676" y2="76" stroke="#2c3850"/>
+
+  <!-- type toggle -->
+  <rect x="44" y="92" width="170" height="32" rx="9" fill="#232c40" stroke="#33425f"/>
+  <rect x="48" y="96" width="80" height="24" rx="7" fill="#6d40e0"/><text x="88" y="112" fill="#fff" font-size="12.5" font-weight="700" text-anchor="middle">Cloze</text>
+  <text x="172" y="112" class="m" font-size="12.5" text-anchor="middle" font-weight="600">Basic</text>
+  <text x="676" y="112" class="m" font-size="11" text-anchor="end">note type: AnKingOverhaul</text>
+
+  <!-- cloze text -->
+  <text x="44" y="150" class="m" font-size="10.5" font-weight="700" letter-spacing="1">FRONT (CLOZE)</text>
+  <rect x="44" y="158" width="632" height="86" rx="10" fill="#232c40" stroke="#33425f"/>
+  <text x="60" y="184" class="t" font-size="13">Emphysema = permanent enlargement of air spaces distal to the</text>
+  <text x="60" y="206" class="t" font-size="13"><tspan fill="#a48bff" font-weight="700">{{c1::terminal bronchiole}}</tspan>, with destruction of</text>
+  <text x="60" y="228" class="t" font-size="13"><tspan fill="#a48bff" font-weight="700">{{c2::alveolar septa}}</tspan> and loss of elastic recoil.</text>
+
+  <!-- deck -->
+  <text x="44" y="272" class="m" font-size="10.5" font-weight="700" letter-spacing="1">DECK</text>
+  <rect x="44" y="280" width="632" height="34" rx="10" fill="#232c40" stroke="#33425f"/>
+  <text x="60" y="302" class="ink" font-size="12.5">000001.Missed Qs::Respiratory::Obstructive</text>
+  <text x="660" y="302" class="m" font-size="12" text-anchor="end">▾</text>
+
+  <!-- From this question picker -->
+  <text x="44" y="346" class="t" font-size="13" font-weight="700">📎 From this question <tspan class="m" font-weight="500" font-size="11.5">— click the images worth keeping</tspan></text>
+
+  <!-- thumbnails -->
+  <!-- thumb 1 -->
+  <rect x="44" y="356" width="140" height="96" rx="8" fill="#6e1f22"/><g fill="#3a0f11"><circle cx="90" cy="404" r="12"/><circle cx="130" cy="420" r="14"/></g>
+  <!-- thumb 2 (selected) -->
+  <rect x="192" y="356" width="140" height="96" rx="8" fill="#f3d9e6"/><g stroke="#c86a92" stroke-width="2" fill="none"><circle cx="238" cy="400" r="18"/><circle cx="286" cy="416" r="20"/></g>
+  <rect id="selring" x="189" y="353" width="146" height="102" rx="10" fill="none" stroke="#6d40e0" stroke-width="3"/>
+  <g id="check"><circle cx="322" cy="322" r="0"/><circle cx="322" cy="322" r="13" fill="#16a34a" stroke="#1b2333" stroke-width="3"/><path d="M316 322 l4 5 8 -10" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <!-- thumb 3 -->
+  <rect x="340" y="356" width="140" height="96" rx="8" fill="#12161f"/><g fill="#2c3340"><circle cx="386" cy="404" r="22"/><circle cx="440" cy="412" r="24"/></g><g fill="#e7edf7"><circle cx="386" cy="404" r="2.5"/><circle cx="440" cy="412" r="2.5"/></g>
+  <!-- thumb 4 -->
+  <rect x="488" y="356" width="140" height="96" rx="8" fill="#0c0f16"/><g stroke="#4a5568" stroke-width="8" fill="none"><path d="M520 366 q16 46 5 82"/><path d="M596 366 q-16 46 -5 82"/></g>
+  <!-- +N more -->
+  <rect x="636" y="356" width="40" height="96" rx="8" fill="#232c40" stroke="#33425f"/><text x="656" y="408" class="m" font-size="12" font-weight="700" text-anchor="middle">+3</text>
+
+  <!-- attached count -->
+  <g id="attached"><rect x="44" y="466" width="150" height="26" rx="8" fill="#14351f" stroke="#1f6b3a"/><text x="58" y="484" fill="#4ade80" font-size="12" font-weight="700">✓ 1 image attached</text></g>
+
+  <!-- buttons -->
+  <rect x="454" y="464" width="96" height="34" rx="9" fill="#232c40" stroke="#33425f"/><text x="502" y="486" class="m" font-size="12.5" font-weight="600" text-anchor="middle">Cancel</text>
+  <rect x="560" y="464" width="116" height="34" rx="9" fill="#6d40e0"/><text x="618" y="486" fill="#fff" font-size="12.5" font-weight="800" text-anchor="middle">Create card</text>
+
+  <text x="44" y="520" class="m" font-size="11">Only the images that matter go to Anki — paste or drop your own too.</text>
+
+  <!-- cursor -->
+  <g id="cursor">
+    <path d="M0 0 L0 20 L5 15 L9 23 L12 21 L8 14 L15 14 Z" fill="#0b1322" stroke="#fff" stroke-width="1.4"/>
+  </g>
+  <!-- click ripple -->
+  <circle id="ripple" cx="262" cy="364" r="34" fill="none" stroke="#6d40e0" stroke-width="3"/>
+</svg>
