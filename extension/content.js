@@ -178,23 +178,23 @@
   style.textContent = `
     /* ---- Mnestic design system — one source of truth; dark flips via :root.mnx-dark ---- */
     :root{
-      --mnx-accent:#4a57d6; --mnx-accent-600:#3b47b8; --mnx-accent-700:#2f3a94; --mnx-accent-soft:#eef0fc;
-      --mnx-accent-ring:rgba(74,87,214,.30);
+      --mnx-accent:#6d40e0; --mnx-accent-600:#5a2fc4; --mnx-accent-700:#48249e; --mnx-accent-soft:#f1ecfc;
+      --mnx-accent-ring:rgba(109,64,224,.30);
       --mnx-good:#1f9d57; --mnx-good-600:#178048; --mnx-warn:#d5891c; --mnx-bad:#dc4b45;
-      --mnx-violet:#6d5ae0;
+      --mnx-violet:#0ca5a0;
       --mnx-surface:#ffffff; --mnx-surface-2:#f4f6fb; --mnx-elev:#ffffff;
       --mnx-border:#e6e9f2; --mnx-text:#1c2333; --mnx-muted:#69718a; --mnx-ink:#232a45;
       --mnx-r:16px; --mnx-r-sm:11px; --mnx-r-xs:8px; --mnx-r-pill:999px;
       --mnx-shadow:0 20px 48px -16px rgba(38,45,90,.34), 0 6px 16px -8px rgba(38,45,90,.18);
       --mnx-shadow-sm:0 2px 8px rgba(38,45,90,.12);
-      --mnx-shadow-btn:0 5px 14px -4px rgba(74,87,214,.45);
+      --mnx-shadow-btn:0 5px 14px -4px rgba(109,64,224,.45);
       --mnx-font:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,Arial,sans-serif;
     }
     :root.mnx-dark{
-      --mnx-accent:#8290ff; --mnx-accent-600:#6f7ef5; --mnx-accent-700:#5b6ae8; --mnx-accent-soft:#242c48;
-      --mnx-accent-ring:rgba(130,144,255,.34);
+      --mnx-accent:#a48bff; --mnx-accent-600:#957aff; --mnx-accent-700:#8266f0; --mnx-accent-soft:#2a2450;
+      --mnx-accent-ring:rgba(164,139,255,.34);
       --mnx-good:#3fbf78; --mnx-good-600:#35a95c; --mnx-warn:#e2a94a; --mnx-bad:#f0665e;
-      --mnx-violet:#8878f0;
+      --mnx-violet:#2dd4bf;
       --mnx-surface:#161a26; --mnx-surface-2:#1e2436; --mnx-elev:#212842;
       --mnx-border:#333c56; --mnx-text:#e8ecf6; --mnx-muted:#98a2bd; --mnx-ink:#f0f3fb;
       --mnx-shadow:0 24px 60px -18px rgba(0,0,0,.62), 0 8px 20px -10px rgba(0,0,0,.5);
@@ -211,7 +211,7 @@
     .mnx-btn:active{transform:translateY(0) scale(.985)}
     .mnx-btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring),var(--mnx-shadow-btn)}
     .mnx-hy{background:var(--mnx-warn);box-shadow:0 5px 14px -4px rgba(213,137,28,.5),inset 0 1px 0 rgba(255,255,255,.2)}
-    .mnx-brkbtn{background:var(--mnx-violet);box-shadow:0 5px 14px -4px rgba(109,90,224,.5),inset 0 1px 0 rgba(255,255,255,.2)}
+    .mnx-brkbtn{background:var(--mnx-violet);box-shadow:0 5px 14px -4px rgba(12,165,160,.5),inset 0 1px 0 rgba(255,255,255,.2)}
     .mnx-qid-open{display:inline-flex;align-items:center;margin-left:8px;vertical-align:middle;background:linear-gradient(180deg,var(--mnx-accent),var(--mnx-accent-600));color:#fff;border:none;border-radius:var(--mnx-r-sm);padding:3px 11px;font:700 12px var(--mnx-font);cursor:pointer;line-height:1.5;white-space:nowrap;box-shadow:var(--mnx-shadow-btn);transition:transform .16s,filter .16s}
     .mnx-qid-open:hover{filter:brightness(1.06);transform:translateY(-1px)}
     .mnx-qid-open:active{transform:translateY(0) scale(.97)}
