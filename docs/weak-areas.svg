@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 450" width="600" height="450" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,system-ui,Roboto,Arial,sans-serif">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#000" flood-opacity="0.5"/></filter>
+    <style>
+      .t{fill:#e7edf7}.m{fill:#9aa7bd}
+      .bar{transform:scaleX(0);transform-origin:left center;transform-box:fill-box}
+      @keyframes fill{0%{transform:scaleX(0)}14%,90%{transform:scaleX(1)}100%{transform:scaleX(1)}}
+      #b1{animation:fill 7s cubic-bezier(.4,0,.2,1) infinite}
+      #b2{animation:fill 7s cubic-bezier(.4,0,.2,1) infinite;animation-delay:.12s}
+      #b3{animation:fill 7s cubic-bezier(.4,0,.2,1) infinite;animation-delay:.24s}
+      #b4{animation:fill 7s cubic-bezier(.4,0,.2,1) infinite;animation-delay:.36s}
+      #b5{animation:fill 7s cubic-bezier(.4,0,.2,1) infinite;animation-delay:.48s}
+      @keyframes seg{0%,100%{opacity:.55}}
+      .row{opacity:0;animation:appear 7s ease-out infinite}
+      @keyframes appear{0%{opacity:0;transform:translateY(6px)}12%,95%{opacity:1;transform:translateY(0)}}
+      #r1{animation-delay:.05s}#r2{animation-delay:.14s}#r3{animation-delay:.23s}#r4{animation-delay:.32s}#r5{animation-delay:.41s}
+      .open{fill:#a48bff;font-weight:600}
+    </style>
+  </defs>
+  <rect x="10" y="10" width="580" height="430" rx="16" fill="#1b2333" stroke="#2c3850" filter="url(#s)"/>
+  <!-- header -->
+  <text x="34" y="52" class="t" font-size="17" font-weight="700">Block breakdown — weakest first</text>
+  <text x="558" y="50" class="m" font-size="20" text-anchor="end">×</text>
+  <!-- segmented -->
+  <rect x="34" y="70" width="212" height="34" rx="9" fill="#232c40" stroke="#33425f"/>
+  <rect x="38" y="74" width="70" height="26" rx="7" fill="#6d40e0"/><text x="73" y="91" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">System</text>
+  <text x="145" y="91" class="m" font-size="13" text-anchor="middle" font-weight="600">Subject</text>
+  <text x="215" y="91" class="m" font-size="13" text-anchor="middle" font-weight="600">Topic</text>
+  <text x="34" y="130" class="m" font-size="13">40 questions · 28 correct (70%)</text>
+
+  <!-- rows: name, pct, bar, count, open -->
+  <!-- 1 Cardiovascular 33% red -->
+  <g class="row" id="r1">
+    <text x="34" y="168" class="t" font-size="14" font-weight="600">Cardiovascular</text>
+    <text x="470" y="168" font-size="14" font-weight="700" fill="#e2483d">33%</text>
+    <rect x="34" y="180" width="432" height="9" rx="5" fill="#232c40"/>
+    <rect id="b1" class="bar" x="34" y="180" width="142" height="9" rx="5" fill="#e2483d"/>
+    <text x="492" y="196" class="m" font-size="11">2/6</text>
+    <text x="558" y="196" class="open" font-size="12" text-anchor="end">Open 4 missed</text>
+  </g>
+  <!-- 2 Renal 60% amber -->
+  <g class="row" id="r2">
+    <text x="34" y="228" class="t" font-size="14" font-weight="600">Renal</text>
+    <text x="470" y="228" font-size="14" font-weight="700" fill="#e0901f">60%</text>
+    <rect x="34" y="240" width="432" height="9" rx="5" fill="#232c40"/>
+    <rect id="b2" class="bar" x="34" y="240" width="259" height="9" rx="5" fill="#e0901f"/>
+    <text x="492" y="256" class="m" font-size="11">3/5</text>
+    <text x="558" y="256" class="open" font-size="12" text-anchor="end">Open 2 missed</text>
+  </g>
+  <!-- 3 Respiratory 71% amber -->
+  <g class="row" id="r3">
+    <text x="34" y="288" class="t" font-size="14" font-weight="600">Respiratory</text>
+    <text x="470" y="288" font-size="14" font-weight="700" fill="#e0901f">71%</text>
+    <rect x="34" y="300" width="432" height="9" rx="5" fill="#232c40"/>
+    <rect id="b3" class="bar" x="34" y="300" width="307" height="9" rx="5" fill="#e0901f"/>
+    <text x="492" y="316" class="m" font-size="11">5/7</text>
+    <text x="558" y="316" class="open" font-size="12" text-anchor="end">Open 2 missed</text>
+  </g>
+  <!-- 4 Gastrointestinal 83% green -->
+  <g class="row" id="r4">
+    <text x="34" y="348" class="t" font-size="14" font-weight="600">Gastrointestinal</text>
+    <text x="470" y="348" font-size="14" font-weight="700" fill="#16a34a">83%</text>
+    <rect x="34" y="360" width="432" height="9" rx="5" fill="#232c40"/>
+    <rect id="b4" class="bar" x="34" y="360" width="359" height="9" rx="5" fill="#16a34a"/>
+    <text x="492" y="376" class="m" font-size="11">5/6</text>
+    <text x="558" y="376" class="open" font-size="12" text-anchor="end">Open 1 missed</text>
+  </g>
+  <!-- 5 Endocrine 100% green -->
+  <g class="row" id="r5">
+    <text x="34" y="408" class="t" font-size="14" font-weight="600">Endocrine</text>
+    <text x="470" y="408" font-size="14" font-weight="700" fill="#16a34a">100%</text>
+    <rect x="34" y="420" width="432" height="9" rx="5" fill="#232c40"/>
+    <rect id="b5" class="bar" x="34" y="420" width="432" height="9" rx="5" fill="#16a34a"/>
+    <text x="492" y="436" class="m" font-size="11">4/4</text>
+  </g>
+</svg>

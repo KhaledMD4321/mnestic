@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 440" width="900" height="440" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,system-ui,Roboto,Arial,sans-serif">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#000" flood-opacity="0.45"/></filter>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0d1524"/><stop offset="1" stop-color="#0a1020"/></linearGradient>
+    <style>
+      .t{fill:#e7edf7}.m{fill:#9aa7bd}.ink{fill:#e6d9fb}
+      .card{fill:#1b2333;stroke:#2c3850}
+      @keyframes bn{0%,12%{opacity:1}16%,90%{opacity:0}96%,100%{opacity:1}}
+      #btnNormal{animation:bn 8s ease-in-out infinite}
+      @keyframes bd{0%,12%{opacity:0}16%,90%{opacity:1}96%,100%{opacity:0}}
+      #btnDone{animation:bd 8s ease-in-out infinite}
+      @keyframes fly{0%,18%{opacity:0;transform:translate(0,0) scale(.9)}22%{opacity:1}36%{transform:translate(430px,-150px) scale(.7)}40%,100%{opacity:0;transform:translate(430px,-150px) scale(.7)}}
+      #token{animation:fly 8s ease-in-out infinite;transform-box:view-box}
+      @keyframes ub{0%,38%{opacity:0;transform:translateY(6px)}44%,92%{opacity:1;transform:translateY(0)}97%,100%{opacity:0}}
+      #ubub{animation:ub 8s ease-in-out infinite;transform-box:view-box}
+      .ln{opacity:0}
+      @keyframes l1{0%,45%{opacity:0;transform:translateY(4px)}49%,92%{opacity:1;transform:translateY(0)}97%,100%{opacity:0}}
+      @keyframes l2{0%,49%{opacity:0;transform:translateY(4px)}53%,92%{opacity:1;transform:translateY(0)}97%,100%{opacity:0}}
+      @keyframes l3{0%,53%{opacity:0;transform:translateY(4px)}57%,92%{opacity:1;transform:translateY(0)}97%,100%{opacity:0}}
+      @keyframes l4{0%,57%{opacity:0;transform:translateY(4px)}61%,92%{opacity:1;transform:translateY(0)}97%,100%{opacity:0}}
+      @keyframes l5{0%,61%{opacity:0;transform:translateY(4px)}65%,92%{opacity:1;transform:translateY(0)}97%,100%{opacity:0}}
+      @keyframes l6{0%,65%{opacity:0;transform:translateY(4px)}69%,92%{opacity:1;transform:translateY(0)}97%,100%{opacity:0}}
+      #ln1{animation:l1 8s ease-out infinite}#ln2{animation:l2 8s ease-out infinite}#ln3{animation:l3 8s ease-out infinite}
+      #ln4{animation:l4 8s ease-out infinite}#ln5{animation:l5 8s ease-out infinite}#ln6{animation:l6 8s ease-out infinite}
+      @keyframes dots{0%,44%{opacity:1}70%,100%{opacity:0}}
+      #typing{animation:dots 8s ease-in-out infinite}
+    </style>
+  </defs>
+  <rect width="900" height="440" rx="18" fill="url(#bg)"/>
+
+  <!-- ===== left: AI section in popup ===== -->
+  <g filter="url(#s)"><rect x="28" y="28" width="392" height="384" rx="14" class="card"/></g>
+  <text x="52" y="66" class="t" font-size="16" font-weight="800">🤖 Ask AI about this question</text>
+  <text x="52" y="88" class="m" font-size="11.5">Your prompt + the full question, copied in one click.</text>
+
+  <rect x="52" y="102" width="344" height="96" rx="10" fill="#232c40" stroke="#33425f"/>
+  <g class="m" font-size="11.5"><text x="66" y="126">“I'm studying for the USMLE. Below is a</text>
+    <text x="66" y="144">question with the choices and the correct</text>
+    <text x="66" y="162">answer. <tspan fill="#a48bff" font-weight="700">Differentiate every choice</tspan> and give</text>
+    <text x="66" y="180">a one-line hook for each.”  → [ question ]</text></g>
+
+  <text x="52" y="224" class="m" font-size="10.5" font-weight="700" letter-spacing="1">PRESETS</text>
+  <g font-size="11.5" font-weight="700">
+    <rect x="52" y="232" width="70" height="26" rx="8" fill="#232c40" stroke="#33425f"/><text x="87" y="249" class="m" text-anchor="middle">Explain</text>
+    <rect x="130" y="232" width="104" height="26" rx="8" fill="#6d40e0"/><text x="182" y="249" fill="#fff" text-anchor="middle">Differentiate</text>
+    <rect x="242" y="232" width="82" height="26" rx="8" fill="#232c40" stroke="#33425f"/><text x="283" y="249" class="m" text-anchor="middle">One-liner</text>
+    <rect x="332" y="232" width="64" height="26" rx="8" fill="#232c40" stroke="#33425f"/><text x="364" y="249" class="m" text-anchor="middle">Simplify</text>
+  </g>
+
+  <!-- copy button -->
+  <g id="btnNormal"><rect x="52" y="286" width="344" height="42" rx="11" fill="#6d40e0"/><text x="224" y="312" fill="#fff" font-size="14" font-weight="800" text-anchor="middle">🤖 Copy for AI</text></g>
+  <g id="btnDone"><rect x="52" y="286" width="344" height="42" rx="11" fill="#16a34a"/><text x="224" y="312" fill="#fff" font-size="14" font-weight="800" text-anchor="middle">✓ Copied — paste into any assistant</text></g>
+
+  <text x="52" y="360" class="m" font-size="11">Works with ChatGPT, Claude, Gemini — your choice.</text>
+  <text x="52" y="384" class="m" font-size="11">Edit the base prompt once in the extension settings.</text>
+
+  <!-- flying token -->
+  <g id="token"><rect x="180" y="292" width="120" height="30" rx="8" fill="#a48bff"/><rect x="192" y="301" width="70" height="4" rx="2" fill="#fff" opacity=".9"/><rect x="192" y="311" width="94" height="4" rx="2" fill="#fff" opacity=".6"/></g>
+
+  <!-- arrow -->
+  <line x1="428" y1="220" x2="470" y2="220" stroke="#3a4b6b" stroke-width="2.5" stroke-dasharray="6 6"/>
+  <path d="M468 214 l10 6 -10 6" fill="none" stroke="#3a4b6b" stroke-width="2.5"/>
+
+  <!-- ===== right: AI assistant ===== -->
+  <g filter="url(#s)"><rect x="480" y="28" width="392" height="384" rx="14" class="card"/></g>
+  <text x="504" y="62" class="t" font-size="14" font-weight="800">✦ AI assistant</text>
+  <line x1="504" y1="74" x2="848" y2="74" stroke="#2c3850"/>
+
+  <!-- user bubble -->
+  <g id="ubub"><rect x="560" y="86" width="288" height="58" rx="12" fill="#6d40e0"/><text x="576" y="110" fill="#fff" font-size="11.5" font-weight="600">USMLE Q — differentiate every choice,</text><text x="576" y="128" fill="#f1ecfc" font-size="11.5">one-line hook each. [full question]</text></g>
+
+  <!-- assistant bubble -->
+  <rect x="504" y="160" width="320" height="238" rx="12" fill="#141d33" stroke="#26314a"/>
+  <g id="typing"><circle cx="524" cy="186" r="3.5" fill="#a48bff"/><circle cx="536" cy="186" r="3.5" fill="#a48bff" opacity=".6"/><circle cx="548" cy="186" r="3.5" fill="#a48bff" opacity=".3"/></g>
+  <g font-size="12">
+    <g id="ln1"><circle cx="522" cy="188" r="3" fill="#4ade80"/><text x="534" y="192" class="t" font-weight="700">Emphysema</text><text x="614" y="192" class="m">— ↓ recoil, pink puffer</text></g>
+    <g id="ln2"><circle cx="522" cy="214" r="3" fill="#4ade80"/><text x="534" y="218" class="t" font-weight="700">Chronic bronchitis</text><text x="668" y="218" class="m">— blue bloater</text></g>
+    <g id="ln3"><circle cx="522" cy="240" r="3" fill="#4ade80"/><text x="534" y="244" class="t" font-weight="700">Asthma</text><text x="590" y="244" class="m">— reversible, triggers</text></g>
+    <g id="ln4"><circle cx="522" cy="266" r="3" fill="#4ade80"/><text x="534" y="270" class="t" font-weight="700">Bronchiectasis</text><text x="640" y="270" class="m">— purulent, clubbing</text></g>
+    <g id="ln5"><circle cx="522" cy="292" r="3" fill="#4ade80"/><text x="534" y="296" class="t" font-weight="700">Fibrosis</text><text x="596" y="296" class="m">— restrictive, ↑ recoil</text></g>
+    <g id="ln6"><rect x="516" y="316" width="296" height="60" rx="9" fill="#182a1c" stroke="#1f6b3a"/><text x="530" y="338" fill="#4ade80" font-size="11.5" font-weight="700">Key discriminator</text><text x="530" y="358" class="m" font-size="11.5">DLCO ↓ in emphysema, normal in bronchitis.</text></g>
+  </g>
+</svg>

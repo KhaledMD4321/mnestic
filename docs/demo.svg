@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 430" width="960" height="430" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,system-ui,Roboto,Arial,sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1524"/><stop offset="1" stop-color="#0a1020"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#6d40e0" stop-opacity=".33"/><stop offset="1" stop-color="#6d40e0" stop-opacity="0"/></radialGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#000" flood-opacity="0.45"/></filter>
+    <style>
+      .t{fill:#e7edf7}.m{fill:#9aa7bd}.ink{fill:#e6d9fb}
+      .card{fill:#1b2333;stroke:#2c3850;stroke-width:1}
+      .ring{fill:none;stroke:#6d40e0;stroke-width:2.5;opacity:0;rx:16}
+      @keyframes step{0%,100%{opacity:0}8%,25%{opacity:1}33%{opacity:0}}
+      #rA{animation:step 9s ease-in-out infinite}
+      #rB{animation:step 9s ease-in-out infinite;animation-delay:3s}
+      #rC{animation:step 9s ease-in-out infinite;animation-delay:6s}
+      @keyframes dash{to{stroke-dashoffset:-24}}
+      .flow{stroke-dasharray:6 6;animation:dash 1s linear infinite}
+      @keyframes fly{0%,42%{transform:translate(0,0);opacity:0}50%{opacity:1}66%{transform:translate(330px,0);opacity:1}74%,100%{transform:translate(330px,0);opacity:0}}
+      #flycard{animation:fly 9s ease-in-out infinite}
+      @keyframes pop{0%,58%{transform:scale(.6);opacity:0}66%{transform:scale(1.12);opacity:1}72%,100%{transform:scale(1);opacity:1}}
+      #added{animation:pop 9s ease-in-out infinite;transform-origin:center}
+      @keyframes chip{0%,10%{opacity:0;transform:translateY(6px)}18%,30%{opacity:1;transform:translateY(0)}38%,100%{opacity:0}}
+      #chip{animation:chip 9s ease-in-out infinite}
+    </style>
+  </defs>
+
+  <rect width="960" height="430" rx="20" fill="url(#bg)"/>
+  <ellipse cx="180" cy="40" rx="360" ry="180" fill="url(#glowA)"/>
+
+  <text x="40" y="44" class="t" font-size="21" font-weight="700">Coursology <tspan class="m" font-weight="400">→</tspan> AnKing</text>
+  <text x="40" y="66" class="m" font-size="13">Solve a question → make/keep the card → it's in Anki. Without leaving the page.</text>
+
+  <!-- STEP 1 — On Coursology -->
+  <g filter="url(#soft)">
+    <rect x="40" y="96" width="250" height="292" rx="16" class="card"/>
+  </g>
+  <rect x="40" y="96" width="250" height="40" rx="16" fill="#101a2e"/>
+  <rect x="40" y="120" width="250" height="16" fill="#101a2e"/>
+  <text x="58" y="121" class="m" font-size="11">Question Id: 15212</text>
+  <rect x="196" y="106" width="42" height="20" rx="6" fill="#6d40e0"/><text x="217" y="120" fill="#fff" font-size="11" font-weight="700" text-anchor="middle">Anki</text>
+  <text x="58" y="164" class="t" font-size="12">A 58-year-old man with</text>
+  <text x="58" y="182" class="t" font-size="12">long-standing hypertension…</text>
+  <rect x="58" y="196" width="214" height="70" rx="8" fill="#26314a"/>
+  <text x="165" y="236" class="m" font-size="11" text-anchor="middle">question image</text>
+  <!-- results-style pills -->
+  <g font-size="10.5" font-weight="700">
+    <rect x="58" y="284" width="58" height="22" rx="7" fill="#6d40e0"/><text x="87" y="299" fill="#fff" text-anchor="middle">Missed</text>
+    <rect x="122" y="284" width="42" height="22" rx="7" fill="#6d40e0"/><text x="143" y="299" fill="#fff" text-anchor="middle">All</text>
+    <rect x="170" y="284" width="102" height="22" rx="7" fill="#0ca5a0"/><text x="221" y="299" fill="#fff" text-anchor="middle">📊 Weak areas</text>
+  </g>
+  <g font-size="11" font-weight="600">
+    <rect x="58" y="314" width="96" height="24" rx="7" fill="#233048" stroke="#33425f"/><text x="106" y="330" class="ink" text-anchor="middle">✚ Make card</text>
+    <rect x="160" y="314" width="112" height="24" rx="7" fill="#16a34a"/><text x="216" y="330" fill="#fff" text-anchor="middle">★ Save to Missed</text>
+  </g>
+  <!-- floating make-card chip -->
+  <g id="chip"><rect x="120" y="150" width="96" height="26" rx="8" fill="#6d40e0"/><text x="168" y="167" fill="#fff" font-size="11.5" font-weight="700" text-anchor="middle">✚ Make card</text></g>
+  <rect id="rA" x="38" y="94" width="254" height="296" rx="16" class="ring"/>
+  <text x="165" y="410" class="m" font-size="12" text-anchor="middle" font-weight="600">1 · On Coursology</text>
+
+  <!-- arrow 1→2 -->
+  <line x1="300" y1="242" x2="358" y2="242" stroke="#3a4b6b" stroke-width="2.5" class="flow"/>
+  <path d="M356 236 l10 6 -10 6" fill="none" stroke="#3a4b6b" stroke-width="2.5"/>
+
+  <!-- STEP 2 — Make / Save -->
+  <g filter="url(#soft)"><rect x="370" y="96" width="250" height="292" rx="16" class="card"/></g>
+  <text x="388" y="130" class="t" font-size="14" font-weight="700">Make a card</text>
+  <g font-size="11" font-weight="600">
+    <rect x="388" y="144" width="120" height="26" rx="8" fill="#232c40" stroke="#33425f"/>
+    <rect x="391" y="147" width="57" height="20" rx="6" fill="#6d40e0"/><text x="419" y="161" fill="#fff" text-anchor="middle">Cloze</text>
+    <text x="480" y="161" class="m" text-anchor="middle">Basic</text>
+  </g>
+  <rect x="388" y="182" width="214" height="46" rx="8" fill="#232c40" stroke="#33425f"/>
+  <text x="398" y="203" class="t" font-size="11">Emphysema = destruction of</text>
+  <text x="398" y="219" class="t" font-size="11">the <tspan fill="#a48bff" font-weight="700">{{c1::alveolar septa}}</tspan></text>
+  <text x="388" y="248" class="m" font-size="10" font-weight="700" letter-spacing="1">DECK</text>
+  <rect x="388" y="254" width="214" height="26" rx="8" fill="#232c40" stroke="#33425f"/>
+  <text x="398" y="271" class="ink" font-size="11">000001.Missed Qs::01_Cardiology</text>
+  <rect x="388" y="292" width="46" height="46" rx="8" fill="#26314a"/><text x="411" y="318" class="m" font-size="9" text-anchor="middle">img</text>
+  <rect x="500" y="308" width="102" height="30" rx="8" fill="#6d40e0"/><text x="551" y="328" fill="#fff" font-size="12" font-weight="700" text-anchor="middle">Create card</text>
+  <rect id="rB" x="368" y="94" width="254" height="296" rx="16" class="ring"/>
+  <text x="495" y="410" class="m" font-size="12" text-anchor="middle" font-weight="600">2 · Make / Save</text>
+
+  <!-- flying card token 2→3 -->
+  <g id="flycard"><rect x="608" y="228" width="44" height="30" rx="6" fill="#a48bff"/><rect x="614" y="236" width="24" height="4" rx="2" fill="#fff" opacity=".9"/><rect x="614" y="244" width="32" height="4" rx="2" fill="#fff" opacity=".6"/></g>
+
+  <!-- arrow 2→3 -->
+  <line x1="630" y1="242" x2="688" y2="242" stroke="#3a4b6b" stroke-width="2.5" class="flow"/>
+  <path d="M686 236 l10 6 -10 6" fill="none" stroke="#3a4b6b" stroke-width="2.5"/>
+
+  <!-- STEP 3 — In Anki -->
+  <g filter="url(#soft)"><rect x="700" y="96" width="250" height="292" rx="16" class="card"/></g>
+  <text x="718" y="130" class="t" font-size="14" font-weight="700">Anki</text>
+  <text x="718" y="150" class="m" font-size="11">Deck</text>
+  <rect x="718" y="158" width="214" height="1" fill="#2c3850"/>
+  <g font-size="12">
+    <text x="718" y="182" class="t">000001.Missed Qs</text>
+    <text x="732" y="206" class="ink" font-weight="600">01_Cardiology</text>
+    <g id="added"><rect x="852" y="192" width="66" height="20" rx="10" fill="#16a34a"/><text x="885" y="206" fill="#fff" font-size="11" font-weight="700" text-anchor="middle">+1 card</text></g>
+  </g>
+  <rect x="718" y="230" width="214" height="110" rx="10" fill="#f6f8fc" stroke="#dbe4f0"/>
+  <text x="825" y="262" fill="#16324f" font-size="12" font-weight="700" text-anchor="middle">Emphysema is the</text>
+  <text x="825" y="282" fill="#16324f" font-size="12" text-anchor="middle">destruction of the</text>
+  <text x="825" y="302" fill="#6d40e0" font-size="12" font-weight="700" text-anchor="middle">[ ... ]</text>
+  <text x="825" y="326" fill="#8aa0bd" font-size="10" text-anchor="middle">Coursology QID 15212 · source</text>
+  <rect id="rC" x="698" y="94" width="254" height="296" rx="16" class="ring"/>
+  <text x="825" y="410" class="m" font-size="12" text-anchor="middle" font-weight="600">3 · In Anki</text>
+</svg>
