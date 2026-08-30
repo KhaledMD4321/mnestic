@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "Mnestic",
     "version": "1.0.0",
-    "description": "Link your question bank to your Anki cards: resource overlays on each question, one-click cards, weak-area breakdowns, and a study tracker.",
+    "description": "Link your qbank questions to your AnKing Anki cards: resource overlays, one-click cards, weak-area breakdowns, and a tracker.",
     "icons": {
         "16": "icons/icon-16.png",
         "32": "icons/icon-32.png",
