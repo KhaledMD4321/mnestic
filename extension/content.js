@@ -1152,15 +1152,69 @@
   function revealCloze(html) {          // we're past the answer, so show clozes
     return (html || "").replace(/\{\{c\d+::(.*?)(?:::.*?)?\}\}/gis, '<span class="cloze">$1</span>');
   }
-  function stripScripts(html) {
-    return (html || "").replace(/<script[\s\S]*?<\/script>/gi, "").replace(/ on\w+="[^"]*"/gi, "");
+  // ---------- safe rendering of card HTML ----------
+  // A note's fields are HTML. They come from the user's own collection, but decks
+  // get shared and imported, so we treat them as UNTRUSTED. We never hand that
+  // markup to innerHTML; we parse it inertly (DOMParser runs no script and loads
+  // no images) and rebuild it from an allowlist, dropping every event handler,
+  // script/iframe/object, and javascript: URL.
+  const SAFE_TAGS = new Set(["B","STRONG","I","EM","U","S","STRIKE","SUB","SUP","BR","P","DIV","SPAN",
+    "UL","OL","LI","TABLE","THEAD","TBODY","TFOOT","TR","TD","TH","CAPTION","COL","COLGROUP",
+    "H1","H2","H3","H4","H5","H6","BLOCKQUOTE","CODE","PRE","HR","IMG","A","FONT","SMALL","BIG","CENTER","DL","DT","DD"]);
+  const SAFE_ATTRS = {
+    "*": ["class", "title", "dir", "lang"],
+    IMG: ["src", "alt", "width", "height"],
+    A: ["href", "target"],
+    TD: ["colspan", "rowspan"], TH: ["colspan", "rowspan"],
+    COL: ["span"], COLGROUP: ["span"],
+    FONT: ["color", "size", "face"]
+  };
+  // Allow only inert URLs. Images may be an Anki media filename or a data: image
+  // (we inline media as data: ourselves); links may not be javascript:/data:.
+  function safeUrl(value, allowDataImage) {
+    const s = String(value || "").replace(/[ -]/g, "").trim();
+    if (/^(?:javascript|vbscript|file)\s*:/i.test(s)) return null;
+    if (/^data\s*:/i.test(s)) return allowDataImage && /^data:image\/(png|jpe?g|gif|webp|avif|bmp);base64,/i.test(s) ? s : null;
+    return s;
+  }
+  function sanitizeInto(target, html) {
+    const doc = new DOMParser().parseFromString("<body>" + (html || "") + "</body>", "text/html");
+    (function walk(src, dest) {
+      Array.prototype.forEach.call(src.childNodes, node => {
+        if (node.nodeType === 3) { dest.appendChild(document.createTextNode(node.nodeValue)); return; }
+        if (node.nodeType !== 1) return;                       // drop comments etc.
+        const tag = node.tagName.toUpperCase();
+        if (!SAFE_TAGS.has(tag)) { walk(node, dest); return; } // unknown tag: keep its text, drop the tag
+        const el = document.createElement(tag);
+        const allowed = SAFE_ATTRS["*"].concat(SAFE_ATTRS[tag] || []);
+        Array.prototype.forEach.call(node.attributes, attr => {
+          const name = attr.name.toLowerCase();
+          if (name.indexOf("on") === 0) return;                // never an event handler
+          if (allowed.indexOf(name) === -1) return;
+          let val = attr.value;
+          if (name === "src" || name === "href") {
+            val = safeUrl(val, name === "src");
+            if (val === null) return;
+          }
+          el.setAttribute(name, val);
+        });
+        if (tag === "A") { el.setAttribute("rel", "noopener noreferrer nofollow"); el.setAttribute("target", "_blank"); }
+        walk(node, el);
+        dest.appendChild(el);
+      });
+    })(doc.body, target);
+    return target;
+  }
+  function setSafeHtml(el, html) { el.replaceChildren(); return sanitizeInto(el, html); }
+  // Plain text out of card HTML, without ever touching the live DOM.
+  function htmlToText(html) {
+    const doc = new DOMParser().parseFromString("<body>" + (html || "") + "</body>", "text/html");
+    return (doc.body.textContent || "").replace(/\s+/g, " ").trim();
   }
   function noteField(note, name) { const f = getField(note, name); return (f && f.value) || ""; }
   function noteSnippet(note) {
-    const div = document.createElement("div");
-    div.innerHTML = revealCloze(noteField(note, "Text"));
-    let t = (div.textContent || "").replace(/\s+/g, " ").trim();
-    if (!t) { div.innerHTML = stripScripts(noteField(note, "Extra")); t = (div.textContent || "").replace(/\s+/g, " ").trim(); }
+    let t = htmlToText(revealCloze(noteField(note, "Text")));
+    if (!t) t = htmlToText(noteField(note, "Extra"));
     return t.length > 90 ? t.slice(0, 88) + "…" : (t || ("note " + note.noteId));
   }
   // Read an element's visible text while temporarily hiding our own injected UI
@@ -1392,13 +1446,13 @@
       const note = list[idx];
       content.replaceChildren();
       const text = document.createElement("div"); text.className = "mnx-md-prev";
-      text.innerHTML = stripScripts(revealCloze(noteField(note, "Text")));
+      setSafeHtml(text, revealCloze(noteField(note, "Text")));
       content.appendChild(text);
-      const extra = stripScripts(noteField(note, "Extra"));
-      if (extra.replace(/<[^>]*>/g, "").trim()) {
+      const extraHtml = noteField(note, "Extra");
+      if (htmlToText(extraHtml)) {
         const hr = document.createElement("div"); hr.className = "mnx-md-prev";
         hr.style.cssText = "margin-top:12px;padding-top:12px;border-top:1px solid var(--mnx-border)";
-        hr.innerHTML = extra; content.appendChild(hr);
+        setSafeHtml(hr, extraHtml); content.appendChild(hr);
       }
       resolveMediaImages(content, () => idx === myIdx);   // inline the card's images
     }

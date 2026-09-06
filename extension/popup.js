@@ -200,7 +200,11 @@ function renderTracker(t) {
       bits.push("≈ " + daysLeft + " days left at your pace · finish ~" + fmtDate(d0 + daysLeft * DAY));
     }
     if (acc7T > 0) bits.push(Math.round(100 * acc7C / acc7T) + "% correct · last 7 days (" + acc7T + " q)");
-    proj.innerHTML = bits.join("<br>");
+    proj.replaceChildren();
+    bits.forEach((b, i) => {
+      if (i) proj.appendChild(document.createElement("br"));
+      proj.appendChild(document.createTextNode(b));
+    });
     proj.style.display = bits.length ? "block" : "none";
   }
 

@@ -34,7 +34,7 @@ from aqt.qt import QAction
 from aqt.utils import showText, tooltip
 
 ADDON_NAME = "Mnestic Bridge"
-ADDON_VERSION = "1.0.0"
+ADDON_VERSION = "1.0.1"
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8790
 
@@ -476,6 +476,19 @@ class _Handler(BaseHTTPRequestHandler):
                 or origin.startswith("http://localhost")
                 or origin.startswith("http://127.0.0.1"))
 
+    def _host_ok(self):
+        """Defence against DNS rebinding. An attacker can point evil.com at
+        127.0.0.1, but the browser still sends `Host: evil.com` — so we only
+        accept requests actually addressed to loopback."""
+        host = (self.headers.get("Host") or "").strip().lower()
+        if not host:
+            return False
+        if host.startswith("["):                      # IPv6 form: [::1]:8790
+            name = host.split("]")[0] + "]"
+        else:
+            name = host.rsplit(":", 1)[0] if ":" in host else host
+        return name in ("127.0.0.1", "localhost", "[::1]", "::1")
+
     def _send(self, code, payload=None, origin="*"):
         body = json.dumps(payload).encode("utf-8") if payload is not None else b""
         self.send_response(code)
@@ -505,6 +518,9 @@ class _Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", 0) or 0)
         raw = self.rfile.read(length) if length else b""
 
+        if not self._host_ok():
+            self._send(403, {"ok": False, "error": "bad Host header"}, echo)
+            return
         if not self._origin_ok(origin):
             self._send(403, {"ok": False, "error": "origin not allowed"}, echo)
             return
