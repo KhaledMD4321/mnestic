@@ -673,11 +673,20 @@
     if (!qids.length) { toast("No matching questions found on this page."); return; }
     getSv().then(sv => browseHighYield(buildTagQuery(qids, sv)));
   }
+  // Our UI lives in the page's DOM, which page script can also reach: it can call
+  // .click() or dispatch synthetic events. Anything that talks to Anki goes
+  // through here so it only ever runs on real user input.
+  function onUserClick(fn) {
+    return e => {
+      if (!e || !e.isTrusted) return;
+      if (typeof fn === "function") fn(e);
+    };
+  }
   function makeBtn(label, getQids, runner) {
     const b = document.createElement("button");
     b.textContent = label;
     b.className = "review-button mnx-btn";
-    b.addEventListener("click", () => (runner || runBrowse)(getQids()));
+    b.addEventListener("click", onUserClick(() => (runner || runBrowse)(getQids())));
     return b;
   }
   function addButtons(toolbar) {
@@ -797,7 +806,8 @@
       if (!f || !f.value) return;
       const doc = parser.parseFromString(f.value, "text/html");
       doc.querySelectorAll("a[href]").forEach(a => {
-        const href = a.getAttribute("href");
+        // Deck HTML is untrusted — keep only plain web links.
+        const href = safeLinkUrl(a.getAttribute("href"));
         if (href) out.push({ href, text: a.textContent.trim() || href });
       });
     });
@@ -811,7 +821,7 @@
       if (!f || !f.value) return;
       const doc = parser.parseFromString(f.value, "text/html");
       doc.querySelectorAll("img[src]").forEach(img => {
-        const src = img.getAttribute("src");
+        const src = safeUrl(img.getAttribute("src"), true);   // media filename or data: image
         if (src) out.push(src);
       });
     });
@@ -881,9 +891,13 @@
     for (const t of arr) { if (w === t) return true; if (w.length >= 4 && akClose(w, t)) return true; }
     return false;
   }
+  // Returns null for anything that isn't a plain web link, so untrusted deck HTML
+  // can never put a javascript:/data: URL in the panel. Callers must skip null.
   function makeLink(href, text, cls) {
+    const safe = safeLinkUrl(href);
+    if (!safe) return null;
     const a = document.createElement("a");
-    a.href = href; a.target = "_blank"; a.rel = "noopener noreferrer";
+    a.href = safe; a.target = "_blank"; a.rel = "noopener noreferrer";
     a.textContent = text; if (cls) a.className = cls;
     return a;
   }
@@ -891,7 +905,7 @@
   function renderResource(td, paths, links) {
     links = links.slice();
     if (!paths.length) {
-      links.forEach(l => td.appendChild(makeLink(l.href, l.text, "mnx-link")));
+      links.forEach(l => { const a = makeLink(l.href, l.text, "mnx-link"); if (a) td.appendChild(a); });
       return;
     }
     const leaves = paths.map(segs => ({ parent: segs.slice(0, -1).join(" \u203A "), leaf: segs[segs.length - 1] }));
@@ -933,7 +947,7 @@
         const ls = document.createElement("span");
         ls.className = "mnx-leaf"; ls.textContent = lf.leaf;
         r.appendChild(ls);
-        if (lf.watch) r.appendChild(makeLink(lf.watch, "Watch", "mnx-watch"));
+        if (lf.watch) { const a = makeLink(lf.watch, "Watch", "mnx-watch"); if (a) r.appendChild(a); }
         g.appendChild(r);
       }
       td.appendChild(g);
@@ -942,7 +956,7 @@
     if (leftover.length) {
       const g = document.createElement("div");
       g.className = "mnx-group";
-      leftover.forEach(l => g.appendChild(makeLink(l.href, l.text, "mnx-link")));
+      leftover.forEach(l => { const a = makeLink(l.href, l.text, "mnx-link"); if (a) g.appendChild(a); });
       td.appendChild(g);
     }
   }
@@ -1094,6 +1108,7 @@
     renderOverlay(o, key, src.label);
   }
   document.addEventListener("keydown", e => {
+    if (!e.isTrusted) return;            // page script must not drive the shortcuts
     const o = document.getElementById(OVERLAY_ID);
     const k = (e.key || "").toLowerCase();
     if (k === "escape") { const su = document.getElementById(SUMMARY_ID); if (su && su.style.display === "flex") closeSummary(); if (o && o.style.display === "flex") hideOverlay(); return; }
@@ -1176,6 +1191,17 @@
     if (/^(?:javascript|vbscript|file)\s*:/i.test(s)) return null;
     if (/^data\s*:/i.test(s)) return allowDataImage && /^data:image\/(png|jpe?g|gif|webp|avif|bmp);base64,/i.test(s) ? s : null;
     return s;
+  }
+  // Resource links (Sketchy / B&B / … videos) must resolve to a plain web URL.
+  // Resolving against the page also normalises relative and protocol-relative
+  // forms; anything whose scheme isn't http(s) — javascript:, data:, file:,
+  // vbscript: — is rejected outright.
+  function safeLinkUrl(href) {
+    const raw = String(href || "").trim();
+    if (!raw || raw.charAt(0) === "#") return null;   // empty/fragment would just self-link
+    let u;
+    try { u = new URL(raw, location.href); } catch (e) { return null; }
+    return (u.protocol === "https:" || u.protocol === "http:") ? u.href : null;
   }
   function sanitizeInto(target, html) {
     const doc = new DOMParser().parseFromString("<body>" + (html || "") + "</body>", "text/html");
@@ -1272,7 +1298,7 @@
   }
   function mdButton(label, cls, onClick) {
     const b = document.createElement("button"); b.className = "mnx-md-btn " + cls; b.textContent = label;
-    b.addEventListener("click", onClick); return b;
+    b.addEventListener("click", onUserClick(onClick)); return b;
   }
 
   // ---- Copy to clipboard ----
@@ -1564,7 +1590,7 @@
   // ---- panel header (sits atop the resource panel on the review page) ----
   function pbtn(label, cls, onClick) {
     const b = document.createElement("button"); b.className = "mnx-pbtn " + (cls || ""); b.textContent = label;
-    b.addEventListener("click", onClick); return b;
+    b.addEventListener("click", onUserClick(onClick)); return b;
   }
   function addPanelHeader(qid) {
     const panel = document.getElementById(PANEL_ID); if (!panel) return;
@@ -1715,7 +1741,7 @@
     if (selChipEl && document.body.contains(selChipEl)) return selChipEl;
     const b = document.createElement("button"); b.id = "mnx-selchip"; b.type = "button"; b.textContent = "✚ Make card";
     b.addEventListener("mousedown", e => e.preventDefault());           // keep the text selection
-    b.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); openMakeCardDialog(b.dataset.text || ""); });
+    b.addEventListener("click", onUserClick(e => { e.preventDefault(); e.stopPropagation(); openMakeCardDialog(b.dataset.text || ""); }));
     document.body.appendChild(b); selChipEl = b; return b;
   }
   function hideSelChip() { if (selChipEl) selChipEl.style.display = "none"; }
@@ -1762,11 +1788,11 @@
     btn.textContent = "Anki";
     btn.title = "Open this question's AnKing cards in Anki";
     btn.dataset.qid = qid;
-    btn.addEventListener("click", e => {
+    btn.addEventListener("click", onUserClick(e => {
       e.preventDefault(); e.stopPropagation();
       const id = btn.dataset.qid || findQid();
       if (id) openInAnki(id);
-    });
+    }));
     const label = qidLabelEl();
     if (label) label.insertAdjacentElement("afterend", btn);
     else { btn.classList.add("mnx-qid-float"); document.body.appendChild(btn); }

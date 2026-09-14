@@ -27,6 +27,7 @@ import threading
 import time
 import unicodedata
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlsplit
 
 import aqt
 from aqt import gui_hooks, mw
@@ -34,7 +35,7 @@ from aqt.qt import QAction
 from aqt.utils import showText, tooltip
 
 ADDON_NAME = "Mnestic Bridge"
-ADDON_VERSION = "1.0.1"
+ADDON_VERSION = "1.0.2"
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8790
 
@@ -470,11 +471,16 @@ class _Handler(BaseHTTPRequestHandler):
         pass
 
     def _origin_ok(self, origin):
+        """Compare the origin's HOST exactly. A prefix test would accept
+        hostile look-alikes such as http://127.0.0.1.attacker.tld."""
         if not origin:
             return True
-        return (origin.startswith("chrome-extension://")
-                or origin.startswith("http://localhost")
-                or origin.startswith("http://127.0.0.1"))
+        parts = urlsplit(origin)
+        if parts.scheme == "chrome-extension":
+            return bool(parts.hostname)
+        if parts.scheme in ("http", "https"):
+            return parts.hostname in ("localhost", "127.0.0.1", "::1")
+        return False
 
     def _host_ok(self):
         """Defence against DNS rebinding. An attacker can point evil.com at
@@ -502,9 +508,17 @@ class _Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
 
     def do_OPTIONS(self):
-        origin = self.headers.get("Origin") or "*"
+        # Validate before answering: an unconditional preflight (especially the
+        # Private Network Access grant) would hand every internet origin a way
+        # into loopback.
+        origin = self.headers.get("Origin")
+        if not self._host_ok() or not self._origin_ok(origin):
+            self.send_response(403)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", origin)
+        self.send_header("Access-Control-Allow-Origin", origin or "*")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Mnestic-Token")
         self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
         if self.headers.get("Access-Control-Request-Private-Network", "").lower() == "true":
