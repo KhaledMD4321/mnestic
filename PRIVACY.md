@@ -37,7 +37,7 @@ never leaves your device and is not transmitted anywhere.
 - **storage** — save your settings and study log in your browser.
 - **clipboardWrite** — the "Copy for AI" and "Copy explanation" buttons write to
   your clipboard.
-- **Access to your question-bank sites** (Coursology, UWorld) — read the current
+- **Access to your question-bank sites** (Coursology, MedPark, UWorld) — read the current
   question so it can be matched to your Anki cards. The extension runs only on
   those sites.
 - **Access to `127.0.0.1:8790`** — talk to your local Mnestic Bridge Anki add-on.

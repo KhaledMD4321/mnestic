@@ -49,6 +49,13 @@ see `findExplanationRegion()` for the pattern.
 revealing a resource — and the answer — on a question the user hasn't answered
 yet. When in doubt, return `false`.
 
+> Worked example — MedPark. Its explanation pane is **in the DOM before you
+> answer**; it just lacks a `.visible` class and has zero height. Checking only
+> "does `section.explanation-area` exist?" would have spoiled every question.
+> The adapter requires the modifier class **and** a non-zero box, and the test
+> suite pins both states. Always open an unanswered question and look, rather
+> than assuming the pane is absent.
+
 ## 3. Grant the host, in both places
 
 - `extension/manifest.json` → `host_permissions` **and** `content_scripts.matches`

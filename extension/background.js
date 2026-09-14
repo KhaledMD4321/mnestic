@@ -45,7 +45,12 @@ async function bridge(op, args) {
 // Adding a question bank? Add its registrable domain here AND to the manifest's
 // host_permissions/matches — these two lists must stay in step, and this one is
 // the security boundary.
-const QBANK_DOMAINS = ["coursology-qbank.com", "uworld.com"];
+//
+// Deliberately NOT here: the third-party storage host MedPark serves its
+// question figures from. It isn't MedPark's own domain and isn't something we
+// or the user can vouch for, so "attach this question's image" is simply
+// unavailable on MedPark rather than granting the worker a wildcard fetch there.
+const QBANK_DOMAINS = ["coursology-qbank.com", "uworld.com", "medpark.io"];
 const IMAGE_URL_OK = new RegExp(
   "^https://([a-z0-9-]+\\.)*(" + QBANK_DOMAINS.map((d) => d.replace(/\./g, "\\.")).join("|") + ")/",
   "i"

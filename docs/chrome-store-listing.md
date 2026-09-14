@@ -88,12 +88,12 @@ without leaving the page.
   Powers the "Copy for AI" and "Copy explanation" buttons, which copy the current
   question or explanation to the user's clipboard.
   ```
-- **Host permission — `https://*.coursology-qbank.com/*` and `https://*.uworld.com/*`**
+- **Host permissions — `https://*.coursology-qbank.com/*`, `https://*.medpark.io/*`, `https://*.uworld.com/*`**
   ```
   The extension runs on the user's own question bank to read the visible question
   (its ID and text) so it can be matched to the user's Anki cards, and to fetch a
   question's own image when the user chooses to attach it to a card. These are
-  the only two question banks it supports, and it runs on no other site.
+  the only question banks it supports, and it runs on no other site.
   ```
 - **Host permission — `http://127.0.0.1:8790/*`**
   ```

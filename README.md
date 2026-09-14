@@ -64,7 +64,29 @@ up right over the question. No tab-switching, no losing your place.
 | Site | Status |
 |------|--------|
 | Coursology (`coursology-qbank.com`) | ✅ verified against the live site |
+| MedPark (`medpark.io`) | ✅ verified against the live site |
 | UWorld (`uworld.com`) | 🧪 **beta** — see the note below |
+
+All three label questions with the **same UWorld question ids**, which is what
+makes one AnKing tag search work everywhere.
+
+<details><summary>What works on MedPark</summary>
+
+Everything per-question: the resource panel, the F/S/P/O/E/A overlays, Copy for
+AI, Preview, Save to Missed Qs, Make card, and quick-open in Anki — all keyed off
+the `UW Id` in the player header. The study tracker reads its dashboard totals
+too, and keeps a separate count per bank (UW / AMB / MLman).
+
+Two things don't, for reasons on MedPark's side:
+
+- **Results-page buttons and Weak areas.** MedPark's Test Summary reports totals
+  only — there's no per-question id table to read — so those buttons don't appear.
+- **"From this question" image attach.** MedPark serves question figures from a
+  third-party storage domain rather than its own. Granting the extension fetch
+  access to a host neither you nor MedPark controls isn't a trade worth making,
+  so that one button is unavailable there. Paste and file-picker attach still work.
+
+</details>
 
 <details><summary>About the UWorld beta</summary>
 

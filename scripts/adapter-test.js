@@ -119,6 +119,45 @@ const FIXTURES = [
       </tbody></table>`),
     // the id is the LAST number in the cell, not the first
     expect: { adapter: "uworld", resultRows: 3, resultSample: ["12345", "12346", "12347"] }
+  },
+  // --- MedPark: markup copied from the live player (2026-09-14) ---
+  {
+    name: "MedPark — answered (explanation-area.visible)",
+    url: "https://medpark.io/dashboard/test/221648?step=1&qBankId=19",
+    html: page(`
+      <div class="test-page">
+        <header class="exam-header"><div class="toolbar-section"><div>
+          <span>Item 10 of 10</span><span>UW Id: 1633</span></div></div></header>
+        <div class="exam-container"><main class="exam-content split-mode">
+          <section class="question-area has-explanation">A 56-year-old man…</section>
+          <section class="explanation-area visible" style="min-height:400px">
+            <div class="explanation-section"><div><div>
+              <h4 class="explanation-title">Explanation</h4>
+              <div class="explanation-content"><p>${LOREM}</p></div>
+            </div></div></div>
+          </section>
+        </main></div>
+      </div>`),
+    expect: { adapter: "medpark", qid: "1633", reviewing: true, step: 1, resultRows: 0 }
+  },
+  {
+    // THE SAFETY CASE: MedPark renders the pane before you answer — it just has
+    // no .visible and zero height. The panel must stay shut.
+    name: "MedPark — UNANSWERED: pane present but hidden (no spoiler)",
+    url: "https://medpark.io/dashboard/test/221649?step=1&qBankId=19",
+    html: page(`
+      <div class="test-page">
+        <header class="exam-header"><div class="toolbar-section"><div>
+          <span>Item 1 of 1</span><span>UW Id: 19633</span></div></div></header>
+        <div class="exam-container"><main class="exam-content">
+          <section class="question-area">A 34-year-old woman…</section>
+          <section class="explanation-area" style="height:0;overflow:hidden">
+            <div class="explanation-section"><h4 class="explanation-title">Explanation</h4>
+            <div class="explanation-content"><p>${LOREM}</p></div></div>
+          </section>
+        </main></div>
+      </div>`),
+    expect: { adapter: "medpark", qid: "19633", reviewing: false, step: 1 }
   }
 ];
 

@@ -344,6 +344,67 @@
   };
 
   // ============================================================
+  // MEDPARK ADAPTER  (medpark.io)
+  // ------------------------------------------------------------
+  // MedPark reuses UWorld's question ids and labels them "UW Id: 19633", so the
+  // tag query is unchanged. Unlike UWorld it ships readable, semantic class
+  // names, so this adapter is exact rather than heuristic.
+  //
+  // Verified against the live site on 2026-09-14, including the spoiler gate:
+  //   unanswered -> section.explanation-area            (height 0)
+  //   answered   -> section.explanation-area.visible    (height 418)
+  //   and question-area gains .has-explanation only once answered.
+  //
+  // MedPark has no end-of-block table of question ids (its Test Summary is
+  // totals only), so resultRows() is empty by design and the results-page
+  // buttons simply don't appear there. Per-question features are the point here.
+  // ============================================================
+  const MP = {
+    page: "div.test-page",
+    header: "header.exam-header",
+    expl: "section.explanation-area.visible",
+    explAny: "section.explanation-area",
+    content: "main.exam-content",
+    marked: "input.header-mark-checkbox"
+  };
+
+  const MEDPARK = {
+    id: "medpark",
+    label: "MedPark",
+    hostRe: /(^|\.)medpark\.io$/i,
+    qidRe: [/UW\s*Id\s*[:#]?\s*(\d+)/i, /Question\s*Id\s*[:#]?\s*(\d+)/i],
+    headerSel: [MP.header, MP.page, "body"],
+
+    // The explanation pane exists in the DOM before you answer — it just has no
+    // .visible and no height. Require BOTH, so neither alone can leak an answer.
+    explanationRoot() {
+      const el = document.querySelector(MP.expl);
+      return el && visible(el) ? el : null;
+    },
+    isReviewing() { return !!this.explanationRoot(); },
+    panelAnchor() { return this.explanationRoot(); },
+    contentRoot() {
+      const el = document.querySelector(MP.content);
+      return el && visible(el) ? el : this.explanationRoot();
+    },
+    toolbar() { return null; },
+    // No per-question id table anywhere in MedPark's results.
+    resultRows() { return []; },
+    // ?step=1 rides along in the dashboard and player URLs.
+    stepFromUrl() {
+      const m = location.search.match(/[?&]step=(\d)/i);
+      return m ? +m[1] : null;
+    },
+    // Separate tracker totals per bank (UW / AMB / MLman all live here).
+    blockSlug() {
+      const m = location.search.match(/[?&]qBankId=(\d+)/i);
+      return m ? "medpark-" + m[1] : "medpark";
+    },
+    inTest() { return !!document.querySelector(MP.page); },
+    isResultsPage() { return /\/results\b/i.test(location.pathname); }
+  };
+
+  // ============================================================
   // ADAPTER REGISTRY
   // ------------------------------------------------------------
   // Adding another question bank = add one object here and one host to the
@@ -367,7 +428,7 @@
   //
   // docs/adding-a-qbank.md walks through it.
   // ============================================================
-  const SITES = [COURSO, UWORLD];
+  const SITES = [COURSO, UWORLD, MEDPARK];
   const SITE = (() => {
     const host = location.hostname;
     for (const s of SITES) if (s.hostRe.test(host)) return s;

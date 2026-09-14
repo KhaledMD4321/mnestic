@@ -28,14 +28,17 @@
     "host_permissions": [
         "http://127.0.0.1:8790/*",
         "https://*.coursology-qbank.com/*",
-        "https://*.uworld.com/*"
+        "https://*.uworld.com/*",
+        "https://*.medpark.io/*"
     ],
     "content_scripts": [
         {
             "matches": [
                 "https://coursology-qbank.com/*",
                 "https://*.coursology-qbank.com/*",
-                "https://*.uworld.com/*"
+                "https://*.uworld.com/*",
+                "https://medpark.io/*",
+                "https://*.medpark.io/*"
             ],
             "js": [
                 "content.js"
