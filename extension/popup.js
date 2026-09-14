@@ -1,6 +1,10 @@
 // Mnestic — popup: study tracker, settings, topic search, and the Anki
 // connection (pairing) status. Talks to the bridge through the background
 // worker with {type:"bridge", op, args}.
+//
+// Copyright (C) 2026 Mnestic contributors. Licensed under the GNU General
+// Public License v3 or later; see LICENSE. No warranty, to the extent
+// permitted by law.
 
 const sel = document.getElementById("sv");
 const saved = document.getElementById("saved");

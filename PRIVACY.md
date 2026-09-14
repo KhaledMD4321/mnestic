@@ -44,4 +44,4 @@ never leaves your device and is not transmitted anywhere.
 ## Contact
 
 Questions or concerns: open an issue at
-<https://github.com/KhaledMD4321/mnestic>. Mnestic is open source (MIT).
+<https://github.com/KhaledMD4321/mnestic>. Mnestic is open source (GPLv3).

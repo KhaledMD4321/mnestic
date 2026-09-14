@@ -45,7 +45,7 @@ companion add-on that searches and updates your own Anki collection — nothing 
 collected or sent anywhere.
 
 Requires the free companion add-on "Mnestic Bridge" and your own tagged deck.
-Open source (MIT): https://github.com/KhaledMD4321/mnestic
+Open source (GPLv3): https://github.com/KhaledMD4321/mnestic
 
 An independent study tool. Use your own accounts and your own content.
 ```

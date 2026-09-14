@@ -15,7 +15,11 @@
 # not thread-safe) via mw.taskman.run_on_main.
 #
 # This is an independent project. It is not affiliated with Anki, AnKing, or any
-# question bank. Released under the MIT License (see the repository).
+# question bank.
+#
+# Copyright (C) 2026 Mnestic contributors. Licensed under the GNU General Public
+# License v3 or later; see LICENSE in the repository. No warranty, to the extent
+# permitted by law.
 
 import base64
 import hmac

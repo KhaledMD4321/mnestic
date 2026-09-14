@@ -4,6 +4,10 @@
 // the site's in-page request rules can't interfere. The content script and popup
 // send a {type:"bridge", op, args} message; we forward it to 127.0.0.1:<port>
 // with the pairing token and hand back {ok, data} / {ok:false, error}.
+//
+// Copyright (C) 2026 Mnestic contributors. Licensed under the GNU General
+// Public License v3 or later; see LICENSE. No warranty, to the extent
+// permitted by law.
 
 const DEFAULT_PORT = 8790;
 

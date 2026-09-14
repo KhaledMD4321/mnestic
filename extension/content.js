@@ -14,6 +14,10 @@
 //   • main loop — a 1s interval that injects/updates the UI as the SPA changes.
 //
 // All injected DOM uses ids/classes prefixed "mnx-" so it's easy to exclude.
+//
+// Copyright (C) 2026 Mnestic contributors. Licensed under the GNU General
+// Public License v3 or later; see LICENSE. No warranty, to the extent
+// permitted by law.
 (() => {
   "use strict";
   const BTN_HOST_ID = "mnx-buttons";

@@ -1,7 +1,7 @@
 # Mnestic
 
 [![AnkiWeb add-on](https://img.shields.io/badge/AnkiWeb-Mnestic%20Bridge-1f9d57)](https://ankiweb.net/shared/info/199262916)
-[![License: MIT](https://img.shields.io/badge/license-MIT-7c4dff)](LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-7c4dff)](LICENSE)
 
 ![How it works — question to AnKing](docs/demo.svg)
 
@@ -13,7 +13,7 @@ into your **weakest areas**, and tracks your **study pace** — all through a sm
 local link to your own Anki.
 
 > A personal, educational study tool. You bring your own qbank access and your own
-> AnKing deck. **MIT-licensed** and open source. Inspired by the idea behind
+> AnKing deck. **GPLv3-licensed** and open source. Inspired by the idea behind
 > [Atlas](https://github.com/TheEverion/Atlas) — see *Credits* at the bottom.
 
 ## Screenshots
@@ -85,7 +85,7 @@ anki-addon/
     __init__.py            ← local bridge: search / browse / media / make cards
     config.json            ← port + pairing token
     config.md / manifest.json
-LICENSE                    ← MIT
+LICENSE                    ← GNU GPL v3
 ```
 
 ## Prerequisites
@@ -193,7 +193,9 @@ number UWorld used**, and your AnKing cards are tagged with it. Check one:
 
 ## Credits & license
 
-- **Open source under the [MIT License](LICENSE).**
+- **Open source under the [GNU GPL v3](LICENSE).** You may use, study, modify
+  and share it — but anything you distribute that builds on it must stay open
+  under the same licence, with credit.
 - The core idea — mapping a qbank's question IDs onto AnKing's UWorld tags — was
   **inspired by [Atlas](https://github.com/TheEverion/Atlas)** by TheEverion.
   Mnestic is an **independent project, written from scratch** (its own extension
