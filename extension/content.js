@@ -167,7 +167,10 @@
     // Per-qbank key for the tracker's dashboard totals.
     blockSlug() { const m = location.pathname.match(/\/qbanks\/([^/]+)/i); return m ? m[1].toLowerCase() : "default"; },
     inTest() { return /\/qbanks\//i.test(location.pathname); },
-    isResultsPage() { return /\/results\b/i.test(location.pathname); }
+    isResultsPage() { return /\/results\b/i.test(location.pathname); },
+    isDashboard() { return /welcome|dashboard|performance|home/i.test(location.pathname); },
+    expandsResults: true,            // its results table paginates at 10
+    usesGenericQuestionList: true    // its "Question List" modal carries the legend
   };
 
   // ============================================================
@@ -340,7 +343,10 @@
     isResultsPage() {
       if (/result|review|performance/i.test(location.pathname + location.search)) return true;
       return genericResultRows().length > 0;
-    }
+    },
+    isDashboard() { return /courseapp|dashboard|performance|home|welcome/i.test(location.pathname); },
+    expandsResults: false,           // .cbt-nav-btn items are numbered — never click one
+    usesGenericQuestionList: false   // it has its own dialog, parsed above
   };
 
   // ============================================================
@@ -401,7 +407,11 @@
       return m ? "medpark-" + m[1] : "medpark";
     },
     inTest() { return !!document.querySelector(MP.page); },
-    isResultsPage() { return /\/results\b/i.test(location.pathname); }
+    isResultsPage() { return /\/results\b/i.test(location.pathname); },
+    isDashboard() { return /dashboard|welcome|performance|app/i.test(location.pathname); },
+    canAttachImages: false,          // figures live on a third-party storage host
+    expandsResults: false,           // .exam-sidebar .nav-btn items are numbered
+    usesGenericQuestionList: false   // its stats pages use the same words; no id list exists
   };
 
   // ============================================================
@@ -425,6 +435,14 @@
   //   stepFromUrl()              1/2/3, or null to fall back to the popup
   //   blockSlug()                key for the tracker's per-qbank totals
   //   inTest(), isResultsPage()  which view we're on
+  //   isDashboard()              where the qbank prints its Used/Total totals
+  //   expandsResults             opt in to clicking a 10/25/50/100 page-size
+  //                              control — ONLY where no other numbered button
+  //                              exists, or it will click a question number
+  //   usesGenericQuestionList    opt in to the "scan any block mentioning
+  //                              correct/incorrect/marked/omitted for ids" pass
+  //   canAttachImages            set false when the qbank's figures are served
+  //                              from a host we won't add to the allowlist
   //
   // docs/adding-a-qbank.md walks through it.
   // ============================================================
@@ -759,6 +777,11 @@
     if (SITE.questionListRows) {
       try { const own = SITE.questionListRows(); if (own && own.length) return own; } catch (e) {}
     }
+    // The generic scan below hunts for any block mentioning correct/incorrect/
+    // marked/omitted and reads every bare number in it as a question id. That's
+    // right for Coursology's legend-bearing modal and wrong for a stats page
+    // that happens to use the same words, so it's opt-in.
+    if (!SITE.usesGenericQuestionList) return null;
     const root = questionListRoot();
     if (!root) return null;
     const rows = []; const seen = new Set();
@@ -1711,7 +1734,10 @@
     drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("mnx-img-over"); for (const f of (e.dataTransfer && e.dataTransfer.files) || []) addImageFile(f); });
     fileInput.addEventListener("change", () => { for (const f of fileInput.files) addImageFile(f); fileInput.value = ""; });
     // "From this question" — click a page image's thumbnail to attach it.
-    const qImgs = collectQuestionImages();
+    // Only offered where the worker is actually allowed to fetch the qbank's
+    // images; showing thumbnails that can only ever error is worse than not
+    // showing them (MedPark serves figures from a third-party storage domain).
+    const qImgs = SITE.canAttachImages === false ? [] : collectQuestionImages();
     if (qImgs.length) {
       const qlbl = document.createElement("div"); qlbl.className = "mnx-md-hint"; qlbl.style.margin = "9px 0 4px";
       qlbl.textContent = "From this question — click to add:";
@@ -2082,13 +2108,16 @@
 
   // ---- one-click "Anki" button next to the Question Id in the player header ----
   const QID_BTN_ID = "mnx-qid-open";
+  // Sit the "Anki" button next to whatever the site calls the id — "Question Id"
+  // on Coursology/UWorld, "UW Id" on MedPark — so use the adapter's own regexes
+  // rather than one hard-coded label.
   function qidLabelEl() {
     let best = null;
     for (const el of document.querySelectorAll("span, div, p, h1, h2, h3, h4, label, li, td")) {
       if (el.id === QID_BTN_ID) continue;
       const txt = el.textContent || "";
-      if (!/Question\s*Id\s*:?\s*\d/i.test(txt)) continue;
       if (txt.length > 60) continue;                      // skip large wrappers
+      if (!SITE.qidRe.some(re => re.test(txt))) continue;
       if (!best || txt.length < best.textContent.length) best = el;   // smallest = most specific
     }
     return best;
@@ -2162,7 +2191,7 @@
   // Read "Used / Unused / Total Questions" off the dashboard (best-effort, body text).
   let lastScrape = 0;
   function scrapeDashboardTotals() {
-    if (!/welcome|dashboard|performance|home/i.test(location.pathname)) return;
+    if (!SITE.isDashboard()) return;
     const now = Date.now(); if (now - lastScrape < 4000) return; lastScrape = now;
     const bt = document.body ? (document.body.innerText || "") : "";
     const num = re => { const m = bt.match(re); return m ? parseInt(m[1].replace(/,/g, ""), 10) : null; };
@@ -2196,6 +2225,11 @@
   // buttons + Weak-areas cover the whole block, not just the first 10 rows.
   let expandedResultsFor = null;
   function ensureResultsShowAll() {
+    // Opt-in per site. This hunts for a page-size button reading 10/25/50/100 —
+    // harmless next to Coursology's results table, but UWorld's nav grid and
+    // MedPark's question rail are *also* buttons numbered 1..40, so on those
+    // sites it would happily click "10" and jump the user to another question.
+    if (!SITE.expandsResults) return;
     if (!SITE.isResultsPage()) return;
     if (expandedResultsFor === location.pathname) return;
     const btn = Array.from(document.querySelectorAll("button")).find(b => /^(10|25|50|100)$/.test((b.textContent || "").trim()));
@@ -2523,6 +2557,13 @@
       panelAnchorAt: nodePath(anchor),
       resultRows: rows,
       resultSample: sample,
+      qidAnchorAt: nodePath(qidLabelEl()),
+      features: {
+        resultsButtons: rows > 0,
+        questionImages: SITE.canAttachImages !== false,
+        expandsResults: !!SITE.expandsResults
+      },
+      questionListRows: (() => { try { const r = parseQuestionList(); return r ? r.length : 0; } catch (e) { return -1; } })(),
       step: detectStepFromUrl(),
       hasMain: !!document.querySelector("main, [role='main']"),
       tables: document.querySelectorAll("table").length,

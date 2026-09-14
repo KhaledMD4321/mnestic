@@ -290,7 +290,10 @@ function renderDiag(d) {
     "result rows parsed: " + d.resultRows +
       (d.resultSample && d.resultSample.length ? "  (first ids: " + d.resultSample.join(", ") + ")" : ""),
     "step detected: " + (d.step || "— (using the popup's Step)"),
-    "<main> present: " + yn(d.hasMain) + "  ·  tables: " + d.tables
+    "<main> present: " + yn(d.hasMain) + "  ·  tables: " + d.tables,
+    "Anki button docks at: " + (d.qidAnchorAt || "floating"),
+    "features here: results buttons " + yn(d.features && d.features.resultsButtons) +
+      " · attach question image " + yn(d.features && d.features.questionImages)
   ];
   if (d.qidSeenAt && d.qidSeenAt.length) {
     lines.push("id-looking labels on the page:");

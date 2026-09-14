@@ -158,6 +158,38 @@ const FIXTURES = [
         </main></div>
       </div>`),
     expect: { adapter: "medpark", qid: "19633", reviewing: false, step: 1 }
+  },
+  {
+    // The Anki button must dock next to whatever the site calls the id.
+    name: "MedPark — Anki button docks next to the 'UW Id' label",
+    url: "https://medpark.io/dashboard/test/221648",
+    html: page(`
+      <div class="test-page"><header class="exam-header"><div class="toolbar-section"><div>
+        <span>Item 10 of 10</span><span class="uwid">UW Id: 1633</span></div></div></header></div>`),
+    expect: { adapter: "medpark", qid: "1633", qidAnchorAt: "header.exam-header > div.toolbar-section > div > span.uwid" }
+  },
+  {
+    // A stats page using the words correct/incorrect/omitted/marked must NOT be
+    // mistaken for a question-id list — that would invent ids out of the numbers.
+    name: "MedPark — stats page is not a question list",
+    url: "https://medpark.io/dashboard/welcome-classic?step=1&qBankId=19",
+    html: page(`
+      <div class="stats">
+        <div>Total Correct <b>12</b></div><div>Total Incorrect <b>34</b></div>
+        <div>Total Omitted <b>56</b></div><div>Marked <b>78</b></div>
+        <div>Used Questions 10 Unused Questions 3644 Total Questions 3654</div>
+      </div>`),
+    expect: { adapter: "medpark", resultRows: 0, questionListRows: 0, reviewing: false }
+  },
+  {
+    // Same page shape on Coursology SHOULD still parse — the opt-in is per site.
+    name: "Coursology — question list still parses (opt-in intact)",
+    url: "https://coursology-qbank.com/qbanks/usmle1/results",
+    html: page(`
+      <div><div>Correct</div><div>Incorrect</div><div>Marked</div><div>Omitted</div>
+        <span class="text-lime-500">101</span><span class="text-red-500">102</span>
+        <span class="text-sky-500">103</span></div>`),
+    expect: { adapter: "coursology", questionListRows: 3 }
   }
 ];
 
