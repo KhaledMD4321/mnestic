@@ -26,9 +26,13 @@ page you're already on, and a local companion add-on on `127.0.0.1`.
   network;
 - requires a **per-machine pairing code** on every request except a bare
   liveness `ping`, compared with a timing-safe comparison;
-- rejects any request whose `Origin` is a website (only `chrome-extension://`
-  and localhost are accepted), and any request whose **`Host` header isn't
-  loopback** — which blocks DNS-rebinding attacks;
+- rejects any request whose `Origin` is a website — the origin's **host is
+  compared exactly** (a prefix test would accept look-alikes such as
+  `http://127.0.0.1.attacker.tld`), and only `chrome-extension://` and loopback
+  are accepted;
+- rejects any request whose **`Host` header isn't loopback**, which blocks
+  DNS-rebinding attacks, and validates the same on `OPTIONS` before answering a
+  preflight or granting Private Network Access;
 - resolves media filenames with `basename` only, so a crafted filename can't
   escape the media folder.
 
@@ -37,6 +41,17 @@ import shared decks from strangers. Mnestic never assigns note HTML to
 `innerHTML`. It parses it inertly with `DOMParser` and rebuilds it from a strict
 tag/attribute allowlist, dropping every event handler, `<script>`/`<iframe>`,
 and `javascript:`/non-image `data:` URL.
+
+**Every link built from a deck is scheme-checked.** Resource links (Sketchy,
+First Aid, …) are resolved against the page and accepted only if they are
+`http(s)`, so a deck cannot put a `javascript:`, `data:`, `vbscript:` or `file:`
+URL into the panel. This is enforced both where links are harvested and again
+where the anchor is built.
+
+**Only real user input reaches your collection.** Mnestic's UI lives in the
+page's DOM, which the page's own scripts can also touch. Every control that can
+talk to Anki requires a trusted event, so a compromised page cannot drive it
+with synthetic clicks or keystrokes.
 
 **The image fetcher is not an open proxy.** The background worker will only
 fetch `https://…coursology-qbank.com/…` URLs, and only if the response is an

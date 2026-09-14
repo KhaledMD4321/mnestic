@@ -1187,7 +1187,7 @@
   // Allow only inert URLs. Images may be an Anki media filename or a data: image
   // (we inline media as data: ourselves); links may not be javascript:/data:.
   function safeUrl(value, allowDataImage) {
-    const s = String(value || "").replace(/[ -]/g, "").trim();
+    const s = String(value || "").replace(/[\x00-\x1f\x7f]/g, "").trim();
     if (/^(?:javascript|vbscript|file)\s*:/i.test(s)) return null;
     if (/^data\s*:/i.test(s)) return allowDataImage && /^data:image\/(png|jpe?g|gif|webp|avif|bmp);base64,/i.test(s) ? s : null;
     return s;
