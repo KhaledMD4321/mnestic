@@ -41,8 +41,15 @@ async function bridge(op, args) {
 //
 // Only a supported question bank's own https images are allowed: this worker is
 // the privileged context, so it must never fetch an arbitrary URL handed to it.
-// Keep this list in step with the manifest's host permissions.
-const IMAGE_URL_OK = /^https:\/\/([a-z0-9-]+\.)*(coursology-qbank|uworld)\.com\//i;
+//
+// Adding a question bank? Add its registrable domain here AND to the manifest's
+// host_permissions/matches — these two lists must stay in step, and this one is
+// the security boundary.
+const QBANK_DOMAINS = ["coursology-qbank.com", "uworld.com"];
+const IMAGE_URL_OK = new RegExp(
+  "^https://([a-z0-9-]+\\.)*(" + QBANK_DOMAINS.map((d) => d.replace(/\./g, "\\.")).join("|") + ")/",
+  "i"
+);
 
 async function fetchImageDataUrl(url) {
   if (!IMAGE_URL_OK.test(String(url || ""))) throw new Error("blocked: not a question-bank image URL");

@@ -70,6 +70,36 @@
   const DEBUG = false; // set true to log what the results parser finds
   function dlog() { if (DEBUG) { try { console.log("[mnestic]", ...arguments); } catch (e) {} } }
 
+  // Parse a results/score table into [{qid, wrong, marked}]. Site-agnostic on
+  // purpose — every qbank we've seen either renders a real <table> with an "ID"
+  // header column, or a list of rows starting with a status icon + the number —
+  // so a new adapter can usually just reuse this.
+  function genericResultRows() {
+    const rows = [];
+    const seen = new Set();
+    const push = (qid, wrong, marked) => {
+      if (!qid || seen.has(qid)) return;
+      seen.add(qid); rows.push({ qid, wrong, marked });
+    };
+    const loc = findIdColumn();
+    if (loc) {
+      loc.bodyRows.forEach(tr => {
+        const cell = tr.children[loc.index];
+        if (!cell) return;
+        const m = (cell.textContent || "").match(/\d+/);
+        if (!m) return;
+        push(m[0], rowIsWrong(tr, cell), rowIsMarked(tr));
+      });
+    }
+    if (rows.length) { dlog("resultRows via table", rows.length); return rows; }
+    document.querySelectorAll('[role="row"], tr, mat-row, li').forEach(tr => {
+      const m = ((tr.textContent || "").trim()).match(/^[✓✔✗✕×x]?\s*(\d{1,6})\b/);
+      if (m) push(m[1], rowIsWrong(tr, tr), rowIsMarked(tr));
+    });
+    dlog("resultRows via fallback", rows.length);
+    return rows;
+  }
+
   const COURSO = {
     // ---- REVIEW PAGE (per question) ----
     // The player header renders "Question Id: 2"; findQid() reads it. Confirmed
@@ -116,36 +146,12 @@
     toolbar() {
       return document.querySelector(".test-performance-top-div, .results-actions, .test-results-header");
     },
-    // Parse the results table into [{qid, wrong, marked}]. Confirmed on live DOM:
-    // a real <table> with an "ID" header column (index 1); the row's status icon
-    // is svg.fa-xmark.text-red-500 (wrong) / svg.fa-check.text-lime-500 (right).
-    // Marked questions aren't flagged in the results table (only in the player),
-    // so "Anki: Marked" stays empty here. Falls back to scanning status+number rows.
-    resultRows() {
-      const rows = [];
-      const seen = new Set();
-      const push = (qid, wrong, marked) => {
-        if (!qid || seen.has(qid)) return;
-        seen.add(qid); rows.push({ qid, wrong, marked });
-      };
-      const loc = findIdColumn();
-      if (loc) {
-        loc.bodyRows.forEach(tr => {
-          const cell = tr.children[loc.index];
-          if (!cell) return;
-          const m = (cell.textContent || "").match(/\d+/);
-          if (!m) return;
-          push(m[0], rowIsWrong(tr, cell), rowIsMarked(tr));
-        });
-      }
-      if (rows.length) { dlog("resultRows via table", rows.length); return rows; }
-      document.querySelectorAll('[role="row"], tr, mat-row, li').forEach(tr => {
-        const m = ((tr.textContent || "").trim()).match(/^[✓✔✗✕×x]?\s*(\d{1,6})\b/);
-        if (m) push(m[1], rowIsWrong(tr, tr), rowIsMarked(tr));
-      });
-      dlog("resultRows via fallback", rows.length);
-      return rows;
-    },
+    // Confirmed on the live DOM: a real <table> with an "ID" header column; the
+    // row's status icon is svg.fa-xmark.text-red-500 (wrong) /
+    // svg.fa-check.text-lime-500 (right). Marked questions aren't flagged in the
+    // results table (only in the player), so "Anki: Marked" stays empty here.
+    // genericResultRows handles both shapes.
+    resultRows() { return genericResultRows(); },
 
     // ---- identity / URL shape ----
     id: "coursology",
@@ -246,7 +252,7 @@
     },
     // No known inline anchor -> the floating bar is used.
     toolbar() { return null; },
-    resultRows() { return COURSO.resultRows(); },   // generic table/row scan
+    resultRows() { return genericResultRows(); },
 
     stepFromUrl() {
       const m = (location.pathname + " " + location.search).match(/step[\s_-]*(\d)/i);
@@ -264,11 +270,34 @@
     inTest() { return true; },
     isResultsPage() {
       if (/result|review|performance/i.test(location.pathname + location.search)) return true;
-      return COURSO.resultRows().length > 0;
+      return genericResultRows().length > 0;
     }
   };
 
-  // ---- pick the adapter for this tab (host first, then a shape sniff) ----
+  // ============================================================
+  // ADAPTER REGISTRY
+  // ------------------------------------------------------------
+  // Adding another question bank = add one object here and one host to the
+  // manifest (and to background.js's image allowlist). Nothing outside the
+  // adapter knows which site it's on. The contract, all of it:
+  //
+  //   id, label, hostRe          identity + the name shown in copied text
+  //   qidRe: [RegExp]            capture group 1 = the question id
+  //   headerSel: [selector]      where to look for that id, cheapest first
+  //   isReviewing()              true only once the answer is revealed
+  //                              (this is the spoiler gate — get it right)
+  //   explanationRoot()          the explanation element, or null
+  //   panelAnchor()              where the resource panel mounts (null = float)
+  //   contentRoot()              stem + choices + explanation, for "Copy for AI"
+  //   toolbar()                  results-page button host (null = float)
+  //   resultRows()               [{qid, wrong, marked}] — genericResultRows()
+  //                              already handles both common table shapes
+  //   stepFromUrl()              1/2/3, or null to fall back to the popup
+  //   blockSlug()                key for the tracker's per-qbank totals
+  //   inTest(), isResultsPage()  which view we're on
+  //
+  // docs/adding-a-qbank.md walks through it.
+  // ============================================================
   const SITES = [COURSO, UWORLD];
   const SITE = (() => {
     const host = location.hostname;
