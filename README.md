@@ -2,6 +2,7 @@
 
 [![AnkiWeb add-on](https://img.shields.io/badge/AnkiWeb-Mnestic%20Bridge-1f9d57)](https://ankiweb.net/shared/info/199262916)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-7c4dff)](LICENSE)
+[![Buy me a coffee](https://img.shields.io/badge/%E2%98%95-Buy%20me%20a%20coffee-d5891c)](https://buymeacoffee.com/bnkhaled)
 
 ![How it works — question to AnKing](docs/demo.svg)
 
@@ -190,6 +191,13 @@ number UWorld used**, and your AnKing cards are tagged with it. Check one:
   **daily streak**, a **16-week heatmap**, a **projected finish date**, **7-day
   accuracy**, and **remaining** vs the qbank total (visit the dashboard once so it
   can read Used / Unused / Total).
+
+## Support
+
+Mnestic is free, open source, and has no ads, accounts, or paid tier — and it
+will stay that way. If it saved you time, you can
+[**☕ buy me a coffee**](https://buymeacoffee.com/bnkhaled). Entirely optional;
+nothing in the extension is locked behind it.
 
 ## Credits & license
 

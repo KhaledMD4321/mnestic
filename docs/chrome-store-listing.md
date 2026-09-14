@@ -47,6 +47,9 @@ collected or sent anywhere.
 Requires the free companion add-on "Mnestic Bridge" and your own tagged deck.
 Open source (GPLv3): https://github.com/KhaledMD4321/mnestic
 
+Free, with no ads and no paid tier. If it helps you, you can support it:
+https://buymeacoffee.com/bnkhaled
+
 An independent study tool. Use your own accounts and your own content.
 ```
 
@@ -55,6 +58,11 @@ An independent study tool. Use your own accounts and your own content.
 **Privacy policy URL**
 ```
 https://github.com/KhaledMD4321/mnestic/blob/main/PRIVACY.md
+```
+
+**Support URL** (Store listing tab — optional field, use the repo's issues)
+```
+https://github.com/KhaledMD4321/mnestic/issues
 ```
 
 ---

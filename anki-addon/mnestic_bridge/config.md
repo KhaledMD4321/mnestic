@@ -14,3 +14,6 @@ nothing else on your computer can read or change your collection through it.
   and restart Anki.
 
 After changing anything here, **restart Anki**.
+
+Free and open source (GPLv3) — <https://github.com/KhaledMD4321/mnestic>.
+If it helps you, you can support it: <https://buymeacoffee.com/bnkhaled>.
