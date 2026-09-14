@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Mnestic",
-    "version": "1.0.2",
+    "version": "1.1.0",
     "description": "Link your qbank questions to your AnKing Anki cards: resource overlays, one-click cards, weak-area breakdowns, and a tracker.",
     "icons": {
         "16": "icons/icon-16.png",
@@ -27,13 +27,15 @@
     ],
     "host_permissions": [
         "http://127.0.0.1:8790/*",
-        "https://*.coursology-qbank.com/*"
+        "https://*.coursology-qbank.com/*",
+        "https://*.uworld.com/*"
     ],
     "content_scripts": [
         {
             "matches": [
                 "https://coursology-qbank.com/*",
-                "https://*.coursology-qbank.com/*"
+                "https://*.coursology-qbank.com/*",
+                "https://*.uworld.com/*"
             ],
             "js": [
                 "content.js"

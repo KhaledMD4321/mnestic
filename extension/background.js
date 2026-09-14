@@ -39,9 +39,10 @@ async function bridge(op, args) {
 // Fetch a cross-origin image (e.g. a qbank CDN image with no CORS header) from
 // the worker and return it as a data: URL the content script can attach.
 //
-// Only the question bank's own https images are allowed: this worker is the
-// privileged context, so it must never fetch an arbitrary URL handed to it.
-const IMAGE_URL_OK = /^https:\/\/([a-z0-9-]+\.)*coursology-qbank\.com\//i;
+// Only a supported question bank's own https images are allowed: this worker is
+// the privileged context, so it must never fetch an arbitrary URL handed to it.
+// Keep this list in step with the manifest's host permissions.
+const IMAGE_URL_OK = /^https:\/\/([a-z0-9-]+\.)*(coursology-qbank|uworld)\.com\//i;
 
 async function fetchImageDataUrl(url) {
   if (!IMAGE_URL_OK.test(String(url || ""))) throw new Error("blocked: not a question-bank image URL");

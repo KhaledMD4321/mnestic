@@ -54,8 +54,16 @@ talk to Anki requires a trusted event, so a compromised page cannot drive it
 with synthetic clicks or keystrokes.
 
 **The image fetcher is not an open proxy.** The background worker will only
-fetch `https://…coursology-qbank.com/…` URLs, and only if the response is an
+fetch https images from a supported question bank's own domain — the same short
+list the manifest grants host permissions for — and only if the response is an
 image.
+
+**Each site adapter only reads.** Support for a new question bank adds selectors
+and page heuristics, never new privileges: the extension still runs only on the
+hosts listed in the manifest, still talks only to `127.0.0.1`, and still sends
+nothing anywhere. The popup's **Check this page** diagnostic reports page
+*structure* only (tag names, ids, class names) — never question text, answers,
+or account details.
 
 ## Scope
 

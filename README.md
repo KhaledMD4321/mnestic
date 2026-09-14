@@ -6,8 +6,9 @@
 
 ![How it works — question to AnKing](docs/demo.svg)
 
-**Mnestic** links every question in your qbank to your **AnKing** Anki cards. On a
-question it shows the matching resources (Sketchy, Boards & Beyond, First Aid, …)
+**Mnestic** links every question in your qbank — **Coursology** or **UWorld** —
+to your **AnKing** Anki cards. On a question it shows the matching resources
+(Sketchy, Boards & Beyond, First Aid, …)
 and their images **right on the page**, unsuspends the matching cards in bulk,
 lets you **make and keep cards without leaving the question**, breaks a block down
 into your **weakest areas**, and tracks your **study pace** — all through a small
@@ -58,11 +59,33 @@ up right over the question. No tab-switching, no losing your place.
 | ![Weak-area breakdown](docs/weak-areas.svg) | ![Study tracker](docs/tracker.svg) |
 | Per-System/Subject/Topic accuracy, weakest-first, "Open N missed" → Anki. | Daily streak, 16-week heatmap, targets, projected finish, 7-day accuracy. |
 
+## Supported question banks
+
+| Site | Status |
+|------|--------|
+| Coursology (`coursology-qbank.com`) | ✅ verified against the live site |
+| UWorld (`uworld.com`) | 🧪 **beta** — see the note below |
+
+<details><summary>About the UWorld beta</summary>
+
+UWorld's markup uses generated class names that change between releases, so the
+UWorld adapter deliberately keys off **shape** rather than fixed selectors: a
+visible *Explanation* region, a "Question Id"-style label, a results table with
+an ID column. That survives redesigns, but it means a given UWorld release may
+need tuning.
+
+If a question isn't being matched, open the Mnestic popup → **Advanced** →
+**Check this page**. It reports what the extension can see on that tab —
+**structure only** (tag names, ids, classes), never question text, answers, or
+account details — and **Copy report** puts it on your clipboard for a bug report.
+
+</details>
+
 ## How it works (30-second version)
 
-The qbank reuses UWorld's question IDs, and the AnKing deck tags each UWorld
-question with that same ID. So the matching is just one local Anki search — no
-server, no database:
+Both question banks use the same question IDs, and the AnKing deck tags each
+UWorld question with that same ID. So the matching is just one local Anki
+search — no server, no database:
 
 ```
 Question Id 2  ->  search Anki:  tag:#AK_Step1_v*::#UWorld::*::2
@@ -76,8 +99,8 @@ Everything stays on your machine.
 
 ```
 extension/                 ← the Chrome extension (load this)
-  manifest.json            ← matches your qbank site
-  content.js               ← matching engine + site adapter + all features
+  manifest.json            ← the qbank sites it runs on
+  content.js               ← matching engine + per-site adapters + all features
   background.js            ← proxy to the bridge at 127.0.0.1:8790
   popup.html / popup.js    ← settings, study tracker, topic search, pairing
   icons/

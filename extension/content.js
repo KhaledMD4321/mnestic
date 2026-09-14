@@ -1,11 +1,13 @@
 // Mnestic — content script.
 //
-// Runs on coursology-qbank.com and links each question to your AnKing cards by
+// Runs on a supported question bank (Coursology, UWorld) and links each
+// question to your AnKing cards by
 // building a local Anki tag search (#AK_Step<n>_v*::#UWorld::*::<qid>) and
 // sending it to the Mnestic Bridge add-on (via background.js).
 //
 // Layout of this file:
-//   • COURSO adapter — all Coursology-specific DOM selectors live in one object.
+//   • SITE adapters — every site-specific DOM selector lives in one object per
+//     qbank (COURSO, UWORLD); SITE is the one matching this tab's host.
 //   • FEATURE 1  — results-page buttons (Missed / All / Marked / High-Yield).
 //   • FEATURE 2  — review-page resource panel + F/S/P/E/A image overlay.
 //   • FEATURE 2b — review-page note-taking (Copy Q, Preview, Save to Missed Qs).
@@ -40,12 +42,15 @@
   // URL (/qbanks/usmle2/...) so it follows you across Step 1/2/3 automatically;
   // fall back to the popup's Step selector when the URL doesn't say.
   function detectStepFromUrl() {
-    const path = location.pathname + " " + location.href;
-    const m = path.match(/\/qbanks\/[^/]*?(\d)/i)   // /qbanks/usmle2/...
-           || path.match(/step[\s_-]*(\d)/i)         // ...step2... / step-3
-           || path.match(/usmle[\s_-]*(\d)/i);       // usmle 1
-    if (m) { const n = parseInt(m[1], 10); if (n >= 1 && n <= 3) return n; }
-    return null;
+    let n = null;
+    try { n = SITE.stepFromUrl(); } catch (e) {}
+    if (!n) {
+      const path = location.pathname + " " + location.href;
+      const m = path.match(/step[\s_-]*(\d)/i)        // ...step2... / step-3
+             || path.match(/usmle[\s_-]*(\d)/i);      // usmle 1
+      if (m) n = parseInt(m[1], 10);
+    }
+    return (n >= 1 && n <= 3) ? n : null;
   }
   function getSv() {
     const urlStep = detectStepFromUrl();
@@ -140,8 +145,137 @@
       });
       dlog("resultRows via fallback", rows.length);
       return rows;
+    },
+
+    // ---- identity / URL shape ----
+    id: "coursology",
+    label: "Coursology",
+    hostRe: /(^|\.)coursology-qbank\.com$/i,
+    // "Question Id: 2" in the player header.
+    qidRe: [/Question\s*Id\s*[:#]?\s*(\d+)/i],
+    explanationRoot() { return document.querySelector("#question-explanation"); },
+    stepFromUrl() {
+      const m = (location.pathname + " " + location.href).match(/\/qbanks\/[^/]*?(\d)/i);
+      return m ? +m[1] : null;
+    },
+    // Per-qbank key for the tracker's dashboard totals.
+    blockSlug() { const m = location.pathname.match(/\/qbanks\/([^/]+)/i); return m ? m[1].toLowerCase() : "default"; },
+    inTest() { return /\/qbanks\//i.test(location.pathname); },
+    isResultsPage() { return /\/results\b/i.test(location.pathname); }
+  };
+
+  // ============================================================
+  // UWORLD ADAPTER
+  // ------------------------------------------------------------
+  // UWorld is the deck's own source, so the tag query is identical — only the
+  // DOM differs. Its markup uses generated class names that change between
+  // releases, so nothing here keys off a class: we find things by *shape*
+  // (a visible "Explanation" region, a "Question Id"-style label, a table with
+  // an ID column). That is slower than a fixed selector but survives redesigns.
+  //
+  // NOT yet verified against the live site — see SITE.diagnose() and the
+  // popup's "Check this page" button, which report exactly what was found.
+  // ============================================================
+  function visible(el) {
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 1 && r.height > 1;
+  }
+  // The smallest visible element that looks like the explanation region: it
+  // holds an "Explanation" heading and a decent amount of text. Cached per tick
+  // because it walks the DOM.
+  let explCache = { t: 0, el: null };
+  function findExplanationRegion() {
+    const now = Date.now();
+    if (now - explCache.t < 700) return explCache.el;
+    let best = null;
+    const byAttr = document.querySelector("[id*='explanation' i], [class*='explanation' i], [data-testid*='explanation' i]");
+    if (byAttr && visible(byAttr)) best = byAttr;
+    if (!best) {
+      // Find a heading that reads "Explanation", then take its container.
+      const heads = document.querySelectorAll("h1,h2,h3,h4,h5,h6,[role='heading'],strong,b,span,div");
+      for (const h of heads) {
+        if (h.children.length) continue;
+        if (!/^\s*explanation\s*$/i.test(h.textContent || "")) continue;
+        let node = h.parentElement;
+        for (let i = 0; i < 6 && node && node !== document.body; i++) {
+          if ((node.innerText || "").length > 400) { best = node; break; }
+          node = node.parentElement;
+        }
+        if (best) break;
+      }
+    }
+    if (best && !visible(best)) best = null;
+    explCache = { t: now, el: best };
+    return best;
+  }
+
+  const UWORLD = {
+    id: "uworld",
+    label: "UWorld",
+    hostRe: /(^|\.)uworld\.com$/i,
+    // UWorld labels the id differently across its interfaces, so try each.
+    qidRe: [
+      /Question\s*Id\s*[:#]?\s*(\d+)/i,
+      /\bQ\s*Id\s*[:#]?\s*(\d+)/i,
+      /\bItem\s*Id\s*[:#]?\s*(\d+)/i
+    ],
+    headerSel: ["header", "[class*='header' i]", "[class*='footer' i]", "body"],
+
+    explanationRoot() { return findExplanationRegion(); },
+    // Reviewing = the explanation is on screen. On UWorld that is true both in
+    // tutor mode after answering and in the end-of-block review, and false while
+    // the question is still unanswered — which is exactly the spoiler gate.
+    isReviewing() { return !!findExplanationRegion(); },
+    panelAnchor() { return findExplanationRegion(); },
+    contentRoot() {
+      const explicit = document.querySelector("main, [role='main']");
+      if (explicit && visible(explicit)) return explicit;
+      const ex = findExplanationRegion();
+      if (!ex) return null;
+      const exLen = (ex.innerText || "").length || 1;
+      let node = ex.parentElement, chosen = ex;
+      for (let i = 0; i < 10 && node && node !== document.body; i++) {
+        const len = (node.innerText || "").length;
+        if (len > exLen * 8) break;
+        chosen = node;
+        if (len > exLen * 1.4) break;
+        node = node.parentElement;
+      }
+      return chosen;
+    },
+    // No known inline anchor -> the floating bar is used.
+    toolbar() { return null; },
+    resultRows() { return COURSO.resultRows(); },   // generic table/row scan
+
+    stepFromUrl() {
+      const m = (location.pathname + " " + location.search).match(/step[\s_-]*(\d)/i);
+      if (m) return +m[1];
+      // The course label ("USMLE Step 2 CK") usually sits in a header/nav.
+      for (const el of document.querySelectorAll("header, nav, [class*='header' i], [class*='course' i]")) {
+        const t = (el.textContent || "").slice(0, 300);
+        const s = t.match(/step\s*(\d)/i);
+        if (s) return +s[1];
+      }
+      return null;
+    },
+    blockSlug() { return "uworld"; },
+    // UWorld's test player is its own view; be permissive rather than guess a path.
+    inTest() { return true; },
+    isResultsPage() {
+      if (/result|review|performance/i.test(location.pathname + location.search)) return true;
+      return COURSO.resultRows().length > 0;
     }
   };
+
+  // ---- pick the adapter for this tab (host first, then a shape sniff) ----
+  const SITES = [COURSO, UWORLD];
+  const SITE = (() => {
+    const host = location.hostname;
+    for (const s of SITES) if (s.hostRe.test(host)) return s;
+    return COURSO;
+  })();
+  dlog("adapter:", SITE.id);
 
   // status helpers shared by the results parser
   const WRONG_CLASS_RE = /incorrect|wrong|text-danger|text-red/i;
@@ -493,7 +627,7 @@
     if (qlistCache && qlistCache.path === location.pathname) return qlistCache.rows;
     return null;
   }
-  function resultData() { return questionListData() || COURSO.resultRows(); }
+  function resultData() { return questionListData() || SITE.resultRows(); }
   function collectAll() { return resultData().map(r => r.qid); }
   function collectMissed() { return resultData().filter(r => r.wrong).map(r => r.qid); }
 
@@ -747,19 +881,20 @@
 
   // The review player prints "Question Id: NNNNN" in its header. We read that to
   // key every per-question feature (resource panel, overlay, copy buttons). The
-  // scopes in COURSO.headerSel are tried first (cheaper), then document.body.
+  // scopes in SITE.headerSel are tried first (cheaper), then document.body.
   function findQid() {
-    const re = /Question\s*Id:\s*(\d+)/i;
-    for (const sel of COURSO.headerSel) {
+    for (const sel of SITE.headerSel) {
       const el = document.querySelector(sel);
-      if (el) { const m = (el.textContent || "").match(re); if (m) return m[1]; }
+      if (!el) continue;
+      const text = el.textContent || "";
+      for (const re of SITE.qidRe) { const m = text.match(re); if (m) return m[1]; }
     }
     return null;
   }
-  // On Coursology we show resources only while reviewing an answered question
+  // We show resources only while reviewing an answered question
   // (so we never spoil an unanswered one) and only once a QID is on the page.
   function isAnswered() {
-    return COURSO.isReviewing() && !!findQid();
+    return SITE.isReviewing() && !!findQid();
   }
   function cleanSeg(s) {
     return s
@@ -855,7 +990,7 @@
     panel = document.createElement("div");
     panel.id = PANEL_ID;
     if (darkMode) panel.classList.add("mnx-dark");
-    const anchor = COURSO.panelAnchor();
+    const anchor = SITE.panelAnchor();
     if (anchor) anchor.appendChild(panel);
     else { panel.classList.add("mnx-float"); document.body.appendChild(panel); }
     return panel;
@@ -1261,13 +1396,13 @@
     hidden.forEach(([el, d]) => { el.style.display = d; });
     return text.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
   }
-  // Coursology's explanation only (for pasting into a note).
+  // The qbank's explanation only (for pasting into a note).
   function explanationText() {
-    return readTextWithoutAkuts(document.querySelector("#question-explanation"));
+    return readTextWithoutAkuts(SITE.explanationRoot());
   }
   // The whole question: stem + answer choices + explanation (for an AI assistant).
   function fullQuestionText() {
-    return readTextWithoutAkuts(COURSO.contentRoot()) || explanationText();
+    return readTextWithoutAkuts(SITE.contentRoot()) || explanationText();
   }
   function escapeHtml(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
   function mimeToExt(mime) {
@@ -1316,7 +1451,7 @@
   // Full question (stem + choices + explanation) + your AI prompt - for an AI assistant.
   function copyFullQuestion(qid) {
     const p = (aiPrompt && aiPrompt.trim()) ? (aiPrompt.trim() + "\n\n") : "";
-    const head = "Coursology Question Id: " + qid + "\n" + location.href + "\n\n";
+    const head = SITE.label + " Question Id: " + qid + "\n" + location.href + "\n\n";
     copyText(p + head + fullQuestionText(), p ? "Copied with your AI prompt — paste to your assistant." : "Full question copied — paste to your assistant.");
   }
   // Explanation only - for adding to your notes.
@@ -1337,6 +1472,7 @@
   // question" picker to attach an image without snipping.
   function collectQuestionImages() {
     const out = []; const seen = new Set();
+    const expl = SITE.explanationRoot();
     document.querySelectorAll("img").forEach(im => {
       if (im.closest("[id^='mnx-']")) return;               // skip our own UI
       const r = im.getBoundingClientRect();
@@ -1344,7 +1480,7 @@
       const src = im.currentSrc || im.src || "";
       if (!src || /^data:/.test(src) || seen.has(src)) return;
       seen.add(src);
-      out.push({ src, inExpl: !!im.closest("#question-explanation") });
+      out.push({ src, inExpl: !!(expl && expl.contains(im)) });
     });
     return out;
   }
@@ -1429,7 +1565,7 @@
       const tags = [];
       for (const rec of images) {
         const b64 = String(rec.dataUrl).split(",")[1] || "";
-        const fname = (prefix || "coursology") + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7) + "." + mimeToExt(rec.mime);
+        const fname = (prefix || SITE.id) + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7) + "." + mimeToExt(rec.mime);
         const stored = await bridge("writeMedia", { filename: fname, data: b64 });
         if (stored) tags.push('<img src="' + String(stored).replace(/"/g, "&quot;") + '">');
       }
@@ -1572,7 +1708,7 @@
       if (!deck) { toast("Pick or type a deck."); return; }
       saveBtn.disabled = true; saveBtn.textContent = "Saving…";
       try {
-        const imgTags = await pics.upload("coursology-" + qid);
+        const imgTags = await pics.upload(SITE.id + "-" + qid);
         let noteHtml = ta.value.trim() ? escapeHtml(ta.value.trim()).replace(/\n/g, "<br>") : "";
         if (imgTags.length) noteHtml += (noteHtml ? "<br>" : "") + imgTags.join("<br>");
         const params = { noteId: chosenNote.noteId, deck, addTags: [MISSED_TAG] };
@@ -1622,8 +1758,8 @@
     ta.focus();
   }
   function sourceHtml(qid) {
-    const link = '<a href="' + location.href.replace(/"/g, "&quot;") + '">Coursology</a>';
-    return (qid ? "Coursology QID " + qid + " · " : "") + link;
+    const link = '<a href="' + location.href.replace(/"/g, "&quot;") + '">' + escapeHtml(SITE.label) + "</a>";
+    return (qid ? SITE.label + " QID " + qid + " · " : "") + link;
   }
   function openMakeCardDialog(prefill) {
     hideSelChip();
@@ -1751,7 +1887,7 @@
   function hideSelChip() { if (selChipEl) selChipEl.style.display = "none"; }
   function selInsideAkuts(node) { while (node) { if (node.nodeType === 1 && (node.id || "").indexOf("mnx-") === 0) return true; node = node.parentNode; } return false; }
   function maybeShowSelChip() {
-    if (!/\/qbanks\//i.test(location.pathname)) { hideSelChip(); return; }
+    if (!SITE.inTest()) { hideSelChip(); return; }
     const s = window.getSelection && window.getSelection();
     const text = s ? String(s).trim() : "";
     if (!text || text.length < 6 || text.length > 4000 || !s.rangeCount) { hideSelChip(); return; }
@@ -1822,7 +1958,7 @@
   function saveLog() { try { chrome.storage.local.set({ [TRACKER_KEY]: trackerLog }); } catch (e) {} }
   chrome.storage.local.get({ [TRACKER_KEY]: null }, c => { if (c[TRACKER_KEY]) trackerLog = normalizeLog(c[TRACKER_KEY]); });
 
-  function currentQbankSlug() { const m = location.pathname.match(/\/qbanks\/([^/]+)/i); return m ? m[1].toLowerCase() : "default"; }
+  function currentQbankSlug() { try { return SITE.blockSlug() || "default"; } catch (e) { return "default"; } }
   const seenUnanswered = new Set();        // qids seen unanswered this page session
 
   // Reliable correctness: backfill from the results table / Question List (both
@@ -1871,21 +2007,21 @@
   function trackerTick() {
     const qid = findQid();
     if (qid) {
-      if (COURSO.isReviewing()) {
+      if (SITE.isReviewing()) {
         if (seenUnanswered.has(qid)) { logAnswered(qid); seenUnanswered.delete(qid); }
       } else {
         seenUnanswered.add(qid);
       }
     }
     scrapeDashboardTotals();
-    if (/\/results\b/i.test(location.pathname)) backfillCorrectness(COURSO.resultRows());
+    if (SITE.isResultsPage()) backfillCorrectness(SITE.resultRows());
   }
 
   // Auto-expand the results table to its largest page size (100) so the Anki
   // buttons + Weak-areas cover the whole block, not just the first 10 rows.
   let expandedResultsFor = null;
   function ensureResultsShowAll() {
-    if (!/\/results\b/i.test(location.pathname)) return;
+    if (!SITE.isResultsPage()) return;
     if (expandedResultsFor === location.pathname) return;
     const btn = Array.from(document.querySelectorAll("button")).find(b => /^(10|25|50|100)$/.test((b.textContent || "").trim()));
     if (!btn) return;                                    // control not rendered yet — retry next tick
@@ -1902,8 +2038,8 @@
 
   // ---------- main loop ----------
   setInterval(() => {
-    const hasResults = COURSO.resultRows().length > 0;
-    let toolbar = COURSO.toolbar();
+    const hasResults = SITE.resultRows().length > 0;
+    let toolbar = SITE.toolbar();
     if (!toolbar && hasResults) toolbar = ensureFloatingToolbar();
     if (toolbar && !document.getElementById(BTN_HOST_ID)) addButtons(toolbar);
     if (!hasResults) { const fb = document.getElementById("mnx-float-toolbar"); if (fb) fb.remove(); }
@@ -2151,4 +2287,70 @@
     });
     o.appendChild(dlg);
   }
+
+  // ============================================================
+  // Page check (diagnostics)
+  // ------------------------------------------------------------
+  // The popup's "Check this page" button asks the active tab what the adapter
+  // can see. This reports STRUCTURE ONLY — tag names, ids and class names — and
+  // never any question text, answer, or account detail, so a report is safe to
+  // paste into a bug report.
+  // ============================================================
+  function nodePath(el) {
+    if (!el) return null;
+    const bits = [];
+    for (let n = el; n && n.nodeType === 1 && bits.length < 4; n = n.parentElement) {
+      let s = n.tagName.toLowerCase();
+      if (n.id) s += "#" + n.id;
+      const cls = (typeof n.className === "string" ? n.className : "").trim().split(/\s+/).slice(0, 2).join(".");
+      if (cls) s += "." + cls;
+      bits.unshift(s);
+      if (n.id) break;
+    }
+    return bits.join(" > ");
+  }
+  // Where does a "Question Id"-ish label actually live on this page? Report the
+  // element's path only — not what it says beyond the digits we need.
+  function qidCandidates() {
+    const out = [];
+    const res = [/Question\s*Id\s*[:#]?\s*(\d+)/i, /\bQ\s*Id\s*[:#]?\s*(\d+)/i, /\bItem\s*Id\s*[:#]?\s*(\d+)/i];
+    const all = document.querySelectorAll("body *");
+    for (const el of all) {
+      if (el.children.length) continue;               // leaf nodes only
+      if (el.closest("[id^='mnx-']")) continue;       // skip our own UI
+      const t = (el.textContent || "").slice(0, 120);
+      for (const re of res) {
+        const m = t.match(re);
+        if (m) { out.push({ path: nodePath(el), label: m[0].replace(/\d+/, "<id>") }); break; }
+      }
+      if (out.length >= 5) break;
+    }
+    return out;
+  }
+  function diagnose() {
+    let anchor = null, expl = null, rows = 0, err = null;
+    try { anchor = SITE.panelAnchor(); } catch (e) { err = String(e); }
+    try { expl = SITE.explanationRoot(); } catch (e) { err = err || String(e); }
+    try { rows = SITE.resultRows().length; } catch (e) { err = err || String(e); }
+    return {
+      version: chrome.runtime.getManifest().version,
+      adapter: SITE.id,
+      host: location.hostname,
+      path: location.pathname,
+      qid: findQid(),
+      qidSeenAt: qidCandidates(),
+      reviewing: (() => { try { return !!SITE.isReviewing(); } catch (e) { return null; } })(),
+      explanationAt: nodePath(expl),
+      panelAnchorAt: nodePath(anchor),
+      resultRows: rows,
+      step: detectStepFromUrl(),
+      hasMain: !!document.querySelector("main, [role='main']"),
+      tables: document.querySelectorAll("table").length,
+      error: err
+    };
+  }
+  chrome.runtime.onMessage.addListener((msg, sender, send) => {
+    if (!msg || msg.type !== "mnx-diagnose") return;
+    try { send(diagnose()); } catch (e) { send({ error: String(e) }); }
+  });
 })();

@@ -140,6 +140,17 @@
       <button id="portSave" class="btn">Set port</button>
     </div>
     <p style="margin:6px 0 0">Bridge port — only change it if you changed it in the add-on config.</p>
+
+    <div class="field" style="margin-top:10px">
+      <button id="diagBtn" class="btn" style="width:100%">Check this page</button>
+    </div>
+    <p style="margin:6px 0 0">Reports what Mnestic can see on the qbank tab you have open — useful when
+      a question isn't being matched. Structure only: no question text, answers, or account details.</p>
+    <pre id="diagOut" hidden style="margin:8px 0 0;padding:8px;border:1px solid #cfd6dd;border-radius:6px;
+      font-size:10.5px;line-height:1.45;white-space:pre-wrap;word-break:break-word;max-height:190px;overflow:auto"></pre>
+    <div class="field" id="diagCopyRow" hidden style="margin-top:6px">
+      <button id="diagCopy" class="btn" style="width:100%">Copy report</button>
+    </div>
   </details>
 
   <p class="hint" style="text-align:center;margin-top:10px">

@@ -269,3 +269,64 @@ document.getElementById("portSave").addEventListener("click", () => {
 
 document.getElementById("retry").addEventListener("click", (e) => { e.preventDefault(); checkConnection(); });
 checkConnection();
+
+// ---- "Check this page": ask the qbank tab what the site adapter can see ----
+// Structure only (tags / ids / classes) — never question text or account data —
+// so the report is safe to paste into a bug report.
+const diagOut = document.getElementById("diagOut");
+const diagCopyRow = document.getElementById("diagCopyRow");
+let diagText = "";
+
+function renderDiag(d) {
+  const yn = (v) => (v === true ? "yes" : v === false ? "no" : "—");
+  const lines = [
+    "Mnestic " + (d.version || "?") + "  ·  adapter: " + d.adapter,
+    "host: " + d.host,
+    "path: " + d.path,
+    "question id found: " + (d.qid || "NO"),
+    "reviewing (explanation visible): " + yn(d.reviewing),
+    "explanation element: " + (d.explanationAt || "not found"),
+    "panel anchor: " + (d.panelAnchorAt || "none (floating)"),
+    "result rows parsed: " + d.resultRows,
+    "step detected: " + (d.step || "— (using the popup's Step)"),
+    "<main> present: " + yn(d.hasMain) + "  ·  tables: " + d.tables
+  ];
+  if (d.qidSeenAt && d.qidSeenAt.length) {
+    lines.push("id-looking labels on the page:");
+    d.qidSeenAt.forEach((c) => lines.push("  • " + c.label + "   in   " + c.path));
+  } else {
+    lines.push('id-looking labels on the page: none — no "Question Id" text found');
+  }
+  if (d.error) lines.push("error: " + d.error);
+  return lines.join("\n");
+}
+
+document.getElementById("diagBtn").addEventListener("click", () => {
+  diagOut.hidden = false;
+  diagOut.textContent = "Checking…";
+  diagCopyRow.hidden = true;
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs && tabs[0];
+    if (!tab || tab.id == null) { diagOut.textContent = "No active tab."; return; }
+    chrome.tabs.sendMessage(tab.id, { type: "mnx-diagnose" }, (resp) => {
+      if (chrome.runtime.lastError || !resp) {
+        diagOut.textContent =
+          "Mnestic isn't running on this tab.\n\n" +
+          "Open a question in a supported question bank, then try again. " +
+          "If you just installed or updated the extension, reload the page once.";
+        return;
+      }
+      diagText = renderDiag(resp);
+      diagOut.textContent = diagText;
+      diagCopyRow.hidden = false;
+    });
+  });
+});
+
+document.getElementById("diagCopy").addEventListener("click", () => {
+  const btn = document.getElementById("diagCopy");
+  navigator.clipboard.writeText(diagText).then(
+    () => { btn.textContent = "Copied ✓"; setTimeout(() => (btn.textContent = "Copy report"), 1400); },
+    () => { btn.textContent = "Copy failed"; setTimeout(() => (btn.textContent = "Copy report"), 1400); }
+  );
+});
