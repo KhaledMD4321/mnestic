@@ -79,6 +79,19 @@ Add fixtures for the new bank. Cover at minimum:
 3. an end-of-block results table (`resultRows` > 0),
 4. a Coursology fixture, unchanged, so the refactor didn't regress it.
 
+There is a second, heavier suite that loads the **real unpacked extension** into
+Chromium with a mock Anki bridge, and drives the actual UI — panel, overlays,
+card composer — on every supported bank:
+
+```bash
+node scripts/e2e-test.js            # add --shots to save screenshots
+```
+
+Add your bank to its `SITES` list and to its unanswered `UNANSWERED` list. It
+also pins two things worth never losing: that a `javascript:` link from a deck
+never reaches the panel, and that a *synthetic* click cannot drive any control
+that talks to Anki.
+
 Then bump `version` in the manifest, update the README's *Supported question
 banks* table, `PRIVACY.md`, and the permission justification in
 `docs/chrome-store-listing.md`.

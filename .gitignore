@@ -14,3 +14,4 @@ dist/*.zip
 .idea/
 node_modules/
 package-lock.json
+dist/e2e/
