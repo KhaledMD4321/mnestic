@@ -179,8 +179,14 @@
   // (a visible "Explanation" region, a "Question Id"-style label, a table with
   // an ID column). That is slower than a fixed selector but survives redesigns.
   //
-  // NOT yet verified against the live site — see SITE.diagnose() and the
-  // popup's "Check this page" button, which report exactly what was found.
+  // The selectors in UW below are facts about UWorld's own pages, cross-checked
+  // across several public tools that read those same pages (notably
+  // github.com/omn0mn0m/UWorldToAnking, GPLv3). No code from any of them is
+  // used here — this adapter is our own, and every selector has a heuristic
+  // fallback so a UWorld redesign degrades instead of breaking.
+  //
+  // Still UNVERIFIED against a live account. The popup's "Check this page"
+  // button reports what was actually found, for exactly this reason.
   // ============================================================
   function visible(el) {
     if (!el) return false;
@@ -216,28 +222,56 @@
     return best;
   }
 
+  // UWorld's player is an Angular + Angular Material app (mat-dialog,
+  // ng-star-inserted, <common-content>). These are the stable hooks in it:
+  const UW = {
+    qid: "span.question-id, .question-id",         // text: "Question Id: 12345"
+    explanation: "#explanation-container, #first-explanation",
+    right: ".right-content, div.question-content.right-content",
+    content: "common-content, .common-content",
+    header: ".nbme-header, [class*='nbme-header']",
+    stats: ".stats-bar[role='alert'], .stats-bar",  // appears once answered
+    qbName: ".qb-name",                             // e.g. "USMLE STEP1"
+    listDialog: ".question-list-dialog"             // mat-dialog of all QIDs
+  };
+
   const UWORLD = {
     id: "uworld",
     label: "UWorld",
     hostRe: /(^|\.)uworld\.com$/i,
-    // UWorld labels the id differently across its interfaces, so try each.
     qidRe: [
       /Question\s*Id\s*[:#]?\s*(\d+)/i,
       /\bQ\s*Id\s*[:#]?\s*(\d+)/i,
       /\bItem\s*Id\s*[:#]?\s*(\d+)/i
     ],
-    headerSel: ["header", "[class*='header' i]", "[class*='footer' i]", "body"],
+    headerSel: [UW.qid, UW.header, "header", "[class*='header' i]", "body"],
 
-    explanationRoot() { return findExplanationRegion(); },
-    // Reviewing = the explanation is on screen. On UWorld that is true both in
-    // tutor mode after answering and in the end-of-block review, and false while
-    // the question is still unanswered — which is exactly the spoiler gate.
-    isReviewing() { return !!findExplanationRegion(); },
-    panelAnchor() { return findExplanationRegion(); },
+    // The id lives in its own element, so read it directly and just keep the
+    // digits — the label around them ("Question Id: ") has varied. Falls back
+    // to the shared header+regex scan when the element isn't there.
+    findQid() {
+      const el = document.querySelector(UW.qid);
+      if (!el) return null;
+      const digits = (el.textContent || "").replace(/[^\d]/g, "");
+      return digits.length >= 2 && digits.length <= 8 ? digits : null;
+    },
+
+    explanationRoot() {
+      const el = document.querySelector(UW.explanation) || document.querySelector(UW.right);
+      if (el && visible(el)) return el;
+      return findExplanationRegion();          // heuristic, if UWorld renames things
+    },
+    // Reviewing = the explanation is actually on screen. True in tutor mode once
+    // you answer and in end-of-block review; false on an unanswered question —
+    // which is exactly the spoiler gate, so this stays conservative.
+    isReviewing() { return !!this.explanationRoot(); },
+    panelAnchor() { return this.explanationRoot(); },
     contentRoot() {
+      const own = document.querySelector(UW.content);
+      if (own && visible(own)) return own;
       const explicit = document.querySelector("main, [role='main']");
       if (explicit && visible(explicit)) return explicit;
-      const ex = findExplanationRegion();
+      const ex = this.explanationRoot();
       if (!ex) return null;
       const exLen = (ex.innerText || "").length || 1;
       let node = ex.parentElement, chosen = ex;
@@ -250,14 +284,49 @@
       }
       return chosen;
     },
-    // No known inline anchor -> the floating bar is used.
+    // The player header is a flex row we'd have to fight for space in, so the
+    // results buttons use the floating bar.
     toolbar() { return null; },
-    resultRows() { return genericResultRows(); },
+    // UWorld's ID cells read like "Block 3 - 12345", so the last number in the
+    // cell is the id — genericResultRows takes the first. Parse the table here
+    // and only fall back to the generic scan.
+    resultRows() {
+      const loc = findIdColumn();
+      if (loc) {
+        const rows = []; const seen = new Set();
+        loc.bodyRows.forEach(tr => {
+          const cell = tr.children[loc.index];
+          if (!cell) return;
+          const nums = (cell.textContent || "").match(/\d+/g);
+          if (!nums) return;
+          const qid = nums[nums.length - 1];
+          if (seen.has(qid)) return;
+          seen.add(qid);
+          rows.push({ qid, wrong: rowIsWrong(tr, cell), marked: rowIsMarked(tr) });
+        });
+        if (rows.length) return rows;
+      }
+      return genericResultRows();
+    },
+    // The "question list" dialog lists every id of the block, comma-separated.
+    // Status isn't carried there, so these feed "Anki: All" only.
+    questionListRows() {
+      const dlg = document.querySelector(UW.listDialog);
+      if (!dlg) return null;
+      const text = dlg.textContent || "";
+      const ids = text.match(/\b\d{3,8}\b/g);
+      if (!ids || ids.length < 2) return null;
+      const seen = new Set(); const rows = [];
+      ids.forEach(qid => { if (!seen.has(qid)) { seen.add(qid); rows.push({ qid, wrong: false, correct: false, omitted: false, marked: false }); } });
+      return rows;
+    },
 
     stepFromUrl() {
       const m = (location.pathname + " " + location.search).match(/step[\s_-]*(\d)/i);
       if (m) return +m[1];
-      // The course label ("USMLE Step 2 CK") usually sits in a header/nav.
+      // The qbank label reads like "USMLE STEP1" / "USMLE Step 2 CK".
+      const qb = document.querySelector(UW.qbName);
+      if (qb) { const s = (qb.textContent || "").match(/step\s*(\d)/i); if (s) return +s[1]; }
       for (const el of document.querySelectorAll("header, nav, [class*='header' i], [class*='course' i]")) {
         const t = (el.textContent || "").slice(0, 300);
         const s = t.match(/step\s*(\d)/i);
@@ -314,7 +383,8 @@
     return WRONG_CLASS_RE.test((row && row.className) || "");
   }
   function rowIsMarked(row) {
-    return !!(row && row.querySelector(".fa-bookmark, .fas.fa-bookmark, .fa-flag, [class*='marked'], [class*='flag']"));
+    // flag (Coursology) / star (UWorld) / bookmark — whichever the site uses
+    return !!(row && row.querySelector(".fa-bookmark, .fas.fa-bookmark, .fa-flag, .fa-star, [class*='marked'], [class*='flag']"));
   }
   // Find a <table> whose header has a cell reading exactly "ID"; return that
   // column index plus the body rows.
@@ -624,6 +694,10 @@
     return m ? m[1] : null;
   }
   function parseQuestionList() {
+    // An adapter whose list dialog has its own shape parses it itself.
+    if (SITE.questionListRows) {
+      try { const own = SITE.questionListRows(); if (own && own.length) return own; } catch (e) {}
+    }
     const root = questionListRoot();
     if (!root) return null;
     const rows = []; const seen = new Set();
@@ -642,6 +716,12 @@
   // read the cache at click-time. Keyed by path so it never leaks across tests.
   let qlistCache = null;   // { path, rows }
   function captureQuestionList() {
+    if (SITE.questionListRows) {                           // adapter has its own dialog
+      try {
+        const own = SITE.questionListRows();
+        if (own && own.length) { qlistCache = { path: location.pathname, rows: own }; return; }
+      } catch (e) {}
+    }
     let present = false;                                   // cheap gate: a radix popover showing the legend
     for (const el of document.querySelectorAll("[id^='radix-']")) {
       if (/Omitted/i.test(el.textContent || "")) { present = true; break; }
@@ -912,6 +992,11 @@
   // key every per-question feature (resource panel, overlay, copy buttons). The
   // scopes in SITE.headerSel are tried first (cheaper), then document.body.
   function findQid() {
+    // An adapter can read the id straight out of a dedicated element; the
+    // header + regex scan below is the fallback for when that element moves.
+    if (SITE.findQid) {
+      try { const v = SITE.findQid(); if (v) return v; } catch (e) {}
+    }
     for (const sel of SITE.headerSel) {
       const el = document.querySelector(sel);
       if (!el) continue;
@@ -2357,10 +2442,14 @@
     return out;
   }
   function diagnose() {
-    let anchor = null, expl = null, rows = 0, err = null;
+    let anchor = null, expl = null, rows = 0, sample = [], err = null;
     try { anchor = SITE.panelAnchor(); } catch (e) { err = String(e); }
     try { expl = SITE.explanationRoot(); } catch (e) { err = err || String(e); }
-    try { rows = SITE.resultRows().length; } catch (e) { err = err || String(e); }
+    try {
+      const r = SITE.resultRows();
+      rows = r.length;
+      sample = r.slice(0, 3).map(x => x.qid);   // ids only — no correctness
+    } catch (e) { err = err || String(e); }
     return {
       version: chrome.runtime.getManifest().version,
       adapter: SITE.id,
@@ -2372,6 +2461,7 @@
       explanationAt: nodePath(expl),
       panelAnchorAt: nodePath(anchor),
       resultRows: rows,
+      resultSample: sample,
       step: detectStepFromUrl(),
       hasMain: !!document.querySelector("main, [role='main']"),
       tables: document.querySelectorAll("table").length,

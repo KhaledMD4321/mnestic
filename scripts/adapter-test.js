@@ -63,43 +63,62 @@ const FIXTURES = [
     html: page(`<div class="question-header">Question Id: 4211</div><div>A 34-year-old man…</div>`),
     expect: { adapter: "coursology", qid: "4211", reviewing: false, step: 1 }
   },
+  // --- UWorld: markup shaped like the real Angular player ---
   {
-    name: "UWorld — class hint, reviewing",
-    url: "https://apps.uworld.com/test/step1/item/7",
+    name: "UWorld — reviewing (real selectors)",
+    url: "https://apps.uworld.com/courseapp/launchtest",
     html: page(`
-      <header><span>Item 7 of 40</span><span>Question Id: 12345</span></header>
-      <div class="qbank-explanation-wrapper" style="min-height:400px">
-        <h2>Explanation</h2><p>${LOREM}</p>
-      </div>`),
+      <div class="nbme-header d-flex justify-content-between accessibility-triggers">
+        <span class="qb-name">USMLE STEP1</span>
+        <span class="question-id ng-star-inserted">Question Id: 12345</span>
+      </div>
+      <common-content><div class="left-content">A 34-year-old man…</div>
+        <div class="right-content question-content">
+          <div class="stats-bar" role="alert">Correct</div>
+          <div id="explanation-container" style="min-height:400px">
+            <h2>Explanation</h2><p>${LOREM}</p>
+          </div>
+        </div></common-content>`),
     expect: { adapter: "uworld", qid: "12345", reviewing: true, step: 1 }
   },
   {
-    name: "UWorld — obfuscated classes, heading only",
-    url: "https://apps.uworld.com/app",
-    html: page(`
-      <div class="css-1x2y3z"><span class="css-9a8b">QId: 987654</span></div>
-      <div class="css-aa11"><div class="css-bb22" style="min-height:400px">
-        <h3 class="css-cc33">Explanation</h3><p>${LOREM}</p>
-      </div></div>`),
-    expect: { adapter: "uworld", qid: "987654", reviewing: true }
-  },
-  {
     name: "UWorld — unanswered (no spoiler)",
-    url: "https://apps.uworld.com/test/item/8",
-    html: page(`<header><span>Question Id: 55</span></header><div>A 62-year-old woman…</div>`),
+    url: "https://apps.uworld.com/courseapp/launchtest",
+    html: page(`
+      <div class="nbme-header"><span class="question-id">Question Id: 55</span></div>
+      <common-content><div class="left-content">A 62-year-old woman…</div></common-content>`),
     expect: { adapter: "uworld", qid: "55", reviewing: false }
   },
   {
-    name: "UWorld — end-of-block table",
-    url: "https://test.uworld.com/results",
+    name: "UWorld — id element with digits only",
+    url: "https://apps.uworld.com/courseapp/launchtest",
+    html: page(`
+      <span class="question-id">987654</span>
+      <div id="explanation-container" style="min-height:400px"><h2>Explanation</h2><p>${LOREM}</p></div>`),
+    expect: { adapter: "uworld", qid: "987654", reviewing: true }
+  },
+  {
+    name: "UWorld — redesigned: heuristic fallback still finds it",
+    url: "https://apps.uworld.com/courseapp/launchtest",
+    html: page(`
+      <div class="css-1x2y3z"><span class="css-9a8b">QId: 424242</span></div>
+      <div class="css-aa11"><div class="css-bb22" style="min-height:400px">
+        <h3 class="css-cc33">Explanation</h3><p>${LOREM}</p>
+      </div></div>`),
+    expect: { adapter: "uworld", qid: "424242", reviewing: true }
+  },
+  {
+    name: "UWorld — results table, 'Block 3 - 12345' id cells",
+    url: "https://apps.uworld.com/courseapp/performance",
     html: page(`
       <table><thead><tr><th>#</th><th>ID</th><th>Result</th></tr></thead>
       <tbody>
-        <tr><td>1</td><td>12345</td><td><i class="fa-xmark"></i></td></tr>
-        <tr><td>2</td><td>12346</td><td><i class="fa-check"></i></td></tr>
-        <tr><td>3</td><td>12347</td><td><i class="fa-xmark"></i></td></tr>
+        <tr><td>1</td><td>Block 3 - 12345</td><td><i class="fa-xmark"></i></td></tr>
+        <tr><td>2</td><td>Block 3 - 12346</td><td><i class="fa-check"></i></td></tr>
+        <tr><td>3</td><td>Block 3 - 12347</td><td><i class="fa-xmark"></i></td></tr>
       </tbody></table>`),
-    expect: { adapter: "uworld", resultRows: 3 }
+    // the id is the LAST number in the cell, not the first
+    expect: { adapter: "uworld", resultRows: 3, resultSample: ["12345", "12346", "12347"] }
   }
 ];
 
@@ -129,7 +148,9 @@ const FIXTURES = [
     if (!d) bad.push("no diagnose response");
     else
       for (const k of Object.keys(f.expect)) {
-        if (String(d[k]) !== String(f.expect[k])) bad.push(`${k}: got ${JSON.stringify(d[k])}, want ${JSON.stringify(f.expect[k])}`);
+        const got = Array.isArray(d[k]) ? d[k].join(",") : String(d[k]);
+        const want = Array.isArray(f.expect[k]) ? f.expect[k].join(",") : String(f.expect[k]);
+        if (got !== want) bad.push(`${k}: got ${JSON.stringify(d[k])}, want ${JSON.stringify(f.expect[k])}`);
       }
 
     if (bad.length) { fail++; console.log(`FAIL  ${f.name}\n      ${bad.join("\n      ")}`); }

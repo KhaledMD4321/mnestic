@@ -287,7 +287,8 @@ function renderDiag(d) {
     "reviewing (explanation visible): " + yn(d.reviewing),
     "explanation element: " + (d.explanationAt || "not found"),
     "panel anchor: " + (d.panelAnchorAt || "none (floating)"),
-    "result rows parsed: " + d.resultRows,
+    "result rows parsed: " + d.resultRows +
+      (d.resultSample && d.resultSample.length ? "  (first ids: " + d.resultSample.join(", ") + ")" : ""),
     "step detected: " + (d.step || "— (using the popup's Step)"),
     "<main> present: " + yn(d.hasMain) + "  ·  tables: " + d.tables
   ];

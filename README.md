@@ -68,11 +68,14 @@ up right over the question. No tab-switching, no losing your place.
 
 <details><summary>About the UWorld beta</summary>
 
-UWorld's markup uses generated class names that change between releases, so the
-UWorld adapter deliberately keys off **shape** rather than fixed selectors: a
-visible *Explanation* region, a "Question Id"-style label, a results table with
-an ID column. That survives redesigns, but it means a given UWorld release may
-need tuning.
+UWorld's player is an Angular app, and the adapter targets its real hooks
+(`span.question-id`, `#explanation-container`, the `.question-list-dialog`).
+Every one of them also has a **shape-based fallback** — a visible *Explanation*
+region, a "Question Id"-style label, a table with an ID column — so a UWorld
+redesign degrades instead of breaking outright.
+
+It has been tested against fixtures, **not against a live UWorld account**, so
+treat the first release as beta.
 
 If a question isn't being matched, open the Mnestic popup → **Advanced** →
 **Check this page**. It reports what the extension can see on that tab —
