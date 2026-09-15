@@ -53,7 +53,7 @@ pin).
 This is the one-time security step — it makes sure only *your* extension can talk
 to *your* Anki.
 
-1. In **Anki**, click **Tools ▸ “Mnestic: pairing code…”**. A code is shown and
+1. In **Anki**, click **Tools ▸ Mnestic Bridge ▸ Pairing code…**. A code is shown and
    **copied to your clipboard**.
 2. Click the **M** extension icon to open the popup.
 3. Paste the code into the **Pairing code** box and click **Save**.
@@ -86,3 +86,11 @@ to set your daily/weekly targets and see your streak.
 
 **Using it on another computer later?** Repeat Steps 1–3 there. The add-on makes
 a fresh pairing code per machine, so each computer pastes its own code once.
+
+---
+
+## Now what?
+
+[**📖 The complete guide**](docs/guide.md) walks through every feature — the
+resource overlays, keeping missed questions in chapter subdecks, the weak-area
+breakdown, the study tracker, and every keyboard shortcut.

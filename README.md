@@ -1,31 +1,105 @@
+<div align="center">
+
+<img src="extension/icons/icon-128.png" width="88" alt="Mnestic">
+
 # Mnestic
 
-[![AnkiWeb add-on](https://img.shields.io/badge/AnkiWeb-Mnestic%20Bridge-1f9d57)](https://ankiweb.net/shared/info/199262916)
-[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-7c4dff)](LICENSE)
-[![Buy me a coffee](https://img.shields.io/badge/%E2%98%95-Buy%20me%20a%20coffee-d5891c)](https://buymeacoffee.com/bnkhaled)
+**Your qbank question, wired to your AnKing cards.**
+
+[![AnkiWeb add-on](https://img.shields.io/badge/AnkiWeb-Mnestic%20Bridge-1f9d57?style=flat-square)](https://ankiweb.net/shared/info/199262916)
+[![Release](https://img.shields.io/github/v/release/KhaledMD4321/mnestic?style=flat-square&color=6d40e0)](https://github.com/KhaledMD4321/mnestic/releases/latest)
+[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-7c4dff?style=flat-square)](LICENSE)
+[![Buy me a coffee](https://img.shields.io/badge/%E2%98%95-Buy%20me%20a%20coffee-d5891c?style=flat-square)](https://buymeacoffee.com/bnkhaled)
+
+[**📖 Full guide**](docs/guide.md) · [**Install**](#install) · [**Features**](#what-it-does) · [**Privacy**](PRIVACY.md)
+
+</div>
+
+---
+
+Answer a question on **UWorld**, **Coursology** or **MedPark**, and Mnestic finds
+the AnKing cards tagged with that question's id — then puts everything you'd
+otherwise open a tab for **right on the page**: the matched resources and their
+images, the card as Anki will show it, a weak-area breakdown of the block, and
+your study pace.
+
+Everything runs on your own computer, through a small local link to your own Anki.
+**No server, no account, no telemetry.**
 
 ![How it works — question to AnKing](docs/demo.svg)
 
-**Mnestic** links every question in your qbank — **Coursology**, **MedPark** or
-**UWorld** — to your **AnKing** Anki cards. On a question it shows the matching
-resources (Sketchy, Boards & Beyond, First Aid, …)
-and their images **right on the page**, unsuspends the matching cards in bulk,
-lets you **make and keep cards without leaving the question**, breaks a block down
-into your **weakest areas**, and tracks your **study pace** — all through a small
-local link to your own Anki.
+---
 
-> A personal, educational study tool. You bring your own qbank access and your own
-> AnKing deck. **GPLv3-licensed** and open source. Inspired by the idea behind
-> [Atlas](https://github.com/TheEverion/Atlas) — see *Credits* at the bottom.
+## What it does
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 📚 Resource overlays
+Press **F** for First Aid, **S** for Sketchy, **P** for Physeo, **O** for OME —
+the matched image appears over the question. No tab-switching, no losing your
+place.
+
+</td>
+<td width="50%" valign="top">
+
+### ★ Missed questions, organised
+Keep a question in a **chapter subdeck** built from its own AnKing tags, with
+your notes in the card. Move it, tag it, or copy it — and **undo** any of it.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 📊 Weak areas
+Break a finished block into per-**System / Subject / Topic** accuracy, weakest
+first, and send just those missed questions to Anki.
+
+</td>
+<td valign="top">
+
+### 🔥 Study tracker
+Daily streak, 16-week heatmap, targets, 7-day accuracy, and a projected finish
+date from your real pace.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### ✚ Make a card
+Select any explanation text → a **Make card** chip appears. Cloze or Basic,
+straight into Anki, with the question id as the source.
+
+</td>
+<td valign="top">
+
+### 🤖 Copy for AI
+Your editable prompt + the whole question, copied in one click for ChatGPT,
+Claude or Gemini.
+
+</td>
+</tr>
+</table>
+
+<div align="center">
+
+[**→ Every feature, explained in the full guide**](docs/guide.md)
+
+</div>
+
+---
 
 ## Screenshots
 
 | The panel, card composer & weak areas | The popup |
 |:---:|:---:|
 | ![Mnestic resource panel, Make-a-card, and weak-area breakdown](docs/shot-ui.png) | ![Mnestic popup — study tracker, settings, AI prompt](docs/shot-popup.png) |
-| Matched resources, **Make a card** (with the *From this question* picker), and the weakest-first breakdown. | Streak, 16-week heatmap, targets, settings, and the editable AI prompt. |
+| Matched resources, **Make a card** with the *From this question* picker, and the weakest-first breakdown. | Streak, 16-week heatmap, targets, settings, and the editable AI prompt. |
 
-<details><summary>🌙 Dark mode</summary>
+<details><summary>🌙 Dark mode</summary><br>
 
 | Interface | Popup |
 |:---:|:---:|
@@ -33,250 +107,188 @@ local link to your own Anki.
 
 </details>
 
-## At a glance
+<details><summary>📐 Features at a glance</summary><br>
 
 ![Features at a glance](docs/features.svg)
-
-## A look at it
-
-### 📚 Resource overlays — the one you'll use every question
-
-Reading a question, press **F** for First Aid, **S** for Sketchy, **P** for
-Physeo, **O** for OME (also **E** / **A**) — the matched **AnKing** resource pops
-up right over the question. No tab-switching, no losing your place.
-
-![Resource overlays — press F / S / P / O over the question](docs/overlay.svg)
-
-### The rest of the workflow
 
 | ✚ Make a card — 📎 *From this question* | 🤖 Copy for AI |
 |:---:|:---:|
 | ![Make card with the from-question image picker](docs/make-card.svg) | ![Copy for AI with prompt presets](docs/ai.svg) |
-| Cloze / Basic straight into Anki — and click only the question's images worth keeping. | Prompt presets + the whole question, copied for ChatGPT / Claude / Gemini. |
 
 | 📊 Weak-area breakdown | 🔥 Study tracker |
 |:---:|:---:|
 | ![Weak-area breakdown](docs/weak-areas.svg) | ![Study tracker](docs/tracker.svg) |
-| Per-System/Subject/Topic accuracy, weakest-first, "Open N missed" → Anki. | Daily streak, 16-week heatmap, targets, projected finish, 7-day accuracy. |
+
+![Resource overlays — press F / S / P / O over the question](docs/overlay.svg)
+
+</details>
+
+---
 
 ## Supported question banks
 
-| Site | Status |
-|------|--------|
-| Coursology (`coursology-qbank.com`) | ✅ verified against the live site |
-| MedPark (`medpark.io`) | ✅ verified against the live site |
-| UWorld (`uworld.com`) | 🧪 **beta** — see the note below |
+| Bank | Status |
+|---|---|
+| **Coursology** — `coursology-qbank.com` | ✅ verified against the live site |
+| **MedPark** — `medpark.io` | ✅ verified against the live site |
+| **UWorld** — `uworld.com` | 🧪 **beta** — built against fixtures, not a live account |
 
 All three label questions with the **same UWorld question ids**, which is what
-makes one AnKing tag search work everywhere.
+makes one AnKing tag search work everywhere. Two MedPark features are unavailable
+for reasons on its side — [details in the guide](docs/guide.md#supported-banks).
 
-<details><summary>What works on MedPark</summary>
-
-Everything per-question: the resource panel, the F/S/P/O/E/A overlays, Copy for
-AI, Preview, Save to Missed Qs, Make card, and quick-open in Anki — all keyed off
-the `UW Id` in the player header. The study tracker reads its dashboard totals
-too, and keeps a separate count per bank (UW / AMB / MLman).
-
-Two things don't, for reasons on MedPark's side:
-
-- **Results-page buttons and Weak areas.** MedPark's Test Summary reports totals
-  only — there's no per-question id table to read — so those buttons don't appear.
-- **"From this question" image attach.** MedPark serves question figures from a
-  third-party storage domain rather than its own. Granting the extension fetch
-  access to a host neither you nor MedPark controls isn't a trade worth making,
-  so that one button is unavailable there. Paste and file-picker attach still work.
-
-</details>
-
-<details><summary>About the UWorld beta</summary>
-
-UWorld's player is an Angular app, and the adapter targets its real hooks
-(`span.question-id`, `#explanation-container`, the `.question-list-dialog`).
-Every one of them also has a **shape-based fallback** — a visible *Explanation*
-region, a "Question Id"-style label, a table with an ID column — so a UWorld
-redesign degrades instead of breaking outright.
-
-It has been tested against fixtures, **not against a live UWorld account**, so
-treat the first release as beta.
-
-If a question isn't being matched, open the Mnestic popup → **Advanced** →
-**Check this page**. It reports what the extension can see on that tab —
-**structure only** (tag names, ids, classes), never question text, answers, or
-account details — and **Copy report** puts it on your clipboard for a bug report.
-
-</details>
-
-## How it works (30-second version)
-
-All three use the same question IDs, and the AnKing deck tags each UWorld
-question with that same ID. So the matching is just one local Anki
-search — no server, no database:
-
-```
-Question Id 2  ->  search Anki:  tag:#AK_Step1_v*::#UWorld::*::2
-```
-
-The extension reads the ID off the page; our **Mnestic Bridge** add-on
-(`127.0.0.1:8790`) runs that search in your own collection and returns the cards.
-Everything stays on your machine.
-
-## Repo layout
-
-```
-extension/                 ← the Chrome extension (load this)
-  manifest.json            ← the qbank sites it runs on
-  content.js               ← matching engine + per-site adapters + all features
-  background.js            ← proxy to the bridge at 127.0.0.1:8790
-  popup.html / popup.js    ← settings, study tracker, topic search, pairing
-  icons/
-anki-addon/
-  mnestic_bridge/          ← the Anki add-on — "Mnestic Bridge"
-    __init__.py            ← local bridge: search / browse / media / make cards
-    config.json            ← port + pairing token
-    config.md / manifest.json
-LICENSE                    ← GNU GPL v3
-```
-
-## Prerequisites
-
-- **Anki** running, with the **Mnestic Bridge** add-on installed (below).
-- Your **AnKing** deck, with the UWorld tags that end in the question id
-  (`#AK_Step1_v*::#UWorld::…::<qid>`) — this is what makes matching possible.
-- Chrome / Brave / Edge.
+---
 
 ## Install
 
-### 1. Anki add-on — "Mnestic Bridge"
+**You need:** Anki running · an AnKing deck with UWorld tags · Chrome, Brave or Edge.
 
-In Anki: **Tools → Add-ons → Get Add-ons…** and paste the code:
+*Want it spelled out click by click?* → [**INSTALL.md**](INSTALL.md)
+
+<table>
+<tr><td width="33%" valign="top">
+
+### 1️⃣ Anki add-on
+
+**Tools → Add-ons → Get Add-ons…**
 
 ```
 199262916
 ```
 
-Then **restart Anki**. ([AnkiWeb listing](https://ankiweb.net/shared/info/199262916).)
-It listens on `127.0.0.1:8790` — a **local** add-on that never auto-updates or
-overwrites your changes.
+Then **restart Anki**.
 
-<details><summary>Prefer to install it manually?</summary>
+</td><td width="33%" valign="top">
+
+### 2️⃣ Extension
+
+`chrome://extensions` → **Developer mode** → **Load unpacked** → the
+`extension/` folder.
+
+Or grab the [latest release](https://github.com/KhaledMD4321/mnestic/releases/latest).
+
+</td><td width="33%" valign="top">
+
+### 3️⃣ Pair them
+
+**Tools → Mnestic Bridge → Pairing code…**
+
+Paste it into the popup → **Save**. The pill turns **● Ready**.
+
+</td></tr>
+</table>
+
+> [!IMPORTANT]
+> **Check one question first.** Everything rests on your qbank's question id being
+> the same number UWorld used. Take a question id from the page, search
+> `tag:#AK_Step1_v*::#UWorld::*::<id>` in Anki's Browse, and confirm the same topic
+> comes back. [How and why →](docs/guide.md#2-check-your-ids-match)
+
+<details><summary>Install the add-on manually instead</summary><br>
 
 Copy `anki-addon/mnestic_bridge/` into your Anki add-ons folder, then restart Anki:
 
-| OS | Add-ons folder |
-|----|----------------|
+| OS | Folder |
+|---|---|
 | Windows | `%APPDATA%\Anki2\addons21\mnestic_bridge\` |
 | macOS | `~/Library/Application Support/Anki2/addons21/mnestic_bridge/` |
 | Linux | `~/.local/share/Anki2/addons21/mnestic_bridge/` |
 
 </details>
 
-### 2. Browser extension
+---
 
-1. `chrome://extensions` → enable **Developer mode**.
-2. **Load unpacked** → select the `extension/` folder.
+## How it works
 
-### 3. Pair them (one time)
+The AnKing deck tags every UWorld question with its id, and all three banks use
+those same ids. So the matching is one local Anki search — no server, no database:
 
-The bridge is protected by a private **pairing code** so nothing else on your
-computer can reach your Anki through it. In Anki, click **Tools → “Mnestic:
-Mnestic Bridge → Pairing code…”** (it copies the code to your clipboard). Open the Mnestic popup,
-paste it into the **Pairing code** box, and click **Save**. The status pill turns
-**Ready**.
+```
+Question Id 1633   →   (tag:#AK_Step1_v*::#UWorld::Step::1633
+                        OR tag:#AK_Step1_v*::#UWorld::1633)
+```
 
-> The popup tells you exactly what's missing: *Anki not connected* (start Anki),
-> *Enter pairing code* (paste the code), or *Ready*.
+The extension reads the id off the page; the **Mnestic Bridge** add-on
+(`127.0.0.1:8790`) runs that search in your own collection and returns the cards.
 
-## ⚠️ Verify the IDs line up (do this first)
+Both tag shapes are tried because AnKing has used both — older decks and Step 3
+carry the bare form. A wildcard fallback exists for anything else, but it is
+never tried first: it can reach into other exam namespaces and match the wrong
+question.
 
-The whole thing rests on one assumption: **your qbank's "Question Id" is the same
-number UWorld used**, and your AnKing cards are tagged with it. Check one:
+---
 
-1. On a question, note its header **"Question Id: N"**.
-2. In Anki's Browse, search: `tag:#AK_Step1_v*::#UWorld::*::N`
-3. If the card(s) that come back are the **same topic** → the IDs match and
-   everything will work. If you get nothing or an unrelated card, the qbank
-   renumbered the questions and this tag approach won't work as-is.
+## Safety
 
-## Usage
+Mnestic can read the page you're studying and **write to your Anki collection**,
+so the limits are worth stating plainly:
 
-- **Results page** (the score table): **Anki: Missed / All / Marked / High-Yield**
-  open those questions' cards in Anki's Browser (or unsuspend them with *Easy
-  mode* on), plus **📊 Weak areas** — a per-**System/Subject/Topic** accuracy
-  breakdown of the block, weakest-first, with an *Open N missed* button that sends
-  just that group to Anki — or **Drill weakest 3** to send the three worst
-  groups at once. Open the **"Question List"** popup once per test so
-  *Marked* and un-paginated *All / Missed* have the full, colour-coded list.
-- **Review a question**: a resource panel lists the matching AnKing resources,
-  **collapsed** — one line each with the topics it covers, its overlay key, and
-  how many chapters — so it never buries the explanation. Open the ones you use;
-  it remembers, and floats what you open most to the top. A readiness strip
-  shows how the matching cards stand (*9 cards · 3 mature · 2 suspended*) with a
-  one-click **Unsuspend**. Then:
-  press **F / S / P / O / E / A** to overlay First Aid / Sketchy / Physeo / OME /
-  Extra / Additional Resources images right on the question. Multi-page
-  resources **page** — *2 / 5*, arrow keys, and a filmstrip of every page — and
-  images are warmed while you read, so the first keypress is instant. OME and Picmonic show
-  too, so **Step 2/3** resources light up alongside the Step-1 ones.
-- **Quick open in Anki** (question header): a small **Anki** button opens that
-  question's AnKing cards in Anki's Browser.
-- **Note-taking** (panel header):
-  - **🤖 Copy for AI** — copies your editable **AI prompt** + the question id +
-    link + the whole question (stem, choices, explanation), ready to paste into
-    ChatGPT / Claude / Gemini. Presets: Explain / Differentiate / One-liner /
-    Simplify.
-  - **📝 Copy explanation** — just the qbank's explanation, for your notes.
-  - **👁 Preview** — reads the matched card(s) (clozes revealed, **images
-    inline**) with **‹ Prev / Next ›** across every card matched to the question.
-  - **★ Save to Missed Qs** — keeps the question in a **chapter subdeck** built
-    from the card's own AnKing tags (organ systems on Step 1, rotations on
-    Step 2), so the pile stays studiable by topic. Pick how in the popup:
-    **Move the card** (real subdeck, keeps its review history and AnKing
-    updates), **Tag only** (nothing moves; browse the `Mnestic::Missed::…` tag
-    tree), or **Make a copy** (a separate card, which will never receive AnKing
-    updates again). It reuses subdecks you already have rather than creating
-    parallel ones, and
-    appends **your note** to its *Missed Questions* field. Paste a screenshot, add
-    files, or **click a thumbnail of the question's own image** (“📎 From this
-    question”) to attach only the ones that matter. The original card is left
-    untouched; the copy is unsuspended.
-    Saved one by mistake? Reopen the dialog on that question and
-    **Remove from Missed Qs** undoes it — it untags the card, moves it back to
-    the deck it came from, and deletes the copy if you made one. Whatever you
-    typed into *Missed Questions* is kept, along with the tag that protects it.
-  - **✚ Make card** — turn any explanation text into a brand-new Cloze/Basic card
-    (select text → a floating **✚ Make card** chip appears), created in Anki with
-    the QID + link as the source. Paste screenshots into it too.
-- **Find a topic in Anki** (popup): type a topic → opens Anki's Browser with the
-  matching AnKing Step cards, for drilling a tough topic outside the qbank.
-- **Keyboard shortcuts** (review page): **G** make card · **Q** copy for AI ·
-  **V** save to Missed Qs · **D** open in Anki · **F/S/P/O/E/A** image overlays ·
-  **?** cheatsheet · **Esc** close. Ignored while typing; toggle off in the popup.
-- **All USMLE steps**: the AnKing step (1/2/3) is auto-detected from the qbank URL,
-  so the tag query follows you across steps. The popup's Step selector is the
-  fallback when the URL doesn't say.
-- **Study tracker** (popup): **today** and **this week** vs your targets, a 🔥
-  **daily streak**, a **16-week heatmap**, a **projected finish date**, **7-day
-  accuracy**, and **remaining** vs the qbank total (visit the dashboard once so it
-  can read Used / Unused / Total).
+- **Nothing leaves your computer.** No server, no account, no analytics.
+- **The bridge is locked to loopback**, needs your pairing code on every request,
+  and refuses any request whose origin is a website.
+- **The add-on cannot delete your cards.** Its one delete operation exists to undo
+  a *Make a copy* save and refuses any note it did not itself create.
+- **It only removes its own tags** — never `marked`, `leech`, an AnKing tag, or the
+  `AnkiHub_Protect` tag guarding notes you typed.
+
+Full detail, and how to report a problem: [SECURITY.md](SECURITY.md) ·
+[PRIVACY.md](PRIVACY.md)
+
+---
+
+## Repo layout
+
+```
+extension/               the browser extension
+  manifest.json          the qbank sites it runs on
+  content.js             matching engine, site adapters, every on-page feature
+  background.js          proxy to the bridge at 127.0.0.1:8790
+  popup.html/.js         tracker, settings, missed list, pairing
+anki-addon/
+  mnestic_bridge/        the Anki add-on — local bridge + Tools menu
+scripts/                 build and test: e2e, adapters, add-on guards
+docs/                    the guide, release runbook, store listing copy
+```
+
+<details><summary>Building and testing</summary><br>
+
+```bash
+python scripts/check-addon.py    # the add-on can actually import
+python scripts/guard-test.py     # destructive ops refuse what they should
+node   scripts/adapter-test.js   # every site adapter still parses its pages
+node   scripts/e2e-test.js       # the real extension, in a real browser
+```
+
+Release process: [docs/releasing.md](docs/releasing.md)
+
+</details>
+
+---
 
 ## Support
 
-Mnestic is free, open source, and has no ads, accounts, or paid tier — and it
-will stay that way. If it saved you time, you can
+Mnestic is free and open source, with no ads, accounts, or paid tier — and it will
+stay that way. If it saved you time, you can
 [**☕ buy me a coffee**](https://buymeacoffee.com/bnkhaled). Entirely optional;
-nothing in the extension is locked behind it.
+nothing is locked behind it.
+
+Something broken? [Open an issue](https://github.com/KhaledMD4321/mnestic/issues).
+
+---
 
 ## Credits & license
 
-- **Open source under the [GNU GPL v3](LICENSE).** You may use, study, modify
-  and share it — but anything you distribute that builds on it must stay open
-  under the same licence, with credit.
-- The core idea — mapping a qbank's question IDs onto AnKing's UWorld tags — was
-  **inspired by [Atlas](https://github.com/TheEverion/Atlas)** by TheEverion.
-  Mnestic is an **independent project, written from scratch** (its own extension
-  and its own add-on) with a larger feature set; it does not include Atlas's code.
-  Thanks to TheEverion for the original concept.
-- **Not affiliated** with Coursology, UWorld, AnKing, Anki, Sketchy, Boards &
-  Beyond, Physeo, First Aid, or any other resource. Use your own accounts and
-  decks. Resource names and images belong to their owners; Mnestic only points to
-  content you already have in your AnKing deck.
+**[GNU GPL v3](LICENSE).** You may use, study, modify and share it — anything you
+distribute that builds on it must stay open under the same licence, with credit.
+
+The core idea — mapping a qbank's question ids onto AnKing's UWorld tags — was
+**inspired by [Atlas](https://github.com/TheEverion/Atlas)** by TheEverion.
+Mnestic is an independent project written from scratch, with its own extension and
+its own add-on; it includes no Atlas code. Thanks to TheEverion for the concept.
+
+**Not affiliated** with Coursology, UWorld, MedPark, AnKing, Anki, Sketchy, Boards
+& Beyond, Physeo, First Aid, or any other resource. Use your own accounts and your
+own decks. Resource names and images belong to their owners; Mnestic only points
+to content already in your AnKing deck.
+
+<div align="center"><sub>A personal, educational study tool.</sub></div>
