@@ -483,30 +483,6 @@ def op_new_note(args):
     return {"noteId": note.id, "cards": [c.id for c in note.cards()], "model": m["name"], "deck": deck}
 
 
-# ------------------------------- dispatch -------------------------------
-_OPS = {
-    "searchNotes": op_search_notes,
-    "noteInfo": op_note_info,
-    "readMedia": op_read_media,
-    "writeMedia": op_write_media,
-    "openBrowser": op_open_browser,
-    "listTags": op_list_tags,
-    "listDecks": op_list_decks,
-    "cardStats": op_card_stats,
-    "cardMaturity": op_card_maturity,
-    "unsuspend": op_unsuspend,
-    "copyNote": op_copy_note,
-    "updateNote": op_update_note,
-    "newNote": op_new_note,
-    "countNotes": op_count_notes,
-    "setDeck": op_set_deck,
-    "createDeck": op_create_deck,
-    "filteredDeck": op_filtered_deck,
-    "missedIds": op_missed_ids,
-    "status": op_status,
-}
-
-
 def _search_literal(text):
     """Quote a deck name for use inside an Anki search term.
 
@@ -717,6 +693,30 @@ def op_status(args):
         "taggedByStep": steps,
         "mediaDir": bool(col.media.dir()),
     }
+
+
+# ------------------------------- dispatch -------------------------------
+_OPS = {
+    "searchNotes": op_search_notes,
+    "noteInfo": op_note_info,
+    "readMedia": op_read_media,
+    "writeMedia": op_write_media,
+    "openBrowser": op_open_browser,
+    "listTags": op_list_tags,
+    "listDecks": op_list_decks,
+    "cardStats": op_card_stats,
+    "cardMaturity": op_card_maturity,
+    "unsuspend": op_unsuspend,
+    "copyNote": op_copy_note,
+    "updateNote": op_update_note,
+    "newNote": op_new_note,
+    "countNotes": op_count_notes,
+    "setDeck": op_set_deck,
+    "createDeck": op_create_deck,
+    "filteredDeck": op_filtered_deck,
+    "missedIds": op_missed_ids,
+    "status": op_status,
+}
 
 
 def dispatch(op, args):
