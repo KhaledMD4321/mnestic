@@ -775,9 +775,19 @@
     #mnx-md-overlay .mnx-md-ok:disabled{opacity:.55;cursor:default;box-shadow:none}
     #mnx-md-overlay .mnx-md-cancel{background:var(--mnx-surface-2);color:var(--mnx-text)}
     #mnx-md-overlay .mnx-md-cancel:hover{filter:brightness(.97)}
-    #mnx-md-overlay .mnx-md-sub{display:flex;align-items:center;gap:8px;margin:9px 0 0;font-size:13px;cursor:pointer}
-    #mnx-md-overlay .mnx-md-sub input{margin:0}
-    #mnx-md-overlay .mnx-md-dest{margin:6px 0 2px;font-size:12.5px;color:var(--mnx-muted)}
+    #mnx-md-overlay .mnx-chapchips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 0}
+    #mnx-md-overlay .mnx-chapchip{display:inline-flex;align-items:baseline;gap:6px;font:inherit;font-size:12.5px;
+      font-weight:600;cursor:pointer;padding:5px 11px;border-radius:var(--mnx-r-pill);
+      border:1px solid var(--mnx-border);background:var(--mnx-surface);color:var(--mnx-text);
+      transition:background .14s,border-color .14s,transform .12s}
+    #mnx-md-overlay .mnx-chapchip i{font-style:normal;font-size:10.5px;font-weight:600;color:var(--mnx-muted)}
+    #mnx-md-overlay .mnx-chapchip:hover{background:var(--mnx-surface-2)}
+    #mnx-md-overlay .mnx-chapchip:active{transform:scale(.97)}
+    #mnx-md-overlay .mnx-chapchip:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
+    #mnx-md-overlay .mnx-chapchip.on{background:var(--mnx-accent-soft);border-color:var(--mnx-accent);color:var(--mnx-accent)}
+    #mnx-md-overlay .mnx-chapchip.on i{color:var(--mnx-accent)}
+    #mnx-md-overlay .mnx-chapcustom{margin-top:7px}
+    #mnx-md-overlay .mnx-md-dest{margin:8px 0 2px;font-size:12.5px;color:var(--mnx-muted)}
     #mnx-md-overlay .mnx-md-dest b{color:var(--mnx-ink);font-weight:700;overflow-wrap:anywhere}
     #mnx-md-overlay .mnx-md-lbl{display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mnx-muted);margin:14px 0 6px}
     #mnx-md-overlay .mnx-md-body select,#mnx-md-overlay .mnx-md-body textarea,#mnx-md-overlay .mnx-md-body input[type=text]{width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--mnx-border);border-radius:var(--mnx-r-sm);font-size:13px;font-family:var(--mnx-font);color:var(--mnx-text);background:var(--mnx-surface-2);outline:none;transition:border-color .14s,box-shadow .14s}
@@ -2273,36 +2283,109 @@
   // ---- Save to Missed Qs (duplicate card into a chapter deck + append note) ----
   function deckLeaf(name) { const p = name.split("::"); return p[p.length - 1]; }
   function akNormDeck(s) { return (s || "").toLowerCase().replace(/^\d+[_\-.\s]*/, "").replace(/[^a-z0-9]+/g, ""); }
-  // AnKing numbers its chapter segments — 07_Cardiology, 03_Respiratory,
-  // 02_Biochemistry — across First Aid, B&B and the rest. Read the chapter a
-  // question's cards agree on, so saved cards land in a subdeck per system
-  // instead of one flat pile you can never study by topic.
-  function chapterFor(notes) {
-    const count = new Map();
-    for (const note of notes || []) {
-      const here = new Set();
-      for (const t of note.tags || []) {
-        for (const seg of String(t).split("::")) {
-          const m = /^(\d{1,2})[_\-.]\s*(.{3,})$/.exec(seg);
-          if (!m) continue;
-          const name = cleanSeg(seg);
-          if (!name || isNoiseSeg(seg)) continue;
-          if (here.has(name)) continue;               // once per card
-          here.add(name);
-          count.set(name, (count.get(name) || 0) + 1);
-        }
+  // ---- where a card says it belongs -------------------------------------
+  // Read off a real v12 deck, the two Steps organise completely differently:
+  //   Step 1  #FirstAid::07_Cardiovascular::...     organ systems, numbered
+  //   Step 2  #Resources_by_rotation::IM|FM|Peds    rotations, NOT numbered
+  // A "first numbered segment" rule therefore found nothing useful on Step 2,
+  // and on both Steps it happily picked up #Low/HighYield::1-HighYield — a
+  // yield marker, not a chapter. So read the roots that actually carry chapters,
+  // best source first, and offer what we find rather than deciding for you.
+  const ROTATION_NAMES = {
+    im: "Internal Medicine", fm: "Family Medicine", peds: "Pediatrics",
+    obgyn: "ObGyn", psych: "Psychiatry", neuro: "Neurology",
+    surgery: "Surgery", em: "Emergency Medicine"
+  };
+  const CHAPTER_ROOTS = [
+    { root: "#Resources_by_rotation", from: "rotation", rotation: true },
+    { root: "!Shelf",                 from: "shelf",    rotation: true },
+    { root: "#FirstAid",              from: "First Aid" },
+    { root: "#B&B",                   from: "B&B" },
+    { root: "#Bootcamp",              from: "Bootcamp" },
+    { root: "#Physeo",                from: "Physeo" },
+    { root: "#SketchyIM",             from: "Sketchy" }
+  ];
+  // Some decks slot an edition between the resource and the chapter
+  // (#FirstAid::FA2024::07_Cardiovascular), others don't (#FirstAid::01_Biochem).
+  // Detect a year-bearing segment by character, so "FA2024" and "2023" are
+  // stepped over while a real chapter never is.
+  function isEditionSeg(seg) {
+    const t = String(seg || "");
+    let digits = 0, letters = 0;
+    for (let i = 0; i < t.length; i++) {
+      const c = t.charCodeAt(i);
+      if (c >= 48 && c <= 57) digits++;
+      else if ((c | 32) >= 97 && (c | 32) <= 122) letters++;
+    }
+    if (digits < 4 || letters > 4) return false;
+    for (let i = 0; i + 3 < t.length; i++) {
+      const a = t.charAt(i), b = t.charAt(i + 1);
+      if ((a === "1" && b === "9") || (a === "2" && b === "0")) {
+        const c3 = t.charCodeAt(i + 2), c4 = t.charCodeAt(i + 3);
+        if (c3 >= 48 && c3 <= 57 && c4 >= 48 && c4 <= 57) return true;
       }
     }
-    if (!count.size) return null;
-    return Array.from(count.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
+    return false;
   }
-  // A deck path minus any chapter we appended last time, so the base stays stable.
-  function deckBase(path, chapter) {
-    if (!path) return path;
-    if (chapter && path.toLowerCase().endsWith("::" + chapter.toLowerCase())) {
-      return path.slice(0, -(chapter.length + 2));
-    }
-    return path;
+  function chapterNoise(seg) {
+    if (!seg) return true;
+    if (seg.charAt(0) === "#") return true;             // #Cards_AnKing_Did etc
+    const l = seg.toLowerCase();
+    if (l.indexOf("highyield") >= 0 || l.indexOf("loweryield") >= 0) return true;
+    if (l.indexOf("lowyield") >= 0 || l.indexOf("retired") >= 0) return true;
+    if (l === "other" || l === "extra" || l === "misc" || l.indexOf("test") === 0) return true;
+    return isNoiseSeg(seg);
+  }
+  // Ranked chapters this question's cards agree on: [{name, from, n}].
+  function chapterCandidates(notes, sv) {
+    // Cards shared between Steps carry BOTH Steps' tags, so a Step 1 card can
+    // suggest a Step 2 rotation. Read the current Step's tags when the card has
+    // them, and rank organ-systems first on Step 1, rotations first on Step 2.
+    const step = sv || currentSv || 1;
+    const roots = CHAPTER_ROOTS.slice().sort((a, b) => {
+      const w = r => (step === 2 ? (r.rotation ? 0 : 1) : (r.rotation ? 1 : 0));
+      return w(a) - w(b);
+    });
+    const prefix = "#AK_Step" + step + "_";
+    const found = new Map();                            // name -> {name, from, n, rank}
+    (notes || []).forEach(note => {
+      const all = note.tags || [];
+      // Prefer this Step's tags, but if the card carries only a couple, fall
+      // back to all of them — better three choices than one.
+      const mine = all.filter(t => String(t).indexOf(prefix) === 0);
+      const tags = mine.length >= 3 ? mine : all;
+      const here = new Set();
+      tags.forEach(tag => {
+        const parts = String(tag).split("::");
+        roots.forEach((src, rank) => {
+          const i = parts.indexOf(src.root);
+          if (i < 0) return;
+          let at = i + 1;
+          if (isEditionSeg(parts[at])) at++;            // step over FA2024 etc
+          if (!parts[at]) return;
+          const raw = parts[at];
+          if (chapterNoise(raw)) return;
+          let name = cleanSeg(raw);
+          if (src.rotation) name = ROTATION_NAMES[name.toLowerCase()] || name;
+          if (!name || name.length < 2) return;
+          const key = rank + "|" + name.toLowerCase();
+          if (here.has(key)) return;                    // count once per card
+          here.add(key);
+          const e = found.get(key);
+          if (e) e.n++; else found.set(key, { name: name, from: src.from, n: 1, rank: rank });
+        });
+      });
+    });
+    const out = Array.from(found.values());
+    if (!out.length) return [];
+    out.sort((a, b) => (a.rank - b.rank) || (b.n - a.n) || a.name.localeCompare(b.name));
+    // drop duplicates of the same name coming from a weaker source
+    const seen = new Set();
+    return out.filter(c => {
+      const k = c.name.toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k); return true;
+    }).slice(0, 4);
   }
   function guessDeck(candidates, note) {
     const tnorm = ((note && note.tags) || []).map(t => t.toLowerCase().replace(/[^a-z0-9]+/g, ""));
@@ -2343,26 +2426,78 @@
     newInput.placeholder = "e.g. Missed Qs";
     newWrap.appendChild(newInput); m.body.appendChild(newWrap);
 
-    // 2b) chapter subdeck — saved cards land under the system they belong to,
-    // so the pile stays studiable by topic instead of growing flat.
-    const chapter = chapterFor(currentNotes);
-    const subRow = document.createElement("label");
-    subRow.className = "mnx-md-sub";
-    const subChk = document.createElement("input");
-    subChk.type = "checkbox"; subChk.checked = !!chapter; subChk.disabled = !chapter;
-    const subTxt = document.createElement("span");
-    subTxt.textContent = chapter ? "Put it in a chapter subdeck" : "No chapter found in this card's tags";
-    subRow.append(subChk, subTxt);
-    m.body.appendChild(subRow);
+    // 2b) chapter subdeck — one click, several options, never forced.
+    // Step 1 cards suggest an organ system, Step 2 cards a rotation; both offer
+    // whatever else their tags agree on, plus "no subdeck" and a free-text box.
+    const chapters = chapterCandidates(currentNotes);
+    let chapter = chapters.length ? chapters[0].name : null;
+    let customChapter = "";
+
+    const subLbl = document.createElement("label");
+    subLbl.className = "mnx-md-lbl";
+    subLbl.textContent = chapters.length ? "Chapter subdeck" : "Chapter subdeck (none found in this card's tags)";
+    m.body.appendChild(subLbl);
+
+    const chips = document.createElement("div");
+    chips.className = "mnx-chapchips";
+    m.body.appendChild(chips);
+
+    const customInput = document.createElement("input");
+    customInput.type = "text"; customInput.placeholder = "Type a chapter name";
+    customInput.className = "mnx-chapcustom"; customInput.style.display = "none";
+    m.body.appendChild(customInput);
+
+    function drawChips() {
+      chips.replaceChildren();
+      const opts = chapters.map(c => ({ key: c.name, label: c.name, hint: c.from + (c.n > 1 ? " · ×" + c.n : "") }));
+      opts.push({ key: "__custom", label: "Custom…", hint: "" });
+      opts.push({ key: null, label: "No subdeck", hint: "" });
+      opts.forEach(o => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "mnx-chapchip" + ((o.key === "__custom" ? (chapter === customChapter && customInput.style.display !== "none") : chapter === o.key) ? " on" : "");
+        const t = document.createElement("span"); t.textContent = o.label; b.appendChild(t);
+        if (o.hint) { const h = document.createElement("i"); h.textContent = o.hint; b.appendChild(h); }
+        b.addEventListener("click", onUserClick(() => {
+          if (o.key === "__custom") {
+            customInput.style.display = "block";
+            chapter = customInput.value.trim() || null;
+            customInput.focus();
+          } else {
+            customInput.style.display = "none";
+            chapter = o.key;
+          }
+          drawChips(); refreshDest();
+        }));
+        chips.appendChild(b);
+      });
+    }
+    customInput.addEventListener("input", () => {
+      customChapter = customInput.value.trim();
+      chapter = customChapter || null;
+      refreshDest();
+    });
 
     const dest = document.createElement("div");
     dest.className = "mnx-md-dest";
     m.body.appendChild(dest);
 
+    function baseDeck() {
+      const raw = sel.value === NEW_OPT ? newInput.value.trim() : sel.value;
+      return stripKnownChapter(raw);
+    }
+    // Strip a chapter we previously appended, whichever one it was.
+    function stripKnownChapter(path) {
+      if (!path) return path;
+      const leaf = deckLeaf(path).toLowerCase();
+      const known = chapters.map(c => c.name.toLowerCase()).concat(customChapter.toLowerCase());
+      if (known.indexOf(leaf) >= 0) return path.slice(0, -(leaf.length + 2));
+      return path;
+    }
     function targetDeck() {
-      const base = deckBase(sel.value === NEW_OPT ? newInput.value.trim() : sel.value, chapter);
+      const base = baseDeck();
       if (!base) return "";
-      return (chapter && subChk.checked) ? base + "::" + chapter : base;
+      return chapter ? base + "::" + chapter : base;
     }
     function refreshDest() {
       const t = targetDeck();
@@ -2371,8 +2506,9 @@
       const path = document.createElement("b"); path.textContent = t || "(pick a deck)";
       dest.append(lbl, path);
     }
-    subChk.addEventListener("change", refreshDest);
+    drawChips();
     newInput.addEventListener("input", refreshDest);
+
     function refreshDeckGuess() { const g = guessDeck(candidates, chosenNote); if (g) sel.value = g; refreshDest(); }
     function fillDecks(all) {
       const missed = all.filter(d => /missed/i.test(d));
@@ -2439,7 +2575,7 @@
           if (noteHtml) params.fieldAppends = { "Missed Questions": noteHtml };
           await bridge("copyNote", params);
         }
-        chrome.storage.local.set({ akMissedDeck: deckBase(deck, chapter) });
+        chrome.storage.local.set({ akMissedDeck: baseDeck() });
         if (deckCache && !deckCache.includes(deck)) deckCache.push(deck);
         m.close();
         const extra = imgTags.length ? (" + " + imgTags.length + " image" + (imgTags.length === 1 ? "" : "s")) : "";
