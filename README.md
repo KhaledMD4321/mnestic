@@ -26,7 +26,10 @@ your study pace.
 Everything runs on your own computer, through a small local link to your own Anki.
 **No server, no account, no telemetry.**
 
-![How it works — question to AnKing](docs/demo.svg)
+![Mnestic on a question: the resource panel, then First Aid images overlaid with the pager](docs/media/overlay.gif)
+
+<div align="center"><sub>Recorded from the extension itself. The question, card and
+diagrams are written for the demo — see <a href="scripts/demo-fixtures.js">scripts/demo-fixtures.js</a>.</sub></div>
 
 ---
 
@@ -92,12 +95,37 @@ Claude or Gemini.
 
 ---
 
-## Screenshots
+## See it work
 
-| The panel, card composer & weak areas | The popup |
+### Keep a missed question — and take it back out
+
+Saving puts the card in a chapter subdeck with your note. Reopening the dialog
+offers **Remove from Missed Qs**, which untags it, moves it home, and keeps
+everything you typed.
+
+![Saving a question to a chapter subdeck, then removing it again](docs/media/save-and-undo.gif)
+
+### Break down a finished block
+
+![The weak-area breakdown, weakest system first](docs/media/weak-areas.gif)
+
+### The panel, and the popup
+
+| On the question | In the popup |
 |:---:|:---:|
-| ![Mnestic resource panel, Make-a-card, and weak-area breakdown](docs/shot-ui.png) | ![Mnestic popup — study tracker, settings, AI prompt](docs/shot-popup.png) |
-| Matched resources, **Make a card** with the *From this question* picker, and the weakest-first breakdown. | Streak, 16-week heatmap, targets, settings, and the editable AI prompt. |
+| ![The resource panel: buttons, card readiness, and collapsed resource rows](docs/media/panel-closeup.png) | ![The popup: streak, heatmap, targets, projected finish](docs/media/popup.png) |
+| Five resources collapsed to a line each, with their overlay keys — plus how the matching cards stand, and one-click Unsuspend. | Streak, 16-week heatmap, pace and projected finish, and every setting. |
+
+<details><summary>More stills</summary><br>
+
+| | |
+|:---:|:---:|
+| ![The save dialog with chapter chips](docs/media/save-dialog.png) | ![The dialog offering Remove from Missed Qs](docs/media/undo-offered.png) |
+| The save dialog: chapter chips read from the card's own AnKing tags. | Already saved, so undo is on offer. |
+| ![A First Aid overlay over the question](docs/media/overlay-firstaid.png) | ![The block breakdown, weakest first](docs/media/weak-areas.png) |
+| An overlay with its pager and filmstrip. | Per-system accuracy with *Open N missed*. |
+
+</details>
 
 <details><summary>🌙 Dark mode</summary><br>
 
@@ -107,19 +135,15 @@ Claude or Gemini.
 
 </details>
 
-<details><summary>📐 Features at a glance</summary><br>
+<details><summary>📐 Illustrated overview</summary><br>
+
+![How it works — question to AnKing](docs/demo.svg)
 
 ![Features at a glance](docs/features.svg)
 
 | ✚ Make a card — 📎 *From this question* | 🤖 Copy for AI |
 |:---:|:---:|
 | ![Make card with the from-question image picker](docs/make-card.svg) | ![Copy for AI with prompt presets](docs/ai.svg) |
-
-| 📊 Weak-area breakdown | 🔥 Study tracker |
-|:---:|:---:|
-| ![Weak-area breakdown](docs/weak-areas.svg) | ![Study tracker](docs/tracker.svg) |
-
-![Resource overlays — press F / S / P / O over the question](docs/overlay.svg)
 
 </details>
 
@@ -246,7 +270,7 @@ extension/               the browser extension
   popup.html/.js         tracker, settings, missed list, pairing
 anki-addon/
   mnestic_bridge/        the Anki add-on — local bridge + Tools menu
-scripts/                 build and test: e2e, adapters, add-on guards
+scripts/                 build, test and the demo recorder
 docs/                    the guide, release runbook, store listing copy
 ```
 
@@ -257,6 +281,13 @@ python scripts/check-addon.py    # the add-on can actually import
 python scripts/guard-test.py     # destructive ops refuse what they should
 node   scripts/adapter-test.js   # every site adapter still parses its pages
 node   scripts/e2e-test.js       # the real extension, in a real browser
+```
+
+Re-record the demos in `docs/media/` (drives the real extension, needs ffmpeg):
+
+```bash
+node scripts/demo-capture.js            # stills + GIFs
+node scripts/demo-capture.js --shots    # stills only, much faster
 ```
 
 Release process: [docs/releasing.md](docs/releasing.md)

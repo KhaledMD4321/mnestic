@@ -95,6 +95,8 @@ will never spoil an unanswered question.
 
 ### The resource panel
 
+![The resource panel](media/panel-closeup.png)
+
 The resources your AnKing card links to — Sketchy, Boards & Beyond, First Aid,
 Physeo, OME, Picmonic and others — appear beside the explanation, **collapsed to
 one line each**, showing the topics covered, the overlay key, and how many
@@ -116,6 +118,8 @@ the question**:
 | **O** | OME |
 | **E** | Extra |
 | **A** | Additional Resources |
+
+![Pressing F puts the First Aid images over the question](media/overlay.gif)
 
 Multi-page resources page with **← →**, show *2 / 5*, and carry a filmstrip of
 every page. Images are fetched while you read, so the first keypress is instant.
@@ -181,6 +185,8 @@ arriving.
 
 ### Chapter subdecks
 
+![The save dialog, with chapter chips read from the card's tags](media/save-dialog.png)
+
 The dialog offers chapters read from the card's **own AnKing tags** — organ
 systems on Step 1, rotations on Step 2 — so your missed pile stays studiable by
 topic instead of becoming one undifferentiated heap.
@@ -217,6 +223,8 @@ Three ways to attach:
 *(The last is unavailable on MedPark — see [Supported banks](#supported-banks).)*
 
 ### Undoing a save
+
+![Saving a question, then removing it again](media/save-and-undo.gif)
 
 Reopen the dialog on a saved question. It says **"Already in Missed Qs"** and
 offers **Remove from Missed Qs**, which undoes whichever save actually happened:
@@ -279,6 +287,8 @@ them.
 
 ### Weak-area breakdown
 
+![The block breakdown, weakest system first](media/weak-areas.gif)
+
 Per **System / Subject / Topic** accuracy for the block, **weakest first**, with:
 
 - **Open N missed** — sends just that group to Anki
@@ -291,6 +301,8 @@ Per **System / Subject / Topic** accuracy for the block, **weakest first**, with
 Click the Mnestic icon.
 
 ### Study tracker
+
+![The popup's study tracker](media/popup.png)
 
 - **Today** and **this week** against your targets
 - 🔥 **Daily streak**
@@ -429,6 +441,16 @@ per-question id table to read), and **📎 From this question** (it serves quest
 figures from a third-party storage domain, and granting fetch access to a host
 neither you nor MedPark controls is not a trade worth making). Paste and
 file-picker attach still work.
+
+---
+
+## About the images in this guide
+
+Every screenshot and GIF here was recorded by driving the real extension in a
+real browser (`scripts/demo-capture.js`) — none of it is a mock-up. The question,
+the card and the diagrams are written for the demo and labelled SAMPLE; they are
+not pages from First Aid, Sketchy, Physeo or any other resource. Resource *names*
+appear because those come from the tags on your own deck.
 
 ---
 
