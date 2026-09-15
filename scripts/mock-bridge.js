@@ -73,7 +73,7 @@ const seen = [];   // every {op,args} the extension sent — asserted on by the 
 // Test knobs, so a run can simulate a real collection's state:
 //   onlyStep    - the deck only has tags for this step (exercises step fallback)
 //   savedCopies - how many "Missed Qs" copies exist (exercises the dup guard)
-const state = { onlyStep: null, savedCopies: 0, oldAddon: false, slowDecks: 0 };
+const state = { onlyStep: null, savedCopies: 0, oldAddon: false, slowDecks: 0, emptyFiltered: false };
 
 const OPS = {
   ping: () => ({ name: "Mnestic Bridge (mock)", version: "1.0.2-mock" }),
@@ -105,7 +105,7 @@ const OPS = {
     taggedByStep: { "1": 4242, "2": 0, "3": 0 } }),
   setDeck: (a) => ({ moved: 2, deck: a.deck, created: false }),
   createDeck: (a) => ({ deck: a.deck, created: true }),
-  filteredDeck: (a) => ({ deck: a.name, cards: 37, search: a.search }),
+  filteredDeck: (a) => ({ deck: a.name, cards: state.emptyFiltered ? 0 : 37, empty: state.emptyFiltered, search: a.search }),
   missedIds: () => ([
     { qid: "1633", chapter: "Respiratory", mod: 3 },
     { qid: "1634", chapter: "Respiratory", mod: 2 },

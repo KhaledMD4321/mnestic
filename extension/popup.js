@@ -186,9 +186,20 @@ document.getElementById("missedStudy").addEventListener("click", async () => {
     limit: 200
   });
   btn.disabled = false; btn.textContent = "Study them in Anki";
-  missedStudyHint.textContent = r.ok
-    ? "Built “" + r.data.deck + "” with " + r.data.cards + " cards — open Anki to study it."
-    : (/unknown op/i.test(r.error || "") ? "Update the Mnestic Bridge add-on to use this." : "Couldn't build it: " + r.error);
+  if (r.ok && !r.data.cards) {
+    // Nothing missed yet is where every new user starts, and Anki's own
+    // "no cards matched" prose reads like a failure. Say what to do instead.
+    missedStudyHint.textContent =
+      "Nothing to study yet — save a question as missed and it lands here.";
+  } else if (r.ok) {
+    missedStudyHint.textContent =
+      "Built “" + r.data.deck + "” with " + r.data.cards +
+      " cards — open Anki to study it.";
+  } else if (/unknown op/i.test(r.error || "")) {
+    missedStudyHint.textContent = "Update the Mnestic Bridge add-on to use this.";
+  } else {
+    missedStudyHint.textContent = "Couldn't build it: " + r.error;
+  }
 });
 
 // ---- find a topic in Anki (drill a hard topic outside the qbank) ----

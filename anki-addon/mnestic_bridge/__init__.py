@@ -46,6 +46,7 @@ except Exception:                                    # very old/new Anki
 from aqt.utils import askUser, showText, tooltip
 
 # "#AK_Step1_v12::#UWorld::Step::2108" and the older bare "…::#UWorld::2108"
+_MATCHED_NOTHING_RE = re.compile("no cards matched", re.I)
 _UW_ID_RE = re.compile(r"^#AK_Step(\d)_v[^:]*::#UWorld::(?:Step::)?(\d+)$", re.I)
 
 ADDON_NAME = "Mnestic Bridge"
@@ -606,7 +607,17 @@ def op_filtered_deck(args):
         term.limit = limit
         term.order = 0                                   # oldest seen first
         deck.config.reschedule = True
-        out = col.sched.add_or_update_filtered_deck(deck)
+        try:
+            out = col.sched.add_or_update_filtered_deck(deck)
+        except Exception as exc:
+            # Anki refuses to build a filtered deck that gathers nothing, and
+            # says so in backend prose about "a different filtered deck, or
+            # suspended". Having nothing missed yet is the normal state for a
+            # new user, not an error, so report an empty deck instead. An
+            # existing deck has already returned its cards home by this point.
+            if _MATCHED_NOTHING_RE.search(str(exc)):
+                return {"deck": name, "cards": 0, "empty": True}
+            raise
         did = getattr(out, "id", None) or (existing and existing["id"])
     except AttributeError:
         # older scheduler API

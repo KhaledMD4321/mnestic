@@ -461,6 +461,18 @@ function listenFree(server, from) {
       mock.calls().filter((c) => c.op === "filteredDeck").length > before &&
       !!fd && /tag:Mnestic::Missed/.test(fd.args.search || ""),
       fd && fd.args.search);
+
+    // A new user has missed nothing yet. Anki refuses to build a filtered deck
+    // that gathers no cards and explains itself in backend prose about
+    // suspended cards, which reads like a failure. It must not reach them.
+    mock.state.emptyFiltered = true;
+    await p.click("#missedStudy");
+    await p.waitForTimeout(800);
+    const hint = (await p.textContent("#missedStudyHint")) || "";
+    check("popup", "nothing missed yet reads as a normal state, not an error",
+      /nothing to study yet/i.test(hint) && !/couldn't build|suspended/i.test(hint),
+      hint.slice(0, 80));
+    mock.state.emptyFiltered = false;
     await p.close();
   }
   console.log("");
