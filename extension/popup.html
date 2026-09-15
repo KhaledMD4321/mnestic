@@ -57,6 +57,18 @@
     body.dark .field input { border-color:#3a4150; }
     .btn { font:inherit; border:none; background:var(--mn); color:#fff; border-radius:6px; padding:6px 11px; cursor:pointer; font-weight:600; }
     .btn:hover { background:var(--mn-600); }
+    .setup { list-style:none; margin:8px 0 0; padding:0; font-size:11.5px; line-height:1.45; }
+    .setup li { display:flex; gap:8px; align-items:flex-start; margin:0 0 7px; color:#8a8f98; }
+    .setup li b { color:#243240; font-weight:600; }
+    body.dark .setup li b { color:#e6ebf4; }
+    .setup li i { flex:none; width:14px; height:14px; margin-top:1px; border-radius:50%;
+                  border:2px solid #cfd6dd; box-sizing:border-box; }
+    .setup li.done i { background:#2e9e4f; border-color:#2e9e4f; }
+    .setup li.done i::after { content:"✓"; display:block; color:#fff; font-size:9px;
+                              line-height:10px; text-align:center; font-weight:700; }
+    .setup li.done { color:#8a8f98; }
+    .setup li.now i { border-color:var(--mn); }
+    .setup li.now b { color:var(--mn); }
     .adv { font-size:11px; color:#8a8f98; }
     .adv summary { cursor:pointer; margin-top:8px; }
     .adv .field { margin-top:6px; }
@@ -65,6 +77,17 @@
 <body>
   <h1>Mnestic</h1>
   <p class="sub">Your AnKing cards, wired to every question</p>
+
+  <section id="setup" hidden>
+    <b style="font-size:12.5px">Finish setting up</b>
+    <ol class="setup">
+      <li id="su-anki"><i></i><span><b>Open Anki</b> with the Mnestic Bridge add-on installed.
+        <a href="https://ankiweb.net/shared/info/199262916" target="_blank" rel="noopener noreferrer">Get the add-on</a></span></li>
+      <li id="su-pair"><i></i><span><b>Paste your pairing code.</b> In Anki: Tools → Mnestic Bridge → Pairing code…</span></li>
+      <li id="su-deck"><i></i><span><b>Have the AnKing deck</b> with its question-id tags.</span></li>
+    </ol>
+    <hr>
+  </section>
 
   <div class="trk">
     <div class="trk-h"><b>Study tracker</b><span id="trkStreak" class="trk-streak"></span></div>

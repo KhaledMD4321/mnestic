@@ -369,6 +369,11 @@ function listenFree(server, from) {
     const updates = mock.calls().filter((c) => c.op === "updateNote").length;
     check("coursology", "saving twice makes ONE card, not two (" + copies + " copy, " + updates + " update)",
       copies === 1 && updates === 1);
+    // the chapter subdeck is derived from the card's own numbered AnKing tags
+    const cp = mock.calls().filter((c) => c.op === "copyNote")[0];
+    check("coursology", "saved into a chapter subdeck (" + (cp && cp.args.deck) + ")",
+      !!cp && /::Respiratory$/.test(cp.args.deck || ""), cp && cp.args.deck);
+
     const up = mock.calls().filter((c) => c.op === "updateNote").slice(-1)[0];
     check("coursology", "the second note is appended to the existing copy",
       !!up && up.args.noteId === 9999 && /second note/.test(JSON.stringify(up.args.fieldAppends || {})));

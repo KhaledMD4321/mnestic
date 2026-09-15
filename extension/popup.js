@@ -247,12 +247,40 @@ function setPill(state) {
     state === "off" ? "Anki not connected" : "Checking…";
 }
 
+// A first run has three things to get right, and the old popup only reported
+// the middle one. Show them as a checklist that disappears once it's all done.
+function setStep(id, state) {
+  const li = document.getElementById(id);
+  if (!li) return;
+  li.classList.toggle("done", state === "done");
+  li.classList.toggle("now", state === "now");
+}
+async function refreshSetup(ankiUp, paired) {
+  const box = document.getElementById("setup");
+  if (!box) return;
+  setStep("su-anki", ankiUp ? "done" : "now");
+  setStep("su-pair", paired ? "done" : ankiUp ? "now" : "");
+  let tagged = null;
+  if (paired) {
+    const q = [1, 2, 3].map((n) => "tag:#AK_Step" + n + "_v*::#UWorld::*");
+    const r = await bridge("countNotes", { queries: q });
+    if (r.ok && Array.isArray(r.data)) tagged = r.data.some((n) => n > 0);
+    else {
+      const one = await bridge("searchNotes", { query: q[0] });
+      tagged = one.ok && Array.isArray(one.data) ? one.data.length > 0 : null;
+    }
+  }
+  setStep("su-deck", tagged ? "done" : paired ? "now" : "");
+  box.hidden = !!(ankiUp && paired && tagged);
+}
+
 async function checkConnection() {
   setPill("checking");
   const ping = await bridge("ping");
-  if (!ping.ok) { setPill("off"); return; }   // bridge/add-on not reachable
+  if (!ping.ok) { setPill("off"); refreshSetup(false, false); return; }   // bridge/add-on not reachable
   const auth = await bridge("auth");
   setPill(auth.ok ? "on" : "pair");            // reachable — paired or not
+  refreshSetup(true, !!auth.ok);
 }
 
 // pairing-code + port inputs
@@ -285,10 +313,19 @@ document.getElementById("deckBtn").addEventListener("click", async () => {
   deckOut.hidden = false;
   deckOut.textContent = "Counting…";
   btn.disabled = true;
+  const queries = [1, 2, 3].map((s) => "tag:#AK_Step" + s + "_v*::#UWorld::*");
   const counts = {};
-  for (const step of [1, 2, 3]) {
-    const r = await bridge("searchNotes", { query: "tag:#AK_Step" + step + "_v*::#UWorld::*" });
-    counts[step] = r.ok && Array.isArray(r.data) ? r.data.length : -1;
+  // countNotes returns three numbers. Older add-ons don't have it, so fall back
+  // to searchNotes — which answers with every matching note id, roughly 26,000
+  // integers for a full deck, to show three counts.
+  const fast = await bridge("countNotes", { queries });
+  if (fast.ok && Array.isArray(fast.data)) {
+    [1, 2, 3].forEach((s, i) => (counts[s] = fast.data[i]));
+  } else {
+    for (const step of [1, 2, 3]) {
+      const r = await bridge("searchNotes", { query: queries[step - 1] });
+      counts[step] = r.ok && Array.isArray(r.data) ? r.data.length : -1;
+    }
   }
   btn.disabled = false;
   if (Object.values(counts).every((n) => n < 0)) {

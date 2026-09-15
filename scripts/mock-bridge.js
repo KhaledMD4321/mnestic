@@ -96,6 +96,9 @@ const OPS = {
   cardMaturity: (a) => (a.queries || []).map(() =>
     ({ new: 1, learning: 1, young: 2, mature: 3, suspended: 2, total: 9 })),
   unsuspend: () => 1,
+  countNotes: (a) => (a.queries || []).map(() => 4242),
+  status: () => ({ name: "Mnestic Bridge (mock)", version: "1.1.0-mock",
+    taggedByStep: { "1": 4242, "2": 0, "3": 0 } }),
   copyNote: () => { state.savedCopies++; return 2222222222222; },
   updateNote: () => true,
   newNote: () => 3333333333333

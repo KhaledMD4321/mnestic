@@ -36,10 +36,15 @@ from urllib.parse import urlsplit
 import aqt
 from aqt import gui_hooks, mw
 from aqt.qt import QAction
-from aqt.utils import showText, tooltip
+
+try:
+    from anki import buildinfo
+except Exception:                                    # very old/new Anki
+    buildinfo = None
+from aqt.utils import askUser, showText, tooltip
 
 ADDON_NAME = "Mnestic Bridge"
-ADDON_VERSION = "1.0.2"
+ADDON_VERSION = "1.1.0"
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8790
 
@@ -457,7 +462,39 @@ _OPS = {
     "copyNote": op_copy_note,
     "updateNote": op_update_note,
     "newNote": op_new_note,
+    "countNotes": op_count_notes,
+    "status": op_status,
 }
+
+
+def op_count_notes(args):
+    """How many notes match each query — just the numbers.
+
+    The extension's deck check used to call searchNotes three times and receive
+    every matching note id: roughly 26,000 integers for a full AnKing deck, to
+    display three counts. This returns the counts.
+    """
+    col = _col()
+    return [len(col.find_notes(q)) for q in (args.get("queries") or [])]
+
+
+def op_status(args):
+    """Everything the extension needs to tell a user what is and isn't set up."""
+    col = _col()
+    steps = {}
+    for step in (1, 2, 3):
+        try:
+            steps[str(step)] = len(col.find_notes("tag:#AK_Step%d_v*::#UWorld::*" % step))
+        except Exception:
+            steps[str(step)] = -1
+    return {
+        "name": ADDON_NAME,
+        "version": ADDON_VERSION,
+        "ankiVersion": getattr(buildinfo, "version", "?") if buildinfo else "?",
+        "profile": bool(col),
+        "taggedByStep": steps,
+        "mediaDir": bool(col.media.dir()),
+    }
 
 
 def dispatch(op, args):
@@ -615,10 +652,62 @@ def show_pairing_code():
     )
 
 
+def rotate_pairing_code():
+    """Issue a new pairing code and forget the old one."""
+    if not askUser(
+        "Issue a new Mnestic pairing code?\n\n"
+        "The current code stops working immediately. You'll need to paste the "
+        "new one into the extension once.",
+        title=ADDON_NAME,
+    ):
+        return
+    conf = mw.addonManager.getConfig(__name__) or {}
+    conf["token"] = ""
+    mw.addonManager.writeConfig(__name__, conf)
+    _token["value"] = ""
+    ensure_token()
+    show_pairing_code()
+
+
+def show_status():
+    try:
+        st = op_status({})
+    except Exception as exc:
+        showText("%s: couldn't read the collection (%s)" % (ADDON_NAME, exc), title=ADDON_NAME)
+        return
+    by = st["taggedByStep"]
+    lines = [
+        "%s %s" % (ADDON_NAME, st["version"]),
+        "Listening on 127.0.0.1:%d" % _port(),
+        "Pairing code: %s" % ("set" if (_token["value"] or "") else "not set yet"),
+        "",
+        "AnKing cards tagged with question ids:",
+    ]
+    for step in ("1", "2", "3"):
+        n = by.get(step, -1)
+        lines.append("    Step %s: %s" % (step, "couldn't check" if n < 0 else "{:,} cards".format(n)))
+    if all(by.get(k, 0) <= 0 for k in ("1", "2", "3")):
+        lines += [
+            "",
+            "No #UWorld tags found. Mnestic matches questions to cards through tags",
+            "like #AK_Step1_v12::#UWorld::Step::2108 — without them there is nothing",
+            "to match. Check you have the AnKing deck with its tags intact.",
+        ]
+    else:
+        lines += ["", "Looks right — the extension can match questions to these cards."]
+    showText("\n".join(lines), title=ADDON_NAME)
+
+
 def _add_menu():
-    action = QAction("Mnestic: pairing code…", mw)
-    action.triggered.connect(show_pairing_code)
-    mw.form.menuTools.addAction(action)
+    menu = mw.form.menuTools.addMenu(ADDON_NAME)
+    for label, fn in (
+        ("Pairing code…", show_pairing_code),
+        ("Issue a new pairing code…", rotate_pairing_code),
+        ("Status and deck check…", show_status),
+    ):
+        action = QAction(label, mw)
+        action.triggered.connect(fn)
+        menu.addAction(action)
 
 
 def on_ready():

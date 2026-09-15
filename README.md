@@ -179,7 +179,7 @@ Copy `anki-addon/mnestic_bridge/` into your Anki add-ons folder, then restart An
 
 The bridge is protected by a private **pairing code** so nothing else on your
 computer can reach your Anki through it. In Anki, click **Tools → “Mnestic:
-pairing code…”** (it copies the code to your clipboard). Open the Mnestic popup,
+Mnestic Bridge → Pairing code…”** (it copies the code to your clipboard). Open the Mnestic popup,
 paste it into the **Pairing code** box, and click **Save**. The status pill turns
 **Ready**.
 
@@ -227,7 +227,9 @@ number UWorld used**, and your AnKing cards are tagged with it. Check one:
   - **📝 Copy explanation** — just the qbank's explanation, for your notes.
   - **👁 Preview** — reads the matched card(s) (clozes revealed, **images
     inline**) with **‹ Prev / Next ›** across every card matched to the question.
-  - **★ Save to Missed Qs** — duplicates the matched card into a chapter deck and
+  - **★ Save to Missed Qs** — duplicates the matched card into a chapter deck —
+    the **subdeck is derived from the card's own AnKing chapter tags**, so cards
+    land under `Missed Qs::Respiratory` rather than one flat pile — and
     appends **your note** to its *Missed Questions* field. Paste a screenshot, add
     files, or **click a thumbnail of the question's own image** (“📎 From this
     question”) to attach only the ones that matter. The original card is left

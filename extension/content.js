@@ -775,6 +775,10 @@
     #mnx-md-overlay .mnx-md-ok:disabled{opacity:.55;cursor:default;box-shadow:none}
     #mnx-md-overlay .mnx-md-cancel{background:var(--mnx-surface-2);color:var(--mnx-text)}
     #mnx-md-overlay .mnx-md-cancel:hover{filter:brightness(.97)}
+    #mnx-md-overlay .mnx-md-sub{display:flex;align-items:center;gap:8px;margin:9px 0 0;font-size:13px;cursor:pointer}
+    #mnx-md-overlay .mnx-md-sub input{margin:0}
+    #mnx-md-overlay .mnx-md-dest{margin:6px 0 2px;font-size:12.5px;color:var(--mnx-muted)}
+    #mnx-md-overlay .mnx-md-dest b{color:var(--mnx-ink);font-weight:700;overflow-wrap:anywhere}
     #mnx-md-overlay .mnx-md-lbl{display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mnx-muted);margin:14px 0 6px}
     #mnx-md-overlay .mnx-md-body select,#mnx-md-overlay .mnx-md-body textarea,#mnx-md-overlay .mnx-md-body input[type=text]{width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--mnx-border);border-radius:var(--mnx-r-sm);font-size:13px;font-family:var(--mnx-font);color:var(--mnx-text);background:var(--mnx-surface-2);outline:none;transition:border-color .14s,box-shadow .14s}
     #mnx-md-overlay .mnx-md-body select:focus,#mnx-md-overlay .mnx-md-body textarea:focus,#mnx-md-overlay .mnx-md-body input[type=text]:focus{border-color:var(--mnx-accent);box-shadow:0 0 0 3px var(--mnx-accent-ring)}
@@ -2269,6 +2273,37 @@
   // ---- Save to Missed Qs (duplicate card into a chapter deck + append note) ----
   function deckLeaf(name) { const p = name.split("::"); return p[p.length - 1]; }
   function akNormDeck(s) { return (s || "").toLowerCase().replace(/^\d+[_\-.\s]*/, "").replace(/[^a-z0-9]+/g, ""); }
+  // AnKing numbers its chapter segments — 07_Cardiology, 03_Respiratory,
+  // 02_Biochemistry — across First Aid, B&B and the rest. Read the chapter a
+  // question's cards agree on, so saved cards land in a subdeck per system
+  // instead of one flat pile you can never study by topic.
+  function chapterFor(notes) {
+    const count = new Map();
+    for (const note of notes || []) {
+      const here = new Set();
+      for (const t of note.tags || []) {
+        for (const seg of String(t).split("::")) {
+          const m = /^(\d{1,2})[_\-.]\s*(.{3,})$/.exec(seg);
+          if (!m) continue;
+          const name = cleanSeg(seg);
+          if (!name || isNoiseSeg(seg)) continue;
+          if (here.has(name)) continue;               // once per card
+          here.add(name);
+          count.set(name, (count.get(name) || 0) + 1);
+        }
+      }
+    }
+    if (!count.size) return null;
+    return Array.from(count.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
+  }
+  // A deck path minus any chapter we appended last time, so the base stays stable.
+  function deckBase(path, chapter) {
+    if (!path) return path;
+    if (chapter && path.toLowerCase().endsWith("::" + chapter.toLowerCase())) {
+      return path.slice(0, -(chapter.length + 2));
+    }
+    return path;
+  }
   function guessDeck(candidates, note) {
     const tnorm = ((note && note.tags) || []).map(t => t.toLowerCase().replace(/[^a-z0-9]+/g, ""));
     for (const d of candidates) {
@@ -2305,9 +2340,40 @@
     const sel = document.createElement("select"); m.body.appendChild(sel);
     const newWrap = document.createElement("div"); newWrap.style.cssText = "margin-top:6px;display:none";
     const newInput = document.createElement("input"); newInput.type = "text";
-    newInput.placeholder = "e.g. 000001.Missed Qs::02_Respiratory";
+    newInput.placeholder = "e.g. Missed Qs";
     newWrap.appendChild(newInput); m.body.appendChild(newWrap);
-    function refreshDeckGuess() { const g = guessDeck(candidates, chosenNote); if (g) sel.value = g; }
+
+    // 2b) chapter subdeck — saved cards land under the system they belong to,
+    // so the pile stays studiable by topic instead of growing flat.
+    const chapter = chapterFor(currentNotes);
+    const subRow = document.createElement("label");
+    subRow.className = "mnx-md-sub";
+    const subChk = document.createElement("input");
+    subChk.type = "checkbox"; subChk.checked = !!chapter; subChk.disabled = !chapter;
+    const subTxt = document.createElement("span");
+    subTxt.textContent = chapter ? "Put it in a chapter subdeck" : "No chapter found in this card's tags";
+    subRow.append(subChk, subTxt);
+    m.body.appendChild(subRow);
+
+    const dest = document.createElement("div");
+    dest.className = "mnx-md-dest";
+    m.body.appendChild(dest);
+
+    function targetDeck() {
+      const base = deckBase(sel.value === NEW_OPT ? newInput.value.trim() : sel.value, chapter);
+      if (!base) return "";
+      return (chapter && subChk.checked) ? base + "::" + chapter : base;
+    }
+    function refreshDest() {
+      const t = targetDeck();
+      dest.replaceChildren();
+      const lbl = document.createElement("span"); lbl.textContent = "Saves to ";
+      const path = document.createElement("b"); path.textContent = t || "(pick a deck)";
+      dest.append(lbl, path);
+    }
+    subChk.addEventListener("change", refreshDest);
+    newInput.addEventListener("input", refreshDest);
+    function refreshDeckGuess() { const g = guessDeck(candidates, chosenNote); if (g) sel.value = g; refreshDest(); }
     function fillDecks(all) {
       const missed = all.filter(d => /missed/i.test(d));
       candidates = (missed.length ? missed : all).slice().sort();
@@ -2315,11 +2381,14 @@
       candidates.forEach(d => { const o = document.createElement("option"); o.value = d; o.textContent = d; sel.appendChild(o); });
       const o = document.createElement("option"); o.value = NEW_OPT; o.textContent = NEW_OPT; sel.appendChild(o);
       chrome.storage.local.get({ akMissedDeck: null }, c => {
-        if (c.akMissedDeck && candidates.includes(c.akMissedDeck)) sel.value = c.akMissedDeck;
+        if (c.akMissedDeck && candidates.includes(c.akMissedDeck)) { sel.value = c.akMissedDeck; refreshDest(); }
         else refreshDeckGuess();
       });
     }
-    sel.addEventListener("change", () => { newWrap.style.display = sel.value === NEW_OPT ? "block" : "none"; });
+    sel.addEventListener("change", () => {
+      newWrap.style.display = sel.value === NEW_OPT ? "block" : "none";
+      refreshDest();
+    });
     if (deckCache) fillDecks(deckCache);
     else {
       const o = document.createElement("option"); o.textContent = "Loading decks…"; sel.appendChild(o);
@@ -2343,7 +2412,7 @@
 
     // 4) save — upload pasted images to Anki media, then copy the card
     const saveBtn = mdButton("Save copy", "mnx-md-ok", async () => {
-      const deck = sel.value === NEW_OPT ? newInput.value.trim() : sel.value;
+      const deck = targetDeck();
       if (!deck) { toast("Pick or type a deck."); return; }
       saveBtn.disabled = true; saveBtn.textContent = "Saving…";
       try {
@@ -2370,7 +2439,7 @@
           if (noteHtml) params.fieldAppends = { "Missed Questions": noteHtml };
           await bridge("copyNote", params);
         }
-        chrome.storage.local.set({ akMissedDeck: deck });
+        chrome.storage.local.set({ akMissedDeck: deckBase(deck, chapter) });
         if (deckCache && !deckCache.includes(deck)) deckCache.push(deck);
         m.close();
         const extra = imgTags.length ? (" + " + imgTags.length + " image" + (imgTags.length === 1 ? "" : "s")) : "";
@@ -2548,7 +2617,10 @@
         if (want && list.includes(want)) sel.value = want;
       });
     }
-    sel.addEventListener("change", () => { newWrap.style.display = sel.value === NEW_OPT ? "block" : "none"; });
+    sel.addEventListener("change", () => {
+      newWrap.style.display = sel.value === NEW_OPT ? "block" : "none";
+      refreshDest();
+    });
     if (deckCache) fillDecks(deckCache);
     else {
       const o = document.createElement("option"); o.textContent = "Loading decks…"; sel.appendChild(o);
@@ -2566,7 +2638,7 @@
     srcWrap.appendChild(srcCb); srcWrap.appendChild(srcTxt); m.body.appendChild(srcWrap);
 
     const saveBtn = mdButton("Create card", "mnx-md-ok", async () => {
-      const deck = sel.value === NEW_OPT ? newInput.value.trim() : sel.value;
+      const deck = targetDeck();
       if (!deck) { toast("Pick or type a deck."); return; }
       let rawCloze;
       if (kind === "cloze") {
@@ -2718,7 +2790,7 @@
     const slug = currentQbankSlug();
     const key = slug + " " + qid;
     if (trackerLog.answered[key]) return;
-    trackerLog.answered[key] = { ts: Date.now(), slug, qid };
+    trackerLog.answered[key] = { ts: Date.now(), slug, qid, sv: currentSv || undefined };
     saveLog();
   }
 
@@ -2753,7 +2825,12 @@
       }
     }
     scrapeDashboardTotals();
-    if (SITE.isResultsPage()) backfillCorrectness(SITE.resultRows());
+    // Correctness used to be recorded only if you happened to open a results
+    // page, so "% correct, last 7 days" was blank for anyone who doesn't. Take
+    // it from whatever the qbank is showing: the results table, or the cached
+    // Question List, whichever is available on this page.
+    const outcomes = SITE.isResultsPage() ? resultData() : questionListData();
+    if (outcomes && outcomes.length) backfillCorrectness(outcomes);
   }
 
   // Auto-expand the results table to its largest page size (100) so the Anki
