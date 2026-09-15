@@ -3020,12 +3020,18 @@
   // The popup reads this storage and renders Today / This week / Remaining.
   // ============================================================
   const TRACKER_KEY = "akTrackerV2";
-  let trackerLog = { answered: {}, totals: {}, targets: { weekly: 0, daily: 0 } };
+  // answered  per-question detail (correctness, confidence) — our own observation
+  // totals     the qbank's own Used/Unused/Total, per bank
+  // daily      questions the qbank counted that we never saw, by day and bank
+  let trackerLog = { answered: {}, totals: {}, daily: {}, targets: { weekly: 0, daily: 0 } };
   function normalizeLog(t) {
     t = t || {};
     return {
       answered: (t.answered && typeof t.answered === "object") ? t.answered : {},
       totals: (t.totals && typeof t.totals === "object") ? t.totals : {},
+      // Rebuilt key by key, so anything added here must be listed or it is
+      // silently dropped on the next page load.
+      daily: (t.daily && typeof t.daily === "object") ? t.daily : {},
       targets: { weekly: (t.targets && +t.targets.weekly) || 0, daily: (t.targets && +t.targets.daily) || 0 }
     };
   }
@@ -3048,8 +3054,17 @@
     const slug = currentQbankSlug();
     let changed = false;
     rows.forEach(r => {
-      const e = trackerLog.answered[slug + " " + r.qid];
-      if (e && e.correct !== !isMissed(r)) { e.correct = !isMissed(r); changed = true; }
+      const key = slug + " " + r.qid;
+      let e = trackerLog.answered[key];
+      if (!e) {
+        // Seen only in a results table — we have no idea WHEN it was answered,
+        // and a block reviewed weeks later must not count toward today. ts stays
+        // null: it feeds weak areas and the retest list, never the streak.
+        e = trackerLog.answered[key] = { ts: null, slug, qid: r.qid, src: "results" };
+        changed = true;
+      }
+      const correct = !isMissed(r);
+      if (e.correct !== correct) { e.correct = correct; changed = true; }
     });
     if (changed) saveLog();
   }
@@ -3076,9 +3091,43 @@
     if (total == null && used == null && unused == null) return;
     const slug = currentQbankSlug();
     const prev = trackerLog.totals[slug] || {};
+
+    // The panel only sees questions you actually review, so a timed block you
+    // never opened used to leave no trace at all. The qbank's own "Used" count
+    // can't miss one — so it decides HOW MANY, while our log keeps saying which
+    // ones and how they went. Anything the counter saw that we didn't is
+    // credited to today and marked inferred, so the number is honest about
+    // where it came from.
+    if (used != null && prev.used != null) {
+      if (used < prev.used) {
+        // Reset QBank (or a bank switch): re-baseline, never emit a negative day.
+      } else {
+        const delta = used - prev.used;
+        if (delta > 0) {
+          const live = countLiveAnswered(slug, prev.ts || 0, now);
+          const extra = Math.max(0, delta - live);
+          if (extra > 0) addInferred(slug, dayKeyOf(now), extra);
+        }
+      }
+    }
     if (prev.total === total && prev.used === used && prev.unused === unused) return;
     trackerLog.totals[slug] = { total, used, unused, ts: now };
     saveLog();
+  }
+  function dayKeyOf(ms) { const d = new Date(ms); d.setHours(0, 0, 0, 0); return String(d.getTime()); }
+  function countLiveAnswered(slug, fromTs, toTs) {
+    let n = 0;
+    for (const k in trackerLog.answered) {
+      const e = trackerLog.answered[k];
+      if (!e || e.slug !== slug || !e.ts) continue;
+      if (e.ts > fromTs && e.ts <= toTs) n++;
+    }
+    return n;
+  }
+  function addInferred(slug, dayKey, n) {
+    if (!trackerLog.daily) trackerLog.daily = {};
+    const bank = trackerLog.daily[slug] || (trackerLog.daily[slug] = {});
+    bank[dayKey] = (bank[dayKey] || 0) + n;
   }
 
   // Called each main-loop tick: detect a fresh answer + keep totals current +

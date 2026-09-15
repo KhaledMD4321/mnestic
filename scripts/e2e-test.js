@@ -106,6 +106,14 @@ function listenFree(server, from) {
     await c.evaluate((o) => new Promise((r) => chrome.storage.local.set(o, r)), obj);
     await c.close();
   }
+  async function readTracker() {
+    const c = await ctx.newPage();
+    await c.goto(`chrome-extension://${extId}/popup.html`);
+    const out = await c.evaluate(() => new Promise((r) =>
+      chrome.storage.local.get({ akTrackerV2: null }, (v) => r(v.akTrackerV2))));
+    await c.close();
+    return out;
+  }
   await setCfg({ bridgePort: port });
 
   for (const site of SITES) {
@@ -425,6 +433,54 @@ function listenFree(server, from) {
       !!fd && /tag:Mnestic::Missed/.test(fd.args.search || ""),
       fd && fd.args.search);
     await p.close();
+  }
+  console.log("");
+
+  // ---- the tracker counts blocks it never watched ----
+  console.log("tracker:");
+  {
+    const dash = (used, unused) => page(`<div style="padding:20px">
+      <h2>Welcome</h2>
+      <div>Used Questions ${used}</div>
+      <div>Unused Questions ${unused}</div>
+      <div>Total Questions 3654</div></div>`);
+    let usedNow = 100;
+    const p = await ctx.newPage();
+    await p.route("**/*", (r) =>
+      r.fulfill({ status: 200, contentType: "text/html", body: dash(usedNow, 3654 - usedNow) }));
+    const url = "https://coursology-qbank.com/qbanks/usmle1/dashboard/welcome";
+    await p.goto(url, { waitUntil: "domcontentloaded" });
+    await p.waitForTimeout(2500);                 // first snapshot, no delta yet
+
+    usedNow = 115;                                // a 15-question block, never reviewed
+    await p.goto(url, { waitUntil: "domcontentloaded" });
+    await p.waitForTimeout(3000);
+
+    // storage lives in the extension's context, not the page's
+    const log = await readTracker();
+    const today = String(new Date(new Date().setHours(0, 0, 0, 0)).getTime());
+    const got = log && log.daily && log.daily.usmle1 && log.daily.usmle1[today];
+    check("tracker", "credits questions the qbank counted but we never saw (" + got + ")", got === 15);
+
+    // a Reset QBank must not produce a negative day
+    usedNow = 0;
+    await p.goto(url, { waitUntil: "domcontentloaded" });
+    await p.waitForTimeout(3000);
+    const after = await readTracker();
+    const got2 = after.daily.usmle1[today];
+    check("tracker", "a QBank reset re-baselines instead of going negative (" + got2 + ")", got2 === 15);
+    await p.close();
+
+    // and the popup shows it, labelled for what it is
+    const pop = await ctx.newPage();
+    await pop.goto(`chrome-extension://${extId}/popup.html`);
+    await pop.waitForTimeout(1200);
+    const todayTxt = (await pop.textContent("#trkToday")) || "";
+    const projTxt = (await pop.textContent("#trkProj")) || "";
+    check("tracker", "popup counts them today (" + todayTxt.trim() + ")", /15/.test(todayTxt));
+    check("tracker", "popup says where the number came from",
+      /from your qbank's own counter/.test(projTxt), projTxt.slice(0, 80));
+    await pop.close();
   }
   console.log("");
 

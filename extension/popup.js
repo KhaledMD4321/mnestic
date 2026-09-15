@@ -283,17 +283,42 @@ function renderTracker(t) {
   const d0 = startOfDayMs(), w0 = startOfWeekMs();
   const daily = (t.targets && t.targets.daily) || 0, weekly = (t.targets && t.targets.weekly) || 0;
 
-  const buckets = {};
-  let today = 0, week = 0, last14 = 0, acc7C = 0, acc7T = 0;
+  const buckets = {};                 // day -> questions, both signals combined
+  const inferredByDay = {};           // day -> questions only the qbank counted
+  let today = 0, week = 0, last14 = 0, acc7C = 0, acc7T = 0, liveTotal = 0, inferredTotal = 0;
   const cut14 = d0 - 13 * DAY, cut7 = d0 - 6 * DAY;
+
+  // 1. what the panel actually watched. Entries with no ts came from a results
+  //    table — real questions, unknown date — so they feed accuracy but never
+  //    a specific day, or an old block would land on today's streak.
   for (const k in answered) {
-    const e = answered[k], ts = e.ts; if (!ts) continue;
+    const e = answered[k], ts = e.ts;
+    if (!ts) {
+      if (e.correct === true || e.correct === false) { /* content only, no calendar */ }
+      continue;
+    }
+    liveTotal++;
     const day = dayStart(ts);
     buckets[day] = (buckets[day] || 0) + 1;
     if (ts >= d0) today++;
     if (ts >= w0) week++;
     if (day >= cut14) last14++;
     if ((e.correct === true || e.correct === false) && day >= cut7) { acc7T++; if (e.correct) acc7C++; }
+  }
+
+  // 2. questions the qbank counted that we never saw
+  const byBank = t.daily || {};
+  for (const bank in byBank) {
+    for (const dayKey in byBank[bank]) {
+      const day = Number(dayKey), n = byBank[bank][dayKey] || 0;
+      if (!n) continue;
+      inferredTotal += n;
+      inferredByDay[day] = (inferredByDay[day] || 0) + n;
+      buckets[day] = (buckets[day] || 0) + n;
+      if (day >= d0) today += n;
+      if (day >= w0) week += n;
+      if (day >= cut14) last14 += n;
+    }
   }
 
   setText("trkToday", today + (daily ? " / " + daily : ""));
@@ -322,10 +347,18 @@ function renderTracker(t) {
     setText("trkRemainLbl", "Remaining"); setText("trkRemain", "— open dashboard"); setFill("trkRemainFill", 0, false);
   }
 
-  // projection + 7-day accuracy
+  // projection + 7-day accuracy + where the numbers came from
   const proj = document.getElementById("trkProj");
   if (proj) {
     const pace = last14 / 14, bits = [];
+    const inferredToday = inferredByDay[d0] || 0;
+    if (inferredToday > 0) bits.push("+" + inferredToday + " of today's from your qbank's own counter");
+    if (tot && tot.used != null) {
+      const mine = liveTotal + inferredTotal;
+      if (Math.abs(tot.used - mine) > 2) {
+        bits.push(prettySlug(slug) + " says " + tot.used + " used · Mnestic recorded " + mine);
+      }
+    }
     if (remain != null && remain > 0 && pace > 0) {
       const daysLeft = Math.ceil(remain / pace);
       bits.push("≈ " + daysLeft + " days left at your pace · finish ~" + fmtDate(d0 + daysLeft * DAY));
