@@ -24,6 +24,9 @@ const NOTE = {
   tags: [
     "#AK_Step1_v12::#UWorld::Respiratory::1633",
     "#AK_Step1_v12::#FirstAid::FA2024::03_Respiratory::Obstructive_Lung_Disease",
+    // a hostile-looking chapter: cleanSeg turns _ into spaces, and Anki
+    // splits tags on whitespace — this must still produce ONE tag
+    "#AK_Step1_v12::#Bootcamp::04_Cardio_marked_leech::01_Intro",
     "#AK_Step1_v12::#Sketchy::Pharm::Beta_Blockers",
     "#AK_Step1_v12::#Physeo::Cardio::Heart_Failure",
     "#AK_Step1_v12::#OME::Step1::Cardiology",

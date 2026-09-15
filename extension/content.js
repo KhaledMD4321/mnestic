@@ -614,10 +614,8 @@
     #${PANEL_ID} tr:last-child td{border-bottom:none}
     #${PANEL_ID} tbody tr{transition:background .12s}
     #${PANEL_ID} tbody tr:hover td{background:var(--mnx-surface-2)}
-    #${PANEL_ID} td.mnx-res{font-weight:700;white-space:nowrap;color:var(--mnx-ink);border-left:3px solid var(--mnx-accent);width:96px;letter-spacing:-.01em}
     #${PANEL_ID} a{color:var(--mnx-accent);text-decoration:none;display:block;margin:3px 0;transition:color .12s}
     #${PANEL_ID} a:hover{color:var(--mnx-accent-600);text-decoration:underline}
-    #${PANEL_ID} .mnx-path{display:block;margin:3px 0;color:var(--mnx-muted)}
     #${PANEL_ID} .mnx-group{margin:0 0 9px}
     #${PANEL_ID} .mnx-group:last-child{margin-bottom:0}
     #${PANEL_ID} .mnx-parent{font-size:12px;color:var(--mnx-muted);margin-bottom:2px}
@@ -663,18 +661,18 @@
       background:var(--mnx-accent-soft);border-radius:var(--mnx-r-xs);padding:1px 5px;letter-spacing:.02em}
 
     /* ---- how confident were you, really ---- */
-    #${PANEL_ID} .mnx-conf{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:8px 13px;
+    #${PANEL_ID} .mnx-recall{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:8px 13px;
       border-bottom:1px solid var(--mnx-border);font-size:12.5px}
-    #${PANEL_ID} .mnx-conf-lbl{color:var(--mnx-muted);margin-right:2px}
-    #${PANEL_ID} .mnx-conf-btn{font:inherit;font-size:12px;font-weight:600;cursor:pointer;padding:3px 10px;
+    #${PANEL_ID} .mnx-recall-lbl{color:var(--mnx-muted);margin-right:2px}
+    #${PANEL_ID} .mnx-recall-btn{font:inherit;font-size:12px;font-weight:600;cursor:pointer;padding:3px 10px;
       border-radius:var(--mnx-r-pill);border:1px solid var(--mnx-border);background:var(--mnx-surface);
       color:var(--mnx-text);transition:background .14s,border-color .14s,transform .12s}
-    #${PANEL_ID} .mnx-conf-btn:hover{background:var(--mnx-surface-2)}
-    #${PANEL_ID} .mnx-conf-btn:active{transform:scale(.97)}
-    #${PANEL_ID} .mnx-conf-btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
-    #${PANEL_ID} .mnx-conf-knew.on{background:rgba(31,157,87,.14);border-color:var(--mnx-good);color:var(--mnx-good)}
-    #${PANEL_ID} .mnx-conf-guessed.on{background:rgba(213,137,28,.16);border-color:var(--mnx-warn);color:var(--mnx-warn)}
-    #${PANEL_ID} .mnx-conf-noidea.on{background:rgba(220,75,69,.14);border-color:var(--mnx-bad);color:var(--mnx-bad)}
+    #${PANEL_ID} .mnx-recall-btn:hover{background:var(--mnx-surface-2)}
+    #${PANEL_ID} .mnx-recall-btn:active{transform:scale(.97)}
+    #${PANEL_ID} .mnx-recall-btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
+    #${PANEL_ID} .mnx-recall-knew.on{background:rgba(31,157,87,.14);border-color:var(--mnx-good);color:var(--mnx-good)}
+    #${PANEL_ID} .mnx-recall-guessed.on{background:rgba(213,137,28,.16);border-color:var(--mnx-warn);color:var(--mnx-warn)}
+    #${PANEL_ID} .mnx-recall-noidea.on{background:rgba(220,75,69,.14);border-color:var(--mnx-bad);color:var(--mnx-bad)}
 
     /* ---- how ready you are for this question ---- */
     #${PANEL_ID} .mnx-cards{display:flex;align-items:center;gap:10px;padding:8px 13px;
@@ -2636,7 +2634,13 @@
         //   copy  duplicate the note into the subdeck. A separate card that will
         //         never receive AnKing updates again — offered, not the default.
         const sv = await svForQuestion();
-        const chapTag = chapter ? MISSED_TAG + "::" + String(chapter).split("::").join("_") : MISSED_TAG;
+        // Anki splits tags on whitespace, and a chapter name comes from deck
+        // tags we don't control — cleanSeg turns "_" into " ", so a segment
+        // like "Cardio_marked_leech" would fan out into three tags and write
+        // "marked" and "leech" onto the note. Collapse it back to one tag.
+        const chapTag = chapter
+          ? MISSED_TAG + "::" + String(chapter).split("::").join("_").replace(/\s+/g, "_")
+          : MISSED_TAG;
 
         // Already kept? Then this is a second note on the same question — append
         // to what's there rather than making another of anything.
@@ -2729,20 +2733,20 @@
   function addConfidenceRow(qid) {
     const panel = document.getElementById(PANEL_ID); if (!panel) return;
     const row = document.createElement("div");
-    row.className = "mnx-conf";
+    row.className = "mnx-recall";
     const lbl = document.createElement("span");
-    lbl.className = "mnx-conf-lbl"; lbl.textContent = "How did that go?";
+    lbl.className = "mnx-recall-lbl"; lbl.textContent = "How did that go?";
     row.appendChild(lbl);
     const slug = currentQbankSlug();
     const current = (trackerLog.answered[slug + " " + qid] || {}).conf || null;
     CONFIDENCE.forEach(([key, label, title]) => {
       const b = document.createElement("button");
       b.type = "button";
-      b.className = "mnx-conf-btn mnx-conf-" + key + (current === key ? " on" : "");
+      b.className = "mnx-recall-btn mnx-recall-" + key + (current === key ? " on" : "");
       b.textContent = label; b.title = title;
       b.addEventListener("click", onUserClick(() => {
         setConfidence(qid, current === key ? null : key);
-        const again = panel.querySelector(".mnx-conf");
+        const again = panel.querySelector(".mnx-recall");
         if (again) { again.remove(); addConfidenceRow(qid); }
       }));
       row.appendChild(b);

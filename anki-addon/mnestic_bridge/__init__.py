@@ -507,6 +507,18 @@ _OPS = {
 }
 
 
+def _search_literal(text):
+    """Quote a deck name for use inside an Anki search term.
+
+    Deck names come from the extension and can contain a quote or a
+    backslash, which would otherwise break out of the quoted term.
+    """
+    out = str(text or "")
+    out = out.replace(chr(92), chr(92) + chr(92))
+    out = out.replace(chr(34), chr(92) + chr(34))
+    return out
+
+
 def op_set_deck(args):
     """Move every card of `notes` into `deck`, creating the deck if needed.
 
@@ -549,7 +561,8 @@ def op_set_deck(args):
     did = col.decks.id(deck)
     empty = True
     try:
-        empty = not col.find_cards('deck:"%s" -deck:"%s::*"' % (deck, deck))
+        q = _search_literal(deck)
+        empty = not col.find_cards('deck:"%s" -deck:"%s::*"' % (q, q))
     except Exception:
         empty = not existed
     if empty and src_did:
@@ -627,7 +640,7 @@ def op_filtered_deck(args):
 
     count = 0
     try:
-        count = len(col.find_cards('deck:"%s"' % name))
+        count = len(col.find_cards('deck:"%s"' % _search_literal(name)))
     except Exception:
         pass
     return {"deck": name, "cards": count}

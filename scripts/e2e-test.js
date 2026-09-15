@@ -387,6 +387,10 @@ function listenFree(server, from) {
       !!moved && moved.args.deck === "Missed Questions::03_Respiratory",
       moved && moved.args.deck);
     const tagged = calls.find((c) => c.op === "updateNote");
+    // Anki splits tags on whitespace, so every tag we write must be one token.
+    const allTags = (tagged && tagged.args.addTags) || [];
+    check("coursology", "every tag written is a single token (no fan-out)",
+      allTags.length > 0 && allTags.every((t) => !/\s/.test(t)), JSON.stringify(allTags));
     check("coursology", "move mode tags the note by chapter",
       !!tagged && (tagged.args.addTags || []).some((t) => /^Mnestic::Missed::/.test(t)),
       JSON.stringify(tagged && tagged.args.addTags));
