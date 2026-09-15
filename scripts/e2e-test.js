@@ -401,8 +401,10 @@ function listenFree(server, from) {
       !calls.some((c) => c.op === "setDeck") && !calls.some((c) => c.op === "copyNote") &&
       calls.some((c) => c.op === "updateNote"));
 
-    // copy: the old behaviour, still available
-    mock.state.savedCopies = 0;
+    // copy: the old behaviour, still available.
+    // Both counters, not just copies: the move tests above marked this question
+    // saved, and "already saved" is what makes copy mode append instead.
+    mock.state.savedCopies = 0; mock.state.savedTagged = 0;
     calls = await run("copy", (p) => openAndSave(p, "note C"));
     check("coursology", "copy mode still makes a copy",
       calls.some((c) => c.op === "copyNote") && !calls.some((c) => c.op === "setDeck"));
@@ -411,7 +413,7 @@ function listenFree(server, from) {
     calls = await run("copy", (p) => openAndSave(p, "note D"));
     check("coursology", "copying a second time appends instead of duplicating",
       !calls.some((c) => c.op === "copyNote") && calls.some((c) => c.op === "updateNote"));
-    mock.state.savedCopies = 0;
+    mock.state.savedCopies = 0; mock.state.savedTagged = 0;
 
     // Saving before the deck list arrives must still reuse the existing
     // numbered subdeck, not create a parallel one.
@@ -437,6 +439,121 @@ function listenFree(server, from) {
     check("coursology", "an out-of-date add-on still tags rather than failing the save",
       !!calls.find((c) => c.op === "setDeck") && !!calls.find((c) => c.op === "updateNote"));
 
+    await setCfg({ mnxMissedMode: "move" });
+  }
+  console.log("");
+
+  // ---- undoing a save: the only way out used to be Anki's Browse window ----
+  console.log("taking a question back out of Missed Qs:");
+  {
+    async function openModal(mode) {
+      await setCfg({ mnxMissedMode: mode || "move" });
+      const p = await ctx.newPage();
+      await p.route("**/*", (r) => r.fulfill({ status: 200, contentType: "text/html", body: SITES[0].html }));
+      await p.goto(SITES[0].url, { waitUntil: "domcontentloaded" });
+      await p.waitForSelector("#mnx-resources", { timeout: 15000 });
+      await p.locator("#mnx-resources button", { hasText: "Save to Missed Qs" }).click({ timeout: 6000 });
+      await p.waitForSelector("#mnx-md-overlay textarea", { timeout: 6000 });
+      await p.waitForTimeout(700);              // the "is it saved?" round trip
+      return p;
+    }
+    const undo = (p) => p.locator("#mnx-md-overlay .mnx-md-undo");
+
+    // nothing saved: there is nothing to undo, so nothing is offered
+    mock.state.savedCopies = 0; mock.state.savedTagged = 0;
+    let p = await openModal("move");
+    check("undo", "no Remove button on a question that was never saved",
+      !(await undo(p).isVisible()));
+    await p.close();
+
+    // move mode, the whole round trip: save it for real (which is the only
+    // moment the home deck is knowable), then take it back out again.
+    mock.state.savedTagged = 0; mock.state.lastRemoveTags = null;
+    p = await openModal("move");
+    await p.fill("#mnx-md-overlay textarea", "note for undo");
+    await p.locator("#mnx-md-overlay .mnx-md-ok").last().click({ timeout: 6000 });
+    await p.waitForTimeout(1200);
+    // reopen on the same question: it is saved now, so undo is on offer
+    await p.locator("#mnx-resources button", { hasText: "Save to Missed Qs" }).click({ timeout: 6000 });
+    await p.waitForSelector("#mnx-md-overlay textarea", { timeout: 6000 });
+    await p.waitForTimeout(900);
+    const shown = await undo(p).isVisible();
+    let before = mock.calls().length;
+    await undo(p).click({ timeout: 6000 });
+    await p.waitForTimeout(1200);
+    let since = mock.calls().slice(before);
+    await p.close();
+    check("undo", "the Remove button appears once the question IS saved", shown);
+    const rt = since.find((c) => c.op === "removeTags");
+    check("undo", "it removes the missed tag", !!rt && (rt.args.tags || []).indexOf("Mnestic::Missed") >= 0,
+      JSON.stringify(rt && rt.args.tags));
+    const backHome = since.filter((c) => c.op === "setDeck").slice(-1)[0];
+    check("undo", "and moves the card back to the deck it came from",
+      !!backHome && backHome.args.deck === "AnKing Step 1", backHome && backHome.args.deck);
+
+    // the whole point of the field: someone's own notes must survive the undo
+    check("undo", "it never strips the tag protecting your typed notes",
+      !!rt && !(rt.args.tags || []).some((t) => /AnkiHub_Protect/i.test(t)) &&
+      !since.some((c) => c.op === "updateNote"),
+      JSON.stringify(rt && rt.args.tags));
+    check("undo", "and never deletes a note it did not create",
+      !since.some((c) => c.op === "deleteNotes"));
+
+    // If someone has since filed the card somewhere of their own, undo unties
+    // it from Missed Qs but leaves it where they put it.
+    mock.state.savedTagged = 0; mock.state.cardElsewhere = true;
+    p = await openModal("move");
+    await p.fill("#mnx-md-overlay textarea", "note for undo 2");
+    await p.locator("#mnx-md-overlay .mnx-md-ok").last().click({ timeout: 6000 });
+    await p.waitForTimeout(1200);
+    await p.locator("#mnx-resources button", { hasText: "Save to Missed Qs" }).click({ timeout: 6000 });
+    await p.waitForSelector("#mnx-md-overlay textarea", { timeout: 6000 });
+    await p.waitForTimeout(900);
+    before = mock.calls().length;
+    await undo(p).click({ timeout: 6000 });
+    await p.waitForTimeout(1200);
+    since = mock.calls().slice(before);
+    await p.close();
+    mock.state.cardElsewhere = false;
+    check("undo", "a card you have since refiled yourself is left where you put it",
+      since.some((c) => c.op === "removeTags") && !since.some((c) => c.op === "setDeck"),
+      JSON.stringify(since.map((c) => c.op)));
+
+    // copy mode: the copy is Mnestic's own, so undo removes it
+    mock.state.savedTagged = 0; mock.state.savedCopies = 1; mock.state.lastDeleted = null;
+    p = await openModal("copy");
+    before = mock.calls().length;
+    await undo(p).click({ timeout: 6000 });
+    await p.waitForTimeout(1200);
+    since = mock.calls().slice(before);
+    await p.close();
+    const del = since.find((c) => c.op === "deleteNotes");
+    check("undo", "copy mode deletes the copy it made", !!del && (del.args.notes || []).length > 0,
+      JSON.stringify(del && del.args.notes));
+
+    // a refusal from the add-on must reach the user, not be swallowed
+    mock.state.savedCopies = 1; mock.state.refuseDelete = true;
+    p = await openModal("copy");
+    await undo(p).click({ timeout: 6000 });
+    await p.waitForTimeout(1200);
+    const toastText = (await p.locator(".mnx-toast").last().textContent().catch(() => "")) || "";
+    await p.close();
+    mock.state.refuseDelete = false;
+    check("undo", "a note the add-on refuses to delete is reported, not hidden",
+      /left alone/i.test(toastText), toastText.slice(0, 90));
+
+    // an old add-on has neither op: say so instead of failing silently
+    mock.state.savedTagged = 1; mock.state.oldAddon = true;
+    p = await openModal("move");
+    await undo(p).click({ timeout: 6000 });
+    await p.waitForTimeout(1200);
+    const oldToast = (await p.locator(".mnx-toast").last().textContent().catch(() => "")) || "";
+    await p.close();
+    mock.state.oldAddon = false;
+    check("undo", "an out-of-date add-on is named as the reason",
+      /update the mnestic bridge/i.test(oldToast), oldToast.slice(0, 90));
+
+    mock.state.savedCopies = 0; mock.state.savedTagged = 0;
     await setCfg({ mnxMissedMode: "move" });
   }
   console.log("");

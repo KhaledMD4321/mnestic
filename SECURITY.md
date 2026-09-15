@@ -58,6 +58,15 @@ fetch https images from a supported question bank's own domain — the same shor
 list the manifest grants host permissions for — and only if the response is an
 image.
 
+**The bridge cannot delete your cards.** It has exactly one delete operation,
+for undoing a *Make a copy* save, and it refuses any note that is not a copy
+Mnestic itself created: the note must carry Mnestic's own marker tag and must
+not be AnkiHub-managed. Removing a tag is limited the same way — the add-on
+will only take off tags under `Mnestic::`, so no request can strip `marked`,
+`leech`, an AnKing tag, or the `AnkiHub_Protect` tag guarding notes you typed.
+Both limits live in the add-on rather than in the extension that calls it,
+because the add-on is what a request actually reaches.
+
 **Each site adapter only reads.** Support for a new question bank adds selectors
 and page heuristics, never new privileges: the extension still runs only on the
 hosts listed in the manifest, still talks only to `127.0.0.1`, and still sends

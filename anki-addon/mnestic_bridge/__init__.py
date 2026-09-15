@@ -47,10 +47,20 @@ from aqt.utils import askUser, showText, tooltip
 
 # "#AK_Step1_v12::#UWorld::Step::2108" and the older bare "…::#UWorld::2108"
 _MATCHED_NOTHING_RE = re.compile("no cards matched", re.I)
+
+# Written on every copy Mnestic creates. It is the ONLY thing that makes a
+# note eligible for deletion, so undoing a save can never reach a real card.
+_COPY_TAG = "Mnestic::Copy"
+
+# removeTags may only ever touch tags Mnestic itself writes. The extension
+# asks for exactly one of them, but the op is what a request actually
+# reaches, so the limit belongs here: no caller can strip "marked", "leech",
+# an AnKing tag, or the AnkiHub_Protect tag guarding someone's notes.
+_OWN_TAG_ROOT = "mnestic::"
 _UW_ID_RE = re.compile(r"^#AK_Step(\d)_v[^:]*::#UWorld::(?:Step::)?(\d+)$", re.I)
 
 ADDON_NAME = "Mnestic Bridge"
-ADDON_VERSION = "1.2.0"
+ADDON_VERSION = "1.3.0"
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8790
 
@@ -396,6 +406,8 @@ def op_copy_note(args):
             except Exception:
                 pass
     new.tags = list(src.tags)
+    if _COPY_TAG not in new.tags:
+        new.tags.append(_COPY_TAG)
     for t in args.get("addTags") or []:
         if t and t not in new.tags:
             new.tags.append(t)
@@ -558,7 +570,15 @@ def op_set_deck(args):
                 "update cards set did = ?, mod = ?, usn = ? where id in %s"
                 % ids2str(cids), did, int(time.time()), -1
             )
-    return {"moved": len(cids), "deck": deck, "created": not existed}
+    src_name = ""
+    if src_did:
+        try:
+            src_name = (col.decks.get(src_did) or {}).get("name", "") or ""
+        except Exception:
+            src_name = ""
+    # Where the cards came FROM. Without it there is no way back: the undo would
+    # have to guess a home deck, and guessing wrong scatters someone's cards.
+    return {"moved": len(cids), "deck": deck, "created": not existed, "from": src_name}
 
 
 def _inherit_deck_options(col, did, src_did):
@@ -718,6 +738,91 @@ def op_status(args):
     }
 
 
+def op_remove_tags(args):
+    """Take tags off notes -- the undo for "save to missed".
+
+    Removes each named tag AND its children, so "Mnestic::Missed" also takes
+    "Mnestic::Missed::03_Respiratory". It removes nothing else: whatever the
+    user typed into Missed Questions stays, and so does the AnkiHub_Protect tag
+    that stops AnkiHub overwriting it. Un-marking a question by mistake must
+    never cost someone their notes.
+    """
+    col = _col()
+    ids = args.get("notes") or []
+    if args.get("query"):
+        ids = list(col.find_notes(args["query"]))
+    wanted = [str(t).strip().lower() for t in (args.get("tags") or []) if str(t).strip()]
+    if not wanted:
+        raise Exception("tags is required")
+    outside = [t for t in wanted if not t.startswith(_OWN_TAG_ROOT)]
+    if outside:
+        raise Exception("removeTags only removes Mnestic's own tags, not %s" % ", ".join(outside))
+    updated, removed = 0, []
+    for nid in ids:
+        try:
+            note = col.get_note(int(nid))
+        except Exception:
+            continue
+        keep, drop = [], []
+        for t in note.tags:
+            tl = t.lower()
+            if any(tl == w or tl.startswith(w + "::") for w in wanted):
+                drop.append(t)
+            else:
+                keep.append(t)
+        if not drop:
+            continue
+        note.tags = keep
+        col.update_note(note)
+        removed.extend(drop)
+        updated += 1
+    return {"updated": updated, "removed": sorted(set(removed))}
+
+
+def op_delete_notes(args):
+    """Delete notes Mnestic created, and refuse every other note.
+
+    Undoing "save a copy" has to remove the copy. But a bridge that deletes any
+    note it is handed is one bad request away from emptying a collection, so
+    the guard lives HERE rather than in the caller that happens to be trusted
+    today: a note must carry the marker copyNote writes, and must not be
+    AnkiHub-managed. Anything else is reported back as refused, not deleted.
+    """
+    col = _col()
+    ids = args.get("notes") or []
+    # Undoing one question touches one or two notes. A request for hundreds is a
+    # bug or an abuse, and either way is not something to carry out.
+    if len(ids) > 100:
+        raise Exception("deleteNotes takes at most 100 notes at a time")
+    ok_ids, refused = [], []
+    for nid in ids:
+        try:
+            note = col.get_note(int(nid))
+        except Exception:
+            continue
+        if _COPY_TAG.lower() not in [t.lower() for t in note.tags]:
+            refused.append(note.id)
+            continue
+        managed = False
+        for key in note.keys():
+            if key.lower() == "ankihub_id" and (note[key] or "").strip():
+                managed = True
+                break
+        if managed:
+            refused.append(note.id)
+            continue
+        ok_ids.append(note.id)
+    count = 0
+    if ok_ids:
+        try:
+            out = col.remove_notes(ok_ids)
+            count = getattr(out, "count", len(ok_ids))
+        except AttributeError:
+            col.rem_notes(ok_ids)
+            count = len(ok_ids)
+    return {"deleted": count, "refused": refused}
+
+
 # ------------------------------- dispatch -------------------------------
 _OPS = {
     "searchNotes": op_search_notes,
@@ -739,6 +844,8 @@ _OPS = {
     "filteredDeck": op_filtered_deck,
     "missedIds": op_missed_ids,
     "status": op_status,
+    "removeTags": op_remove_tags,
+    "deleteNotes": op_delete_notes,
 }
 
 

@@ -73,15 +73,27 @@ const seen = [];   // every {op,args} the extension sent — asserted on by the 
 // Test knobs, so a run can simulate a real collection's state:
 //   onlyStep    - the deck only has tags for this step (exercises step fallback)
 //   savedCopies - how many "Missed Qs" copies exist (exercises the dup guard)
-const state = { onlyStep: null, savedCopies: 0, oldAddon: false, slowDecks: 0, emptyFiltered: false };
+const state = { onlyStep: null, savedCopies: 0, oldAddon: false, slowDecks: 0, emptyFiltered: false,
+                savedTagged: 0, lastRemoveTags: null, lastDeleted: null, refuseDelete: false,
+                cardElsewhere: false };
 
 const OPS = {
   ping: () => ({ name: "Mnestic Bridge (mock)", version: "1.0.2-mock" }),
   auth: () => ({ paired: true }),
   searchNotes: (a) => {
     const q = a.query || "";
-    // the already-saved-copy lookup
-    if (q.indexOf("tag:Mnestic::Missed") >= 0) return state.savedCopies ? [9999] : [];
+    // the already-saved lookups. Undo asks three different questions:
+    //   "... tag:Mnestic::Copy"                 -> copies, which it deletes
+    //   "... tag:Mnestic::Missed -tag:Mnestic::Copy" -> originals, which it untags
+    //   '... "deck:X"'                          -> is the card still where we put it
+    // order matters: "-tag:Mnestic::Copy" CONTAINS "tag:Mnestic::Copy", so the
+    // exclusion has to be recognised before the inclusion.
+    if (q.indexOf("-tag:Mnestic::Copy") >= 0) return state.savedTagged ? [NOTE.noteId] : [];
+    if (q.indexOf("tag:Mnestic::Copy") >= 0) return state.savedCopies ? [9999] : [];
+    if (q.indexOf("tag:Mnestic::Missed") >= 0) {
+      return (state.savedCopies || state.savedTagged) ? [9999] : [];
+    }
+    if (q.indexOf('"deck:') >= 0) return state.cardElsewhere ? [] : [NOTE.noteId];
     if (state.onlyStep && q.indexOf("#AK_Step" + state.onlyStep + "_") < 0) return [];
     // The real query is an OR of the precise tag shapes, e.g.
     //   (tag:…::#UWorld::Step::1633 OR tag:…::#UWorld::1633)
@@ -103,7 +115,7 @@ const OPS = {
   countNotes: (a) => (a.queries || []).map(() => 4242),
   status: () => ({ name: "Mnestic Bridge (mock)", version: "1.1.0-mock",
     taggedByStep: { "1": 4242, "2": 0, "3": 0 } }),
-  setDeck: (a) => ({ moved: 2, deck: a.deck, created: false }),
+  setDeck: (a) => { state.savedTagged++; return { moved: 2, deck: a.deck, created: false, from: "AnKing Step 1" }; },
   createDeck: (a) => ({ deck: a.deck, created: true }),
   filteredDeck: (a) => ({ deck: a.name, cards: state.emptyFiltered ? 0 : 37, empty: state.emptyFiltered, search: a.search }),
   missedIds: () => ([
@@ -113,7 +125,19 @@ const OPS = {
   ]),
   copyNote: () => { state.savedCopies++; return 2222222222222; },
   updateNote: () => true,
-  newNote: () => 3333333333333
+  newNote: () => 3333333333333,
+  removeTags: (a) => {
+    state.lastRemoveTags = a;
+    const n = (a.notes || []).length;
+    state.savedTagged = 0;
+    return { updated: n, removed: (a.tags || []).slice() };
+  },
+  deleteNotes: (a) => {
+    state.lastDeleted = a;
+    if (state.refuseDelete) return { deleted: 0, refused: (a.notes || []).slice() };
+    state.savedCopies = 0;
+    return { deleted: (a.notes || []).length, refused: [] };
+  }
 };
 
 const server = http.createServer((req, res) => {
@@ -133,7 +157,7 @@ const server = http.createServer((req, res) => {
     try { msg = JSON.parse(body || "{}"); } catch (e) {}
     let fn = OPS[msg.op];
     // simulate an out-of-date add-on that predates the newer ops
-    if (state.oldAddon && ["setDeck", "createDeck", "filteredDeck", "missedIds", "countNotes"].indexOf(msg.op) >= 0) fn = null;
+    if (state.oldAddon && ["setDeck", "createDeck", "filteredDeck", "missedIds", "countNotes", "removeTags", "deleteNotes"].indexOf(msg.op) >= 0) fn = null;
     seen.push({ op: msg.op, args: msg.args || {} });
     res.writeHead(200, Object.assign({ "Content-Type": "application/json" }, cors));
     if (!fn) return res.end(JSON.stringify({ ok: false, error: "unknown op " + msg.op }));

@@ -239,6 +239,10 @@ number UWorld used**, and your AnKing cards are tagged with it. Check one:
     files, or **click a thumbnail of the question's own image** (“📎 From this
     question”) to attach only the ones that matter. The original card is left
     untouched; the copy is unsuspended.
+    Saved one by mistake? Reopen the dialog on that question and
+    **Remove from Missed Qs** undoes it — it untags the card, moves it back to
+    the deck it came from, and deletes the copy if you made one. Whatever you
+    typed into *Missed Questions* is kept, along with the tag that protects it.
   - **✚ Make card** — turn any explanation text into a brand-new Cloze/Basic card
     (select text → a floating **✚ Make card** chip appears), created in Anki with
     the QID + link as the source. Paste screenshots into it too.

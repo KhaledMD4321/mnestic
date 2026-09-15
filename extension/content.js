@@ -787,6 +787,11 @@
     #mnx-md-overlay .mnx-md-ok:disabled{opacity:.55;cursor:default;box-shadow:none}
     #mnx-md-overlay .mnx-md-cancel{background:var(--mnx-surface-2);color:var(--mnx-text)}
     #mnx-md-overlay .mnx-md-cancel:hover{filter:brightness(.97)}
+    /* undo sits left of Cancel: readable, never louder than the save button */
+    #mnx-md-overlay .mnx-md-undo{background:transparent;color:var(--mnx-bad);
+      box-shadow:inset 0 0 0 1px var(--mnx-border);margin-right:auto}
+    #mnx-md-overlay .mnx-md-undo:hover{background:var(--mnx-surface-2)}
+    #mnx-md-overlay .mnx-md-undo:disabled{opacity:.55;cursor:default}
     #mnx-md-overlay .mnx-chapchips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 0}
     #mnx-md-overlay .mnx-chapchip{display:inline-flex;align-items:baseline;gap:6px;font:inherit;font-size:12.5px;
       font-weight:600;cursor:pointer;padding:5px 11px;border-radius:var(--mnx-r-pill);
@@ -1183,7 +1188,7 @@
     runBrowse(qids);
   }
   function buildTagQuery(qids, sv) {
-    return qids.map(q => qidQuery(q, sv)).join(" OR ");
+    return qids.filter(q => safeQidOrNull(q)).map(q => qidQuery(q, sv)).join(" OR ");
   }
   const ANKI_DOWN = "Couldn't reach Anki. Make sure it's open and the Mnestic Bridge add-on is installed.";
   const HY_LEVELS = ["HighYield", "RelativelyHighYield"];
@@ -1191,6 +1196,9 @@
     if (!qids.length) { toast("No matching questions found on this page."); return; }
     getSv().then(sv => {
       const query = buildTagQuery(qids, sv);
+      // Every id was unreadable. An empty query is not "browse nothing" in
+      // Anki -- it selects the whole collection, so stop here instead.
+      if (!query) { toast("Couldn't read the question ids on this page."); return; }
       if (easyOn) { easyUnsuspend(query); return; }
       if (hyOn) { browseHighYield(query); return; }
       bridge("openBrowser", { query }).catch(e => toast(ANKI_DOWN + " (" + e + ")"));
@@ -1259,7 +1267,11 @@
   // from the parsed level so the parent tag can't leak in.
   function runBrowseHighYield(qids) {
     if (!qids.length) { toast("No matching questions found on this page."); return; }
-    getSv().then(sv => browseHighYield(buildTagQuery(qids, sv)));
+    getSv().then(sv => {
+      const query = buildTagQuery(qids, sv);
+      if (!query) { toast("Couldn't read the question ids on this page."); return; }
+      browseHighYield(query);
+    });
   }
   // Our UI lives in the page's DOM, which page script can also reach: it can call
   // .click() or dispatch synthetic events. Anything that talks to Anki goes
@@ -1614,7 +1626,9 @@
       n.appendChild(why);
       const q = document.createElement("code");
       q.className = "mnx-msg-q";
-      q.textContent = qidQuery(qid, (found && found.sv) || 1);
+      q.textContent = safeQidOrNull(qid)
+        ? qidQuery(qid, (found && found.sv) || 1)
+        : "(no usable question id on this page)";
       n.appendChild(q);
       const hint = document.createElement("div");
       hint.className = "mnx-msg-why";
@@ -1983,6 +1997,9 @@
   // Mnestic writes your notes into "Missed Questions", so it protects it too —
   // otherwise a term of notes can vanish on a routine deck update.
   const PROTECT_TAG = "AnkiHub_Protect::Missed_Questions";
+  // Written by the add-on on every copy it makes. Undo deletes a note only
+  // if it carries this, so "remove from missed" can never eat a real card.
+  const COPY_TAG = "Mnestic::Copy";
   let deckCache = null;                 // cached deckNames list from the bridge
 
   function revealCloze(html) {          // we're past the answer, so show clozes
@@ -2427,6 +2444,100 @@
     }
     return null;
   }
+  // Same escaping the add-on applies: backslash first, then quote, so a deck
+  // name carrying either cannot break out of the quoted search term.
+  function searchLiteral(text) {
+    return String(text || "")
+      .split("\\").join("\\\\")
+      .split('"').join('\\"');
+  }
+  // Move mode takes a card out of its home deck. Undo has to put it back, and
+  // the only moment we know where "back" is, is the moment we move it -- so
+  // record it then. Capped, because this grows once per saved question.
+  const HOME_MAX = 1000;
+  function rememberHome(qid, from, to) {
+    if (!qid || !from) return;
+    chrome.storage.local.get({ akHome: {} }, (c) => {
+      const map = c.akHome && typeof c.akHome === "object" ? c.akHome : {};
+      map[String(qid)] = { from: from, to: to || "", at: Date.now() };
+      const keys = Object.keys(map);
+      if (keys.length > HOME_MAX) {
+        keys.sort((a, b) => (map[a].at || 0) - (map[b].at || 0))
+            .slice(0, keys.length - HOME_MAX)
+            .forEach((k) => delete map[k]);
+      }
+      chrome.storage.local.set({ akHome: map });
+    });
+  }
+  function readHome(qid) {
+    return new Promise((resolve) => {
+      chrome.storage.local.get({ akHome: {} }, (c) => {
+        const map = c.akHome && typeof c.akHome === "object" ? c.akHome : {};
+        resolve(map[String(qid)] || null);
+      });
+    });
+  }
+  function forgetHome(qid) {
+    chrome.storage.local.get({ akHome: {} }, (c) => {
+      const map = c.akHome && typeof c.akHome === "object" ? c.akHome : {};
+      delete map[String(qid)];
+      chrome.storage.local.set({ akHome: map });
+    });
+  }
+
+  // ---- undo a save -----------------------------------------------------------
+  // Saving is three different things depending on the mode, so undoing it is
+  // three different things too. What it is NOT, in any mode, is a way to lose
+  // the notes someone typed: the Missed Questions field and the AnkiHub_Protect
+  // tag that guards it are left exactly as they are.
+  async function unsaveMissed(qid) {
+    const sv = await svForQuestion();
+    const base = qidQuery(qid, sv);
+    let copies = [];
+    try { copies = (await bridge("searchNotes", { query: base + " tag:" + COPY_TAG })) || []; }
+    catch (e) { copies = []; }
+    let originals = [];
+    try {
+      originals = (await bridge("searchNotes", {
+        query: base + " tag:" + MISSED_TAG + " -tag:" + COPY_TAG
+      })) || [];
+    } catch (e) { originals = []; }
+
+    if (!copies.length && !originals.length) return { nothing: true };
+
+    let deleted = 0, refused = 0, untagged = 0, movedBack = "";
+    if (copies.length) {
+      const r = await bridge("deleteNotes", { notes: copies });
+      deleted = (r && r.deleted) || 0;
+      refused = (r && r.refused && r.refused.length) || 0;
+    }
+    if (originals.length) {
+      const r = await bridge("removeTags", { notes: originals, tags: [MISSED_TAG] });
+      untagged = (r && r.updated) || 0;
+      // Put a moved card back only if it is still sitting where we put it.
+      // Someone who has since filed it somewhere of their own keeps that.
+      const home = await readHome(qid);
+      if (home && home.from) {
+        let stillThere = originals;
+        if (home.to) {
+          try {
+            stillThere = (await bridge("searchNotes", {
+              query: base + ' "deck:' + searchLiteral(home.to) + '"'
+            })) || [];
+          } catch (e) { stillThere = []; }
+        }
+        if (stillThere.length) {
+          try {
+            await bridge("setDeck", { notes: stillThere, deck: home.from });
+            movedBack = home.from;
+          } catch (e) {}
+        }
+        forgetHome(qid);
+      }
+    }
+    return { deleted, refused, untagged, movedBack };
+  }
+
   function extraLabel(imgTags) {
     return imgTags.length ? (" + " + imgTags.length + " image" + (imgTags.length === 1 ? "" : "s")) : "";
   }
@@ -2607,6 +2718,11 @@
     document.addEventListener("paste", pics.handlePaste);   // removed on close (see buildModal onClose)
 
     // 4) save — upload pasted images to Anki media, then copy the card
+    const savedNote = document.createElement("div");
+    savedNote.className = "mnx-md-dest";
+    savedNote.style.display = "none";
+    m.body.appendChild(savedNote);
+
     const modeNote = document.createElement("div");
     modeNote.className = "mnx-md-dest";
     modeNote.textContent = missedMode === "copy"
@@ -2693,6 +2809,9 @@
                      "update the add-on in Anki to use Move mode.";
             } else {
               const n = (res && res.moved) || 0;
+              // res.from is the deck the card actually lived in. Only the add-on
+              // knows it, and only right now -- after this it is gone.
+              if (res && res.from) rememberHome(qid, res.from, deck);
               what = "Moved " + n + (n === 1 ? " card" : " cards") + " to " + deckLeaf(deck) +
                 (noteHtml ? " with your note" + extraLabel(imgTags) + "." : ".");
             }
@@ -2710,8 +2829,55 @@
         toast("Couldn't save (" + e + ")");
       }
     });
+    // Saving by mistake used to be permanent: nothing in the extension could
+    // take a question back out of Missed Qs, and the only fix was Anki's Browse
+    // window. The button appears once we know there IS something to undo.
+    const undoBtn = mdButton("Remove from Missed Qs", "mnx-md-undo", async () => {
+      const label = undoBtn.textContent;
+      undoBtn.disabled = true; undoBtn.textContent = "Removing…";
+      try {
+        const r = await unsaveMissed(qid);
+        if (r.nothing) { toast("This question isn't saved."); m.close(); return; }
+        const bits = [];
+        if (r.untagged) bits.push("untagged " + r.untagged + (r.untagged === 1 ? " card" : " cards"));
+        if (r.deleted) bits.push("deleted " + r.deleted + (r.deleted === 1 ? " copy" : " copies"));
+        if (r.movedBack) bits.push("moved it back to " + deckLeaf(r.movedBack));
+        let msg = bits.length ? "Removed from Missed Qs — " + bits.join(", ") + "." : "Removed from Missed Qs.";
+        // The add-on refuses to delete anything it did not create. Say so
+        // rather than reporting a clean undo that did not happen.
+        if (r.refused) msg += " " + r.refused + " note" + (r.refused === 1 ? " was" : "s were") +
+                              " left alone (not created by Mnestic).";
+        if (r.untagged && !r.movedBack) msg += " Your notes in the card were kept.";
+        m.close();
+        toast(msg);
+      } catch (e) {
+        undoBtn.disabled = false; undoBtn.textContent = label;
+        toast(/unknown op/i.test(String(e))
+          ? "Update the Mnestic Bridge add-on in Anki to undo a save."
+          : "Couldn't remove it (" + e + ")");
+      }
+    });
+    undoBtn.style.display = "none";
+    m.foot.appendChild(undoBtn);
     m.foot.appendChild(mdButton("Cancel", "mnx-md-cancel", m.close));
     m.foot.appendChild(saveBtn);
+
+    // Ask Anki whether this question is already saved. It is a round trip, so
+    // the dialog opens without waiting and the button joins it when the answer
+    // arrives -- the common case is a question that was never saved.
+    (async () => {
+      try {
+        const sv = await svForQuestion();
+        const hits = await bridge("searchNotes", {
+          query: qidQuery(qid, sv) + " tag:" + MISSED_TAG
+        });
+        if (hits && hits.length && m.ov.isConnected) {
+          undoBtn.style.display = "";
+          savedNote.textContent = "Already in Missed Qs — saving again appends to your note.";
+          savedNote.style.display = "";
+        }
+      } catch (e) {}
+    })();
   }
 
   // ---- panel header (sits atop the resource panel on the review page) ----
@@ -3251,15 +3417,29 @@
   // wildcard happily matched COMLEX ids (and those genuinely collide with Step
   // ids — 8 of them in that deck), while the bare Step 3 form has no middle
   // segment at all, so 1,896 Step 3 tags could never match anything.
+  // A question id reaches us from the page, and from here it goes into Anki
+  // search strings. Every adapter captures digits today; this makes that a
+  // property of the query builder rather than of each adapter, so a new site
+  // cannot widen a search (or a deletion) by returning something else.
+  function safeQid(qid) {
+    const digits = String(qid == null ? "" : qid).replace(/[^0-9]/g, "");
+    if (!digits || digits.length > 12) throw new Error("bad question id");
+    return digits;
+  }
+  // Where one bad id among many should not sink the whole action.
+  function safeQidOrNull(qid) {
+    try { return safeQid(qid); } catch (e) { return null; }
+  }
   function qidQuery(qid, sv) {
     const base = "tag:#AK_Step" + sv + "_" + ANKING_VER + "::#UWorld::";
-    return "(" + base + "Step::" + qid + " OR " + base + qid + ")";
+    const id = safeQid(qid);
+    return "(" + base + "Step::" + id + " OR " + base + id + ")";
   }
   // The original wildcard, kept only as a last resort so no deck that used to
   // match stops matching — it can pull in other namespaces, so it is never tried
   // before the precise forms above.
   function qidQueryLoose(qid, sv) {
-    return "tag:#AK_Step" + sv + "_" + ANKING_VER + "::#UWorld::*::" + qid;
+    return "tag:#AK_Step" + sv + "_" + ANKING_VER + "::#UWorld::*::" + safeQid(qid);
   }
   // probability you know one card's fact right now (0..1)
   function cardMaturity(c) {
