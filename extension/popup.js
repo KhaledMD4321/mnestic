@@ -47,9 +47,9 @@ function applyDark(pref) {
 // What "Save to Missed Qs" does. Changeable whenever you like — some people
 // want a real subdeck, some won't move an AnKing card for anything.
 const MISSED_HINTS = {
-  move: "Moves the card into a chapter subdeck. Real deck per chapter, keeps its review history, and the card still receives AnKing updates.",
-  tag: "Tags the note Mnestic::Missed::Chapter and unsuspends it. Nothing changes decks — browse the tag tree in Anki instead.",
-  copy: "Duplicates the card into a chapter subdeck. Leaves the original alone, but the copy never receives AnKing updates again."
+  move: "Moves the card into a chapter subdeck. Keeps its review history and AnKing updates. Your notes go on the original card — protect the “Missed Questions” field in AnkiHub so a deck update can't overwrite them.",
+  tag: "Tags the note Mnestic::Missed::Chapter and unsuspends it. Nothing changes decks. Your notes go on the original card — protect the “Missed Questions” field in AnkiHub so a deck update can't overwrite them.",
+  copy: "Duplicates the card into a chapter subdeck as a local note. Your notes can never be overwritten by a deck update — but the copy never receives AnKing updates either."
 };
 function applyMissedMode(mode) {
   missedMode.value = mode;
@@ -88,6 +88,34 @@ esToggle.addEventListener("change", () => chrome.storage.local.set({ expectedSco
 easyToggle.addEventListener("change", () => chrome.storage.local.set({ easy: easyToggle.checked }));
 hyToggle.addEventListener("change", () => chrome.storage.local.set({ highYield: hyToggle.checked }));
 kbToggle.addEventListener("change", () => chrome.storage.local.set({ kbShortcuts: kbToggle.checked }));
+
+// ---- the Missed Qs deck, made from here rather than from Anki ----
+const missedDeck = document.getElementById("missedDeck");
+const missedDeckHint = document.getElementById("missedDeckHint");
+chrome.storage.local.get({ akMissedDeck: "" }, (c) => { missedDeck.value = c.akMissedDeck || ""; });
+
+async function createMissedDeck() {
+  const name = (missedDeck.value || "").trim() || "Missed Qs";
+  const btn = document.getElementById("missedDeckGo");
+  btn.disabled = true; btn.textContent = "Creating…";
+  // Give a brand-new deck the AnKing deck's options, so its daily limits don't
+  // silently differ from the deck the cards came from.
+  const decks = await bridge("listDecks");
+  let optionsFrom = "";
+  if (decks.ok && Array.isArray(decks.data)) {
+    const ank = decks.data.filter((d) => /anking|step/i.test(d) && d.indexOf("::") < 0);
+    optionsFrom = ank.sort((a, b) => a.length - b.length)[0] || "";
+  }
+  const r = await bridge("createDeck", { deck: name, optionsFrom });
+  btn.disabled = false; btn.textContent = "Create";
+  if (!r.ok) { missedDeckHint.textContent = "Couldn't create it — is Anki open? (" + r.error + ")"; return; }
+  chrome.storage.local.set({ akMissedDeck: name });
+  missedDeckHint.textContent = (r.data && r.data.created)
+    ? "Created " + name + (optionsFrom ? " with " + optionsFrom + "'s options." : ".")
+    : name + " already exists — it'll be used as the base.";
+}
+document.getElementById("missedDeckGo").addEventListener("click", createMissedDeck);
+missedDeck.addEventListener("keydown", (e) => { if (e.key === "Enter") createMissedDeck(); });
 
 // ---- find a topic in Anki (drill a hard topic outside the qbank) ----
 const topicInput = document.getElementById("topicInput");

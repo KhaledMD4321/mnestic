@@ -101,6 +101,7 @@ const OPS = {
   status: () => ({ name: "Mnestic Bridge (mock)", version: "1.1.0-mock",
     taggedByStep: { "1": 4242, "2": 0, "3": 0 } }),
   setDeck: (a) => ({ moved: 2, deck: a.deck, created: false }),
+  createDeck: (a) => ({ deck: a.deck, created: true }),
   copyNote: () => { state.savedCopies++; return 2222222222222; },
   updateNote: () => true,
   newNote: () => 3333333333333

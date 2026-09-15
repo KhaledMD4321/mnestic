@@ -904,6 +904,7 @@
     if ("aiPrompt" in changes) { aiPrompt = changes.aiPrompt.newValue == null ? "" : changes.aiPrompt.newValue; }
     if (changes.kbShortcuts) { kbShortcuts = changes.kbShortcuts.newValue !== false; }
     if (changes.mnxMissedMode) { missedMode = changes.mnxMissedMode.newValue || "move"; }
+    if (changes.akMissedDeck) { plannedMissedDeck = changes.akMissedDeck.newValue || ""; }
   });
 
   // ---- which resources you actually use -----------------------------------
@@ -912,12 +913,14 @@
   // How "Save to Missed Qs" keeps a question: "move" | "tag" | "copy".
   // Chosen in the popup; "move" until you say otherwise.
   let missedMode = "move";
+  let plannedMissedDeck = "";              // base deck name chosen in the popup
   let openResources = new Set();
   let resourceUses = {};
-  chrome.storage.local.get({ mnxOpenResources: [], mnxResourceUses: {}, mnxMissedMode: "move" }, c => {
+  chrome.storage.local.get({ mnxOpenResources: [], mnxResourceUses: {}, mnxMissedMode: "move", akMissedDeck: "" }, c => {
     openResources = new Set(c.mnxOpenResources || []);
     resourceUses = c.mnxResourceUses || {};
     missedMode = c.mnxMissedMode || "move";
+    plannedMissedDeck = c.akMissedDeck || "";
   });
   function rememberResource(label, opened) {
     if (opened) {
@@ -2543,6 +2546,9 @@
     function fillDecks(all) {
       const missed = all.filter(d => /missed/i.test(d));
       candidates = (missed.length ? missed : all).slice().sort();
+      // Someone who has never saved one has no Missed deck yet; offer the name
+      // from the popup (or a sensible default) so the first save just works.
+      if (!missed.length) candidates.unshift(plannedMissedDeck || "Missed Qs");
       sel.replaceChildren();
       candidates.forEach(d => { const o = document.createElement("option"); o.value = d; o.textContent = d; sel.appendChild(o); });
       const o = document.createElement("option"); o.value = NEW_OPT; o.textContent = NEW_OPT; sel.appendChild(o);

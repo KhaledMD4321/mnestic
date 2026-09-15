@@ -344,6 +344,29 @@ def _apply_fields(note, sets, appends):
             note[name] = cur + ("<br><br>" if cur.strip() else "") + val
 
 
+def op_create_deck(args):
+    """Create a deck (and its parents), optionally taking another deck's options."""
+    deck = (args.get("deck") or "").strip()
+    if not deck:
+        raise Exception("deck is required")
+    col = _col()
+    existed = True
+    try:
+        existed = col.decks.by_name(deck) is not None
+    except Exception:
+        existed = False
+    did = col.decks.id(deck)
+    src = (args.get("optionsFrom") or "").strip()
+    if src:
+        try:
+            sd = col.decks.by_name(src)
+            if sd:
+                _inherit_deck_options(col, did, sd["id"])
+        except Exception:
+            pass
+    return {"deck": deck, "created": not existed}
+
+
 def op_copy_note(args):
     """Duplicate a note into `deck` (created if missing), append to fields / add
     tags, and unsuspend the copy. The original note is never modified."""
@@ -359,6 +382,14 @@ def op_copy_note(args):
         except Exception:
             pass
     _apply_fields(new, args.get("fieldSets"), args.get("fieldAppends"))
+    # A copy is a local note, not the AnkiHub one: carrying the original's
+    # ankihub_id would leave two notes claiming the same AnkiHub identity.
+    for key in list(new.keys()):
+        if key.lower() == "ankihub_id":
+            try:
+                new[key] = ""
+            except Exception:
+                pass
     new.tags = list(src.tags)
     for t in args.get("addTags") or []:
         if t and t not in new.tags:
@@ -465,6 +496,7 @@ _OPS = {
     "newNote": op_new_note,
     "countNotes": op_count_notes,
     "setDeck": op_set_deck,
+    "createDeck": op_create_deck,
     "status": op_status,
 }
 
@@ -509,7 +541,12 @@ def op_set_deck(args):
             existed = False
 
     did = col.decks.id(deck)
-    if not existed and src_did:
+    empty = True
+    try:
+        empty = not col.find_cards('deck:"%s" -deck:"%s::*"' % (deck, deck))
+    except Exception:
+        empty = not existed
+    if empty and src_did:
         _inherit_deck_options(col, did, src_did)
 
     try:
