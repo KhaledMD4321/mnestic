@@ -36,7 +36,12 @@ const NOTE = {
     Sketchy: { value: '<img src="sketchy-1.png">', order: 3 },
     Physeo: { value: '<img src="physeo-1.png">', order: 4 },
     OME: { value: '<a href="https://example.org/ome-lesson">OME lesson</a>', order: 5 },
-    "Additional Resources": { value: '<a href="javascript:alert(1)">bad</a>', order: 6 },
+    // one hostile + one legitimate link: the row must render, minus the bad one
+    "Additional Resources": {
+      value: '<a href="javascript:alert(1)">bad</a>' +
+             '<a href="https://example.org/extra-reading">Extra reading</a>',
+      order: 6
+    },
     "Missed Questions": { value: "", order: 7 },
     Lecture_Notes: { value: "", order: 8 }
   }

@@ -8,7 +8,7 @@
 
 const sel = document.getElementById("sv");
 const saved = document.getElementById("saved");
-const darkToggle = document.getElementById("darkToggle");
+const darkSelect = document.getElementById("darkSelect");
 const esToggle = document.getElementById("esToggle");
 const easyToggle = document.getElementById("easyToggle");
 const hyToggle = document.getElementById("hyToggle");
@@ -32,14 +32,19 @@ function bridge(op, args) {
   });
 }
 
-function applyDark(on) {
+// "auto" follows the qbank's own theme, then the OS. Light/Dark are overrides.
+function prefersDark() {
+  try { return matchMedia("(prefers-color-scheme: dark)").matches; } catch (e) { return false; }
+}
+function applyDark(pref) {
+  const on = pref === true ? true : pref === false ? false : prefersDark();
   document.body.classList.toggle("dark", on);
-  darkToggle.checked = on;
+  darkSelect.value = pref === true ? "dark" : pref === false ? "light" : "auto";
 }
 
-chrome.storage.local.get({ sv: 1, dark: false, expectedScore: false, easy: false, highYield: false, kbShortcuts: true }, (cfg) => {
+chrome.storage.local.get({ sv: 1, dark: "auto", expectedScore: false, easy: false, highYield: false, kbShortcuts: true }, (cfg) => {
   sel.value = String(cfg.sv);
-  applyDark(!!cfg.dark);
+  applyDark(cfg.dark === true || cfg.dark === false ? cfg.dark : "auto");
   esToggle.checked = !!cfg.expectedScore;
   easyToggle.checked = !!cfg.easy;
   hyToggle.checked = !!cfg.highYield;
@@ -54,10 +59,11 @@ sel.addEventListener("change", () => {
   });
 });
 
-darkToggle.addEventListener("change", () => {
-  const on = darkToggle.checked;
-  document.body.classList.toggle("dark", on);
-  chrome.storage.local.set({ dark: on });
+darkSelect.addEventListener("change", () => {
+  const v = darkSelect.value;
+  const pref = v === "dark" ? true : v === "light" ? false : "auto";
+  applyDark(pref);
+  chrome.storage.local.set({ dark: pref });
 });
 esToggle.addEventListener("change", () => chrome.storage.local.set({ expectedScore: esToggle.checked }));
 easyToggle.addEventListener("change", () => chrome.storage.local.set({ easy: easyToggle.checked }));

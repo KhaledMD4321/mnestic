@@ -67,9 +67,25 @@ function check(site, name, pass, detail) {
   console.log(`  ${pass ? "ok  " : "FAIL"}  ${name}${pass || !detail ? "" : "  — " + detail}`);
 }
 
+// 8790 is the real add-on's port. If Anki is running we must not fight it —
+// bind anywhere free and tell the extension where we landed.
+function listenFree(server, from) {
+  return new Promise((resolve, reject) => {
+    let port = from;
+    const tryPort = () => {
+      server.once("error", (e) => {
+        if (e.code === "EADDRINUSE" && port < from + 20) { port++; tryPort(); }
+        else reject(e);
+      });
+      server.listen(port, "127.0.0.1", () => resolve(port));
+    };
+    tryPort();
+  });
+}
+
 (async () => {
-  await new Promise((r) => mock.server.listen(mock.PORT, "127.0.0.1", r));
-  console.log("mock bridge listening on 127.0.0.1:" + mock.PORT + "\n");
+  const port = await listenFree(mock.server, mock.PORT);
+  console.log("mock bridge on 127.0.0.1:" + port + (port === mock.PORT ? "" : "  (8790 busy - real Anki is running)"));
 
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), "mnx-e2e-"));
   const ctx = await chromium.launchPersistentContext(profile, {
@@ -79,6 +95,15 @@ function check(site, name, pass, detail) {
     args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`]
   });
   if (SHOTS) fs.mkdirSync(SHOT_DIR, { recursive: true });
+
+  // Point the extension at the mock, via its own storage.
+  let sw = ctx.serviceWorkers()[0];
+  if (!sw) sw = await ctx.waitForEvent("serviceworker", { timeout: 20000 });
+  const extId = new URL(sw.url()).host;
+  const cfg = await ctx.newPage();
+  await cfg.goto(`chrome-extension://${extId}/popup.html`);
+  await cfg.evaluate((pp) => new Promise((r) => chrome.storage.local.set({ bridgePort: pp }, r)), port);
+  await cfg.close();
 
   for (const site of SITES) {
     console.log(site.id + ":");
@@ -130,11 +155,18 @@ function check(site, name, pass, detail) {
     check(site.id, "overlay pulled image bytes from the bridge", gotMedia);
     await p.keyboard.press("Escape");
 
-    // 7. no javascript: link survived the deck sanitiser
-    const badHref = await p.evaluate(() =>
-      [...document.querySelectorAll("#mnx-resources a")].some((a) => /^javascript:/i.test(a.getAttribute("href") || ""))
+    // 7. no javascript: link survived the deck sanitiser. Rows render their
+    //    body lazily, so open every one first or this asserts nothing.
+    for (const h of await p.$$("#mnx-resources .mnx-r-head")) {
+      if ((await h.getAttribute("aria-expanded")) !== "true") await h.click();
+    }
+    const links = await p.evaluate(() =>
+      [...document.querySelectorAll("#mnx-resources a")].map((a) => a.getAttribute("href") || "")
     );
-    check(site.id, "javascript: link from the deck was dropped", !badHref);
+    check(site.id, "every row expands (" + links.length + " links shown)", links.length > 0);
+    check(site.id, "javascript: link from the deck was dropped",
+      !links.some((h) => /^javascript:/i.test(h)) && links.some((h) => /^https:/i.test(h)),
+      JSON.stringify(links.slice(0, 3)));
 
     // 8. a SYNTHETIC click must be ignored — the page's own scripts share this
     //    DOM, so every control that can reach Anki requires a trusted event.

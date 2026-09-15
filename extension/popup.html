@@ -9,7 +9,9 @@
     h1 { font-size: 14px; margin: 0 0 2px; }
     .sub { font-size: 11px; color: #8a8f98; margin: 0 0 12px; }
     .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 9px 0; font-size: 13px; }
-    select { font: inherit; padding: 3px 6px; border-radius: 6px; }
+    select { font: inherit; font-size: 12px; padding: 3px 6px; border-radius: 6px;
+             border: 1px solid #cfd6dd; background: transparent; color: inherit; }
+    body.dark select { border-color: #3a4150; }
     .saved { font-size: 11px; color: #2e9e4f; min-height: 14px; margin: 2px 0 8px; }
     .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 12px; }
     .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #aaa; }
@@ -92,7 +94,12 @@
   </div>
   <div class="saved" id="saved"></div>
 
-  <div class="row"><span>Dark panel</span><input type="checkbox" id="darkToggle"></div>
+  <div class="row"><span>Panel theme</span>
+    <select id="darkSelect">
+      <option value="auto">Match the site</option>
+      <option value="light">Light</option>
+      <option value="dark">Dark</option>
+    </select></div>
   <div class="row"><span>Expected score (beta)</span><input type="checkbox" id="esToggle"></div>
   <div class="row"><span>Easy mode (auto-unsuspend)</span><input type="checkbox" id="easyToggle"></div>
   <div class="row"><span>High-yield only</span><input type="checkbox" id="hyToggle"></div>

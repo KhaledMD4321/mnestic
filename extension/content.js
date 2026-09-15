@@ -481,12 +481,31 @@
   // Floating host for the results buttons when no native toolbar is found.
   function ensureFloatingToolbar() {
     let bar = document.getElementById("mnx-float-toolbar");
-    if (bar) return bar;
+    if (bar) { placeFloatingToolbar(bar); return bar; }
     bar = document.createElement("div");
     bar.id = "mnx-float-toolbar";
-    bar.style.cssText = "position:fixed;top:74px;right:16px;z-index:2147483646;display:flex;gap:8px;background:rgba(255,255,255,.94);padding:6px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.18)";
+    bar.style.cssText = "position:fixed;top:74px;right:16px;z-index:2147483646;display:flex;gap:8px;" +
+      "background:var(--mnx-surface);padding:6px;border-radius:var(--mnx-r-sm);border:1px solid var(--mnx-border);" +
+      "box-shadow:var(--mnx-shadow-sm);transition:top .2s ease";
     document.body.appendChild(bar);
+    placeFloatingToolbar(bar);
     return bar;
+  }
+  // Parked at a fixed top-right offset, the bar landed straight on top of
+  // Coursology's own search box. Drop below anything it would cover.
+  function placeFloatingToolbar(bar) {
+    bar.style.top = "74px";
+    const r = bar.getBoundingClientRect();
+    if (r.width < 10) return;
+    let lowest = 0;
+    for (const el of document.querySelectorAll("input,button,select,textarea,a[role=button]")) {
+      if (el.closest("[id^='mnx-']")) continue;
+      const b = el.getBoundingClientRect();
+      if (b.width < 8 || b.height < 8) continue;
+      const hits = b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top;
+      if (hits && b.bottom > lowest) lowest = b.bottom;
+    }
+    if (lowest > 0) bar.style.top = Math.round(lowest + 10) + "px";
   }
 
   // ---------- styles (tuned to blend with the qbank UI) ----------
@@ -568,6 +587,36 @@
     #${PANEL_ID} .mnx-watch:hover{text-decoration:underline}
     #${PANEL_ID} .mnx-msg{font-size:13px;color:var(--mnx-muted);padding:12px 13px}
     #${PANEL_ID} .mnx-note{font-size:12px;color:var(--mnx-muted);padding:9px 13px;border-top:1px solid var(--mnx-border);background:var(--mnx-surface-2)}
+
+    /* ---- collapsible resource rows ----------------------------------------
+       A whole AnKing card can carry 100+ tagged chapters. Showing them all at
+       once buried the qbank's own explanation, so each resource is a closed
+       disclosure: a one-line summary with enough scent to decide, and the full
+       list one click away. What you open is remembered. */
+    #${PANEL_ID} .mnx-r{border-bottom:1px solid var(--mnx-border)}
+    #${PANEL_ID} .mnx-r:last-of-type{border-bottom:none}
+    #${PANEL_ID} .mnx-r-head{display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;
+      background:none;border:none;border-left:3px solid var(--mnx-accent);padding:9px 13px;margin:0;
+      font:inherit;font-size:13.5px;text-align:left;cursor:pointer;color:var(--mnx-text);
+      transition:background .14s ease}
+    #${PANEL_ID} .mnx-r-head:hover{background:var(--mnx-surface-2)}
+    #${PANEL_ID} .mnx-r-head:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--mnx-accent-ring)}
+    #${PANEL_ID} .mnx-r-chev{flex:none;width:9px;height:9px;border-right:2px solid var(--mnx-muted);
+      border-bottom:2px solid var(--mnx-muted);transform:rotate(-45deg);transition:transform .2s cubic-bezier(.2,.7,.3,1);margin-left:1px}
+    #${PANEL_ID} .mnx-r.open .mnx-r-chev{transform:rotate(45deg)}
+    #${PANEL_ID} .mnx-r-name{font-weight:700;letter-spacing:-.01em;color:var(--mnx-ink);white-space:nowrap}
+    #${PANEL_ID} .mnx-r-count{font-variant-numeric:tabular-nums;font-size:11.5px;font-weight:600;color:var(--mnx-muted);
+      background:var(--mnx-surface-2);border:1px solid var(--mnx-border);border-radius:var(--mnx-r-pill);padding:1px 7px;flex:none}
+    #${PANEL_ID} .mnx-r-peek{color:var(--mnx-muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;
+      white-space:nowrap;flex:1 1 auto;min-width:0}
+    #${PANEL_ID} .mnx-r.open .mnx-r-peek{opacity:0}
+    #${PANEL_ID} .mnx-r-body{padding:2px 13px 12px 26px;animation:mnx-rise .2s cubic-bezier(.2,.7,.3,1) both}
+    #${PANEL_ID} .mnx-r-key{flex:none;font-size:10.5px;font-weight:700;color:var(--mnx-accent);
+      background:var(--mnx-accent-soft);border-radius:var(--mnx-r-xs);padding:1px 5px;letter-spacing:.02em}
+    @media (prefers-reduced-motion:reduce){
+      #${PANEL_ID} .mnx-r-chev,#${PANEL_ID} .mnx-r-head{transition:none}
+      #${PANEL_ID} .mnx-r-body{animation:none}
+    }
 
     /* fullscreen image overlay */
     #${OVERLAY_ID}{display:none;position:fixed;inset:0;background:rgba(10,14,30,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:2147483646;align-items:flex-start;justify-content:center;padding:4vh 0}
@@ -704,21 +753,78 @@
   const DEFAULT_AI_PROMPT = "I'm studying for the USMLE. Below is a question with its answer choices and explanation. Explain the correct answer and why each other option is wrong, then give me the single highest-yield fact to remember. Be concise.";
   let aiPrompt = DEFAULT_AI_PROMPT;   // prepended to "Copy for AI"
   let kbShortcuts = true;             // review-page action hotkeys
+  // "auto" (the default) reads the qbank's own theme, then the OS. A stored
+  // true/false is an explicit override and always wins — a white slab on a dark
+  // qbank was the single most jarring thing about the old build.
+  let darkPref = "auto";
+  function siteIsDark() {
+    const root = document.documentElement;
+    if (root.classList.contains("dark") || document.body?.classList.contains("dark")) return true;
+    const attr = (root.getAttribute("data-theme") || root.getAttribute("data-mode") || "").toLowerCase();
+    if (attr.indexOf("dark") >= 0) return true;
+    if (attr.indexOf("light") >= 0) return false;
+    if ((getComputedStyle(root).colorScheme || "").indexOf("dark") >= 0) return true;
+    // Fall back to the page's actual background luminance.
+    const bg = getComputedStyle(document.body || root).backgroundColor || "";
+    const m = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/);
+    if (m && (m[4] === undefined || +m[4] > 0.3)) {
+      const lum = (0.299 * +m[1] + 0.587 * +m[2] + 0.114 * +m[3]) / 255;
+      return lum < 0.4;
+    }
+    try { return matchMedia("(prefers-color-scheme: dark)").matches; } catch (e) { return false; }
+  }
+  function resolveDark() {
+    if (darkPref === true || darkPref === false) return darkPref;
+    try { return siteIsDark(); } catch (e) { return false; }
+  }
   function applyTheme() {
+    darkMode = resolveDark();
     document.documentElement.classList.toggle("mnx-dark", darkMode);   // flips design tokens
     const p = document.getElementById(PANEL_ID); if (p) p.classList.toggle("mnx-dark", darkMode);
     const o = document.getElementById(OVERLAY_ID); if (o) o.classList.toggle("mnx-dark", darkMode);
   }
-  chrome.storage.local.get({ dark: false, expectedScore: false, easy: false, highYield: false, aiPrompt: DEFAULT_AI_PROMPT, kbShortcuts: true }, c => { darkMode = !!c.dark; esOn = !!c.expectedScore; easyOn = !!c.easy; hyOn = !!c.highYield; aiPrompt = c.aiPrompt == null ? DEFAULT_AI_PROMPT : c.aiPrompt; kbShortcuts = c.kbShortcuts !== false; applyTheme(); });
+  // Follow the qbank if it has its own light/dark switch.
+  try {
+    new MutationObserver(() => { if (darkPref === "auto") applyTheme(); })
+      .observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme", "data-mode", "style"] });
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (darkPref === "auto") applyTheme(); });
+  } catch (e) {}
+  chrome.storage.local.get({ dark: "auto", expectedScore: false, easy: false, highYield: false, aiPrompt: DEFAULT_AI_PROMPT, kbShortcuts: true }, c => { darkPref = (c.dark === true || c.dark === false) ? c.dark : "auto"; esOn = !!c.expectedScore; easyOn = !!c.easy; hyOn = !!c.highYield; aiPrompt = c.aiPrompt == null ? DEFAULT_AI_PROMPT : c.aiPrompt; kbShortcuts = c.kbShortcuts !== false; applyTheme(); });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
-    if (changes.dark) { darkMode = !!changes.dark.newValue; applyTheme(); }
+    if ("dark" in changes) {
+      const v = changes.dark.newValue;
+      darkPref = (v === true || v === false) ? v : "auto";
+      applyTheme();
+    }
     if (changes.expectedScore) { esOn = !!changes.expectedScore.newValue; }
     if (changes.easy) { easyOn = !!changes.easy.newValue; }
     if (changes.highYield) { hyOn = !!changes.highYield.newValue; }
     if ("aiPrompt" in changes) { aiPrompt = changes.aiPrompt.newValue == null ? "" : changes.aiPrompt.newValue; }
     if (changes.kbShortcuts) { kbShortcuts = changes.kbShortcuts.newValue !== false; }
   });
+
+  // ---- which resources you actually use -----------------------------------
+  // openResources: what to re-open on the next question (your working set).
+  // resourceUses:  how often you've opened each, which decides the order.
+  let openResources = new Set();
+  let resourceUses = {};
+  chrome.storage.local.get({ mnxOpenResources: [], mnxResourceUses: {} }, c => {
+    openResources = new Set(c.mnxOpenResources || []);
+    resourceUses = c.mnxResourceUses || {};
+  });
+  function rememberResource(label, opened) {
+    if (opened) {
+      openResources.add(label);
+      resourceUses[label] = (resourceUses[label] || 0) + 1;
+    } else {
+      openResources.delete(label);
+    }
+    chrome.storage.local.set({
+      mnxOpenResources: Array.from(openResources),
+      mnxResourceUses: resourceUses
+    });
+  }
 
   function toast(text) {
     const t = document.createElement("div");
@@ -1201,7 +1307,38 @@
     if (p.offsetParent === null || r.height < 2 || r.width < 2) {
       p.classList.add("mnx-float");
       document.body.appendChild(p);
+      return;
     }
+    clearFixedOverlap(p);
+  }
+
+  // Qbanks pin their own furniture over the page — Coursology's question rail is
+  // position:fixed, left:0, 118px wide, z-index 1000 — and it sat directly on top
+  // of our first column, hiding the resource names entirely. Measure whatever is
+  // actually pinned over our left edge and step out of its way.
+  function clearFixedOverlap(p) {
+    const r = p.getBoundingClientRect();
+    if (r.width < 40) return;
+    const mid = r.top + Math.min(r.height, window.innerHeight) / 2;
+    let worst = 0;
+    for (const el of document.querySelectorAll("div,nav,aside,header,section")) {
+      if (el === p || p.contains(el) || el.contains(p)) continue;
+      if (el.id && el.id.indexOf("mnx-") === 0) continue;
+      // Cheap geometry first — getComputedStyle on every node would be slow.
+      const b = el.getBoundingClientRect();
+      if (b.width < 24 || b.height < 120) continue;          // not a rail
+      if (b.left > r.left + 8) continue;                     // not over our left edge
+      if (b.bottom < mid || b.top > mid) continue;            // not level with us
+      const st = getComputedStyle(el);
+      if (st.position !== "fixed" && st.position !== "sticky") continue;
+      if (st.visibility === "hidden" || st.display === "none" || +st.opacity === 0) continue;
+      const overlap = b.right - r.left;
+      if (overlap > worst && overlap < r.width * 0.5) worst = overlap;
+    }
+    const pad = worst > 0 ? Math.ceil(worst) + 10 : 0;
+    if (String(p.dataset.mnxPad || "") === String(pad)) return;
+    p.dataset.mnxPad = String(pad);
+    p.style.marginLeft = pad ? pad + "px" : "";
   }
   function akNorm(s) { return (s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
   function akLinkTopic(text) {
@@ -1308,32 +1445,96 @@
       const n = document.createElement("div"); n.className = "mnx-msg";
       n.textContent = "No AnKing resources found for this question."; panel.appendChild(n); ensureVisible(); return;
     }
-    const table = document.createElement("table");
-    const tb = document.createElement("tbody");
-    for (const row of rows) {
-      const tr = document.createElement("tr");
-      const td1 = document.createElement("td");
-      td1.className = "mnx-res";
-      td1.textContent = row.R.label;
-      td1.style.borderLeftColor = row.R.color;
-      const td2 = document.createElement("td");
-      renderResource(td2, row.paths, row.links);
-      tr.appendChild(td1); tr.appendChild(td2);
-      tb.appendChild(tr);
+    // Most-opened resources first, then the deck's own order. Ties keep the
+    // original order so the list doesn't reshuffle on every question.
+    const ordered = rows
+      .map((row, i) => ({ row, i, uses: resourceUses[row.R.label] || 0 }))
+      .sort((a, b) => (b.uses - a.uses) || (a.i - b.i))
+      .map(x => x.row);
+
+    for (const row of ordered) {
+      panel.appendChild(buildResourceRow(row));
     }
-    table.appendChild(tb);
-    panel.appendChild(table);
     ensureVisible();
+  }
+
+  // One collapsed resource: a summary you can scan, a body you opt into.
+  function buildResourceRow(row) {
+    const sec = document.createElement("section");
+    sec.className = "mnx-r";
+
+    const head = document.createElement("button");
+    head.type = "button";
+    head.className = "mnx-r-head";
+    head.style.borderLeftColor = row.R.color;
+    head.setAttribute("aria-expanded", "false");
+
+    const chev = document.createElement("span");
+    chev.className = "mnx-r-chev";
+    chev.setAttribute("aria-hidden", "true");
+
+    const name = document.createElement("span");
+    name.className = "mnx-r-name";
+    name.textContent = row.R.label;
+
+    const count = document.createElement("span");
+    count.className = "mnx-r-count";
+    const nTopics = row.paths.length, nLinks = row.links.length;
+    count.textContent = nTopics
+      ? nTopics + (nLinks ? " + " + nLinks + "▶" : "")
+      : nLinks + "▶";
+    count.title = nTopics + " chapter" + (nTopics === 1 ? "" : "s") +
+      (nLinks ? ", " + nLinks + " video" + (nLinks === 1 ? "" : "s") : "");
+
+    // Enough of the actual topics to decide without opening it.
+    const peek = document.createElement("span");
+    peek.className = "mnx-r-peek";
+    peek.textContent = row.paths.length
+      ? row.paths.slice(0, 3).map(p => p[p.length - 1]).join(" · ")
+      : row.links.slice(0, 2).map(l => l.text).join(" · ");
+
+    head.append(chev, name);
+
+    // The overlay key, where this resource has one (F / S / P / O / E / A).
+    // Right beside the name, so the shortcut is learned by association.
+    const key = Object.keys(IMG_SOURCES).find(k => IMG_SOURCES[k].label === row.R.label);
+    if (key) {
+      const kb = document.createElement("span");
+      kb.className = "mnx-r-key";
+      kb.textContent = key;
+      kb.title = "Press " + key + " to overlay these images";
+      head.appendChild(kb);
+    }
+    head.append(count, peek);
+
+    const body = document.createElement("div");
+    body.className = "mnx-r-body";
+    body.hidden = true;
+    let built = false;
+
+    // Kept separate from the click handler: restoring saved state must not go
+    // through onUserClick, which (correctly) refuses anything untrusted.
+    function setOpen(open, remember) {
+      sec.classList.toggle("open", open);
+      head.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open && !built) { renderResource(body, row.paths, row.links); built = true; }
+      body.hidden = !open;
+      if (remember) rememberResource(row.R.label, open);
+    }
+    head.addEventListener("click", onUserClick(() => setOpen(!sec.classList.contains("open"), true)));
+
+    sec.append(head, body);
+    if (openResources.has(row.R.label)) setOpen(true, false);   // restore what you had open
+    return sec;
   }
   function addImageHint() {
     const panel = document.getElementById(PANEL_ID);
     if (!panel) return;
-    const bits = [];
-    for (const k in IMG_SOURCES) {
-      if (currentFiles[k] && currentFiles[k].length) bits.push(k + " = " + IMG_SOURCES[k].label);
-    }
-    let txt = bits.length ? ("Images - press " + bits.join("  /  ") + "  (press again, Esc, or X to close)") : "";
-    if (kbShortcuts) txt += (txt ? "   ·   " : "") + "Press ? for shortcuts";
+    // Each row now shows its own key badge, so this is a nudge, not a legend.
+    let any = false;
+    for (const k in IMG_SOURCES) if (currentFiles[k] && currentFiles[k].length) { any = true; break; }
+    let txt = any ? "Press a resource's key for its images · Esc closes" : "";
+    if (kbShortcuts) txt += (txt ? "   ·   " : "") + "? for all shortcuts";
     if (!txt) return;
     const n = document.createElement("div");
     n.className = "mnx-note";
