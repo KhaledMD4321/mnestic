@@ -6,12 +6,13 @@
 
 **Your qbank question, wired to your AnKing cards.**
 
+[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Mnestic-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/mnestic/mdjekpfeinjdgkjbeaffbpfhodofhfhd)
 [![AnkiWeb add-on](https://img.shields.io/badge/AnkiWeb-Mnestic%20Bridge-1f9d57?style=flat-square)](https://ankiweb.net/shared/info/199262916)
 [![Release](https://img.shields.io/github/v/release/KhaledMD4321/mnestic?style=flat-square&color=6d40e0)](https://github.com/KhaledMD4321/mnestic/releases/latest)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-7c4dff?style=flat-square)](LICENSE)
 [![Buy me a coffee](https://img.shields.io/badge/%E2%98%95-Buy%20me%20a%20coffee-d5891c?style=flat-square)](https://buymeacoffee.com/bnkhaled)
 
-[**📖 Full guide**](docs/guide.md) · [**Install**](#install) · [**Features**](#what-it-does) · [**Privacy**](PRIVACY.md)
+[**📖 Extension guide**](docs/guide.md) · [**🔌 Add-on guide**](docs/addon-guide.md) · [**Install**](#install) · [**Features**](#what-it-does) · [**Privacy**](PRIVACY.md)
 
 </div>
 
@@ -186,10 +187,10 @@ Then **restart Anki**.
 
 ### 2️⃣ Extension
 
-`chrome://extensions` → **Developer mode** → **Load unpacked** → the
-`extension/` folder.
+[**Add to Chrome**](https://chromewebstore.google.com/detail/mnestic/mdjekpfeinjdgkjbeaffbpfhodofhfhd) from the Web Store.
 
-Or grab the [latest release](https://github.com/KhaledMD4321/mnestic/releases/latest).
+Or load it unpacked: `chrome://extensions` → **Developer mode** → **Load
+unpacked** → the `extension/` folder.
 
 </td><td width="33%" valign="top">
 

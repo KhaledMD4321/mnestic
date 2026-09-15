@@ -11,7 +11,8 @@ with a one-time code.
 - **Anki** installed on your computer (the free desktop app).
 - Your **AnKing** deck loaded in Anki (the version with the UWorld tags).
 - **Chrome**, **Brave**, or **Edge**.
-- The Mnestic folder (this repo) downloaded — on GitHub, click the green
+- Nothing to download if you install the extension from the Chrome Web Store
+  (Step 2). Only if you'd rather load it unpacked: on GitHub click the green
   **Code ▸ Download ZIP**, then unzip it somewhere you'll remember.
 
 ---

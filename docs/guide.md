@@ -1,5 +1,10 @@
 # Mnestic — the complete guide
 
+**[Get the extension](https://chromewebstore.google.com/detail/mnestic/mdjekpfeinjdgkjbeaffbpfhodofhfhd)** ·
+**[get the add-on](https://ankiweb.net/shared/info/199262916)** ·
+**[the add-on's own guide](addon-guide.md)** ·
+**[source](https://github.com/KhaledMD4321/mnestic)**
+
 Everything Mnestic does, in the order you'll meet it.
 
 **New here?** Do [Setup](#1-setup) and [Check your ids match](#2-check-your-ids-match)
@@ -42,14 +47,19 @@ You need **Anki open**, an **AnKing deck with UWorld tags**, and Chrome (or Brav
 ```
 
 Then **restart Anki**. The add-on runs a small server on `127.0.0.1:8790` that
-only the extension talks to.
+only the extension talks to. ([AnkiWeb page](https://ankiweb.net/shared/info/199262916) ·
+[what the add-on does](addon-guide.md))
 
 ### Step 2 — the extension
 
-From the Chrome Web Store, or unpacked:
+[**Add Mnestic to Chrome**](https://chromewebstore.google.com/detail/mnestic/mdjekpfeinjdgkjbeaffbpfhodofhfhd) — that's the whole step.
+
+<details><summary>Or load it unpacked</summary>
 
 1. `chrome://extensions` → turn on **Developer mode**
 2. **Load unpacked** → pick the `extension/` folder
+
+</details>
 
 ### Step 3 — pair them
 
@@ -369,6 +379,10 @@ a field. Turn them off in the popup.
 ---
 
 ## 10. In Anki
+
+The add-on has its own guide — what it can do, what it refuses to do, its
+settings and its troubleshooting: **[Mnestic Bridge guide](addon-guide.md)**.
+The short version:
 
 **Tools → Mnestic Bridge**
 

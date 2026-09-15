@@ -30,30 +30,76 @@ Link your question bank to your Anki cards: resource overlays on each question, 
 Mnestic connects the question you're studying to your own AnKing cards — no
 copy-pasting and no tab-switching.
 
-Works on UWorld, Coursology and MedPark.
+Works on UWorld, Coursology and MedPark. All three number their questions the
+same way, which is what lets one AnKing tag search work on all of them.
 
-On a question it can:
-• Show the study resources your deck links to (First Aid, Sketchy, and more) and
-  pop their images right over the question — one keystroke each: press F, S, P …
-• Make a new Cloze or Basic card, or keep the exact card the question maps to, in
-  a chapter deck — with your note and even the question's own images. Saved one
-  by mistake? One click takes it back out again.
-• Break a finished block into your weakest System / Subject / Topic, and open just
-  those missed questions in Anki.
-• Track your pace: a daily streak, a 16-week heatmap, targets, and a projected
-  finish date.
+── WHILE YOU REVIEW A QUESTION ──
 
-Everything runs on your own computer. The extension talks only to a small local
-companion add-on that searches and updates your own Anki collection — nothing is
-collected or sent anywhere.
+• RESOURCE OVERLAYS. The resources your own card links to — First Aid, Sketchy,
+  Physeo, OME and more — listed beside the explanation, one line each. Press F,
+  S, P or O and that resource's images appear over the question. Multi-page
+  topics page with the arrow keys.
 
-Requires the free companion add-on "Mnestic Bridge" and your own tagged deck.
+• SEE THE CARDS. How the matching cards actually stand (mature, young, learning,
+  suspended) with one-click unsuspend, and a preview of the card itself with
+  clozes revealed — without opening Anki.
+
+• KEEP THE ONES YOU MISSED. Save a question into a chapter subdeck built from
+  the card's own AnKing tags, with your note added to the card. Move the real
+  card, tag it, or make a copy — your choice, changeable at any time. Saved one
+  by mistake? Reopen the dialog and one click takes it back out: it untags the
+  card, moves it home, and keeps everything you typed.
+
+• MAKE A CARD. Select any explanation text and turn it into a new Cloze or Basic
+  card, created in Anki with the question id as its source. Paste screenshots in.
+
+• COPY FOR AI. Your own editable prompt plus the whole question, copied in one
+  click for ChatGPT, Claude or Gemini.
+
+── WHEN THE BLOCK IS DONE ──
+
+• WEAK AREAS. Per System / Subject / Topic accuracy, weakest first, with a
+  button that opens just that group's missed questions in Anki.
+
+• OPEN THEM IN ANKI. Missed, all, flagged, or high-yield only — straight to
+  Anki's browser, or unsuspended in bulk.
+
+── OVER THE WEEKS ──
+
+• STUDY TRACKER. Today and this week against your targets, a daily streak, a
+  16-week heatmap, 7-day accuracy, and a projected finish date from your real
+  pace.
+
+• RETEST WHAT YOU MISSED. The question ids grouped by chapter, ready to paste
+  into your qbank's own test builder — and a filtered deck to study them in Anki.
+
+── PRIVACY ──
+
+Everything runs on your own computer. There is no server, no account and no
+telemetry. The extension talks to exactly two things: the question-bank page
+you're already on, and a small companion add-on on 127.0.0.1 that searches your
+own Anki collection. Nothing is collected and nothing is sent anywhere.
+
+The add-on cannot delete your cards: it has one delete operation, for undoing a
+"make a copy" save, and it refuses any note it did not itself create.
+
+── WHAT YOU NEED ──
+
+1. Anki, running, with the free companion add-on "Mnestic Bridge":
+   Tools > Add-ons > Get Add-ons, paste 199262916, restart Anki.
+   https://ankiweb.net/shared/info/199262916
+2. Your own AnKing deck, with the UWorld question-id tags.
+3. Your own question-bank access.
+
+Full guide: https://github.com/KhaledMD4321/mnestic/blob/main/docs/guide.md
 Open source (GPLv3): https://github.com/KhaledMD4321/mnestic
 
 Free, with no ads and no paid tier. If it helps you, you can support it:
 https://buymeacoffee.com/bnkhaled
 
-An independent study tool. Use your own accounts and your own content.
+An independent study tool, not affiliated with any question bank, resource, or
+with Anki or AnKing. Use your own accounts and your own content.
+
 ```
 
 **Screenshots:** upload the five 1280×800 images from `dist/store/` (store-1…store-5).

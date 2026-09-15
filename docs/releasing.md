@@ -67,6 +67,8 @@ it is the only place the two packages are published as a matched pair.
 
 ## 4. AnkiWeb
 
+Live page: <https://ankiweb.net/shared/info/199262916>
+
 <https://ankiweb.net/shared/mine> → the add-on → **Update** → upload
 `dist/mnestic_bridge.ankiaddon`.
 
@@ -77,6 +79,9 @@ it is the only place the two packages are published as a matched pair.
 - Keep the support and licence lines current (GPLv3 + the repo link).
 
 ## 5. Chrome Web Store
+
+Live page:
+<https://chromewebstore.google.com/detail/mnestic/mdjekpfeinjdgkjbeaffbpfhodofhfhd>
 
 <https://chrome.google.com/webstore/devconsole> → Mnestic → **Package** →
 **Upload new package** → `dist/mnestic-extension.zip` → **Submit for review**.
@@ -89,6 +94,27 @@ reviewers reliably check:
   bank means updating the listing copy in the same submission.
 - **A new host permission re-triggers full review**, which takes longer than a
   code-only update. Expect days, not hours.
+
+## 6. Check the three still point at each other
+
+Each property should link to the other two. It is the easiest thing to let rot,
+because nothing breaks when it does — people just cannot find the other half.
+
+| | links to repo | links to extension | links to add-on |
+|---|:---:|:---:|:---:|
+| README | — | badge + install | badge + install |
+| Extension popup | footer | — | setup checklist |
+| Add-on `config.md` | yes | yes | — |
+| AnkiWeb listing | yes | yes | — |
+| Chrome listing | yes | — | yes |
+
+Canonical URLs:
+
+```
+repo       https://github.com/KhaledMD4321/mnestic
+extension  https://chromewebstore.google.com/detail/mnestic/mdjekpfeinjdgkjbeaffbpfhodofhfhd
+add-on     https://ankiweb.net/shared/info/199262916
+```
 
 Review times vary. The store keeps serving the previous version until the new
 one is approved, so nothing breaks while you wait — but AnkiWeb publishes
