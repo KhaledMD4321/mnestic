@@ -52,6 +52,41 @@
     }
     return (n >= 1 && n <= 3) ? n : null;
   }
+  // The step the CURRENT question actually matched on. The popup's Step selector
+  // and the URL are both only guesses — what matters is which step's tags the
+  // deck really has for this id, and every follow-up call (open in Anki, card
+  // status, unsuspend) must use the same one.
+  let currentSv = null;
+  let stepBySlug = {};
+  chrome.storage.local.get({ mnxStepBySlug: {} }, c => { stepBySlug = c.mnxStepBySlug || {}; });
+  async function svForQuestion() {
+    if (currentSv != null) return currentSv;
+    try { return await getSv(); } catch (e) { return 1; }
+  }
+  // Find the notes for a question, trying the likeliest step first and falling
+  // back to the others. Before this, a Step 2 student whose URL didn't say so
+  // got "No AnKing resources found" on every single question, with no clue why.
+  async function resolveNotes(qid) {
+    const slug = currentQbankSlug();
+    let detected = 1;
+    try { detected = await getSv(); } catch (e) {}
+    const order = [];
+    const add = v => { v = +v; if (v >= 1 && v <= 3 && order.indexOf(v) < 0) order.push(v); };
+    add(detected); add(stepBySlug[slug]); add(1); add(2); add(3);
+    for (const sv of order) {
+      let nids;
+      try { nids = await bridge("searchNotes", { query: qidQuery(qid, sv) }); }
+      catch (e) { return { nids: [], sv: detected, error: e, tried: order }; }
+      if (nids && nids.length) {
+        if (sv !== detected && stepBySlug[slug] !== sv) {
+          stepBySlug[slug] = sv;                       // remember for this qbank
+          chrome.storage.local.set({ mnxStepBySlug: stepBySlug });
+        }
+        return { nids, sv, error: null, tried: order };
+      }
+    }
+    return { nids: [], sv: detected, error: null, tried: order };
+  }
   function getSv() {
     const urlStep = detectStepFromUrl();
     if (urlStep) return Promise.resolve(urlStep);
@@ -585,7 +620,12 @@
     #${PANEL_ID} .mnx-leaf{font-weight:600;color:var(--mnx-text)}
     #${PANEL_ID} .mnx-watch{display:inline-block;color:var(--mnx-accent);text-decoration:none;font-size:12px;margin-left:8px;white-space:nowrap;font-weight:600}
     #${PANEL_ID} .mnx-watch:hover{text-decoration:underline}
-    #${PANEL_ID} .mnx-msg{font-size:13px;color:var(--mnx-muted);padding:12px 13px}
+    #${PANEL_ID} .mnx-msg{font-size:13px;color:var(--mnx-text);padding:12px 13px;line-height:1.5}
+    #${PANEL_ID} .mnx-msg-why{font-size:12px;color:var(--mnx-muted);margin-top:3px}
+    #${PANEL_ID} .mnx-msg-q{display:block;margin:7px 0 2px;padding:6px 8px;font-size:11.5px;
+      font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--mnx-ink);
+      background:var(--mnx-surface-2);border:1px solid var(--mnx-border);border-radius:var(--mnx-r-xs);
+      user-select:all;overflow-wrap:anywhere}
     #${PANEL_ID} .mnx-note{font-size:12px;color:var(--mnx-muted);padding:9px 13px;border-top:1px solid var(--mnx-border);background:var(--mnx-surface-2)}
 
     /* ---- collapsible resource rows ----------------------------------------
@@ -967,7 +1007,10 @@
   }
   function resultData() { return questionListData() || SITE.resultRows(); }
   function collectAll() { return resultData().map(r => r.qid); }
-  function collectMissed() { return resultData().filter(r => r.wrong).map(r => r.qid); }
+  // An omitted question is not a question you know. The results TABLE can't
+  // tell omitted from correct (no icon either way), but the Question List can —
+  // so when that data is available, omitted counts as missed.
+  function collectMissed() { return resultData().filter(r => r.wrong || r.omitted).map(r => r.qid); }
 
   // ---- block breakdown: read the results table's Subject/System/Topic columns ----
   function findResultColumns() {
@@ -1000,12 +1043,15 @@
     });
     return out;
   }
+  // One definition of "missed", used by the breakdown, the buttons and the
+  // accuracy figures alike: anything you didn't get right.
+  function isMissed(r) { return !!(r.wrong || r.omitted); }
   function aggregateBy(rows, key) {
     const map = new Map();
     rows.forEach(r => {
       const name = (r[key] || "").trim() || "—";
       let g = map.get(name); if (!g) { g = { name, total: 0, wrong: 0, wrongQids: [] }; map.set(name, g); }
-      g.total++; if (r.wrong) { g.wrong++; g.wrongQids.push(r.qid); }
+      g.total++; if (isMissed(r)) { g.wrong++; g.wrongQids.push(r.qid); }
     });
     const arr = Array.from(map.values());
     arr.forEach(g => { g.correct = g.total - g.wrong; g.acc = g.total ? g.correct / g.total : 0; });
@@ -1037,7 +1083,7 @@
     function render() {
       const groups = aggregateBy(rows, key);
       shownGroups = groups;
-      const total = rows.length, correct = rows.filter(r => !r.wrong).length;
+      const total = rows.length, correct = rows.filter(r => !isMissed(r)).length;
       const pag = (total === 10 || total === 20 || total === 25) ? " · set page size to All for the whole block" : "";
       sub.textContent = total + " questions · " + correct + " correct (" + Math.round(100 * correct / total) + "%)" + pag;
       list.replaceChildren();
@@ -1076,7 +1122,7 @@
       runBrowse(qids);
     }
     m.foot.appendChild(mdButton("Drill weakest 3", "mnx-md-cancel", drillWeakest));
-    m.foot.appendChild(mdButton("Open all missed", "mnx-md-cancel", () => runBrowse(rows.filter(r => r.wrong).map(r => r.qid))));
+    m.foot.appendChild(mdButton("Open all missed", "mnx-md-cancel", () => runBrowse(rows.filter(isMissed).map(r => r.qid))));
     m.foot.appendChild(mdButton("Close", "mnx-md-ok", m.close));
   }
   // Marked status only exists in the Question List popup - so require it (cached
@@ -1491,7 +1537,7 @@
       td.appendChild(g);
     }
   }
-  function renderRows(qid, rows, msg) {
+  function renderRows(qid, rows, msg, found) {
     const panel = ensurePanel();
     panel.replaceChildren();
     addPanelHeader(qid);
@@ -1499,8 +1545,28 @@
       const n = document.createElement("div"); n.className = "mnx-msg"; n.textContent = msg; panel.appendChild(n); ensureVisible(); return;
     }
     if (!rows || !rows.length) {
+      // "Nothing found" used to be a dead end. Say which steps were searched and
+      // what the query was, so the cause is obvious: untagged deck, renumbered
+      // qbank, or an id this deck simply doesn't cover.
       const n = document.createElement("div"); n.className = "mnx-msg";
-      n.textContent = "No AnKing resources found for this question."; panel.appendChild(n); ensureVisible(); return;
+      const tried = (found && found.tried && found.tried.length) ? found.tried : null;
+      const line = document.createElement("div");
+      line.textContent = "No AnKing cards are tagged with question id " + qid +
+        (tried ? " (searched Step " + tried.join(", ") + ")." : ".");
+      n.appendChild(line);
+      const why = document.createElement("div");
+      why.className = "mnx-msg-why";
+      why.textContent = "Either your deck doesn't tag this question, or this qbank renumbered it.";
+      n.appendChild(why);
+      const q = document.createElement("code");
+      q.className = "mnx-msg-q";
+      q.textContent = qidQuery(qid, (found && found.sv) || 1);
+      n.appendChild(q);
+      const hint = document.createElement("div");
+      hint.className = "mnx-msg-why";
+      hint.textContent = "Paste that into Anki's Browse to check it yourself.";
+      n.appendChild(hint);
+      panel.appendChild(n); ensureVisible(); return;
     }
     // Most-opened resources first, then the deck's own order. Ties keep the
     // original order so the list doesn't reshuffle on every question.
@@ -1604,12 +1670,15 @@
     currentNotes = [];
     hideOverlay();
 
-    let sv; try { sv = await getSv(); } catch (e) { sv = 1; }
-    const query = "tag:#AK_Step" + sv + "_" + ANKING_VER + "::#UWorld::*::" + qid;
-    let nids;
-    try { nids = await bridge("searchNotes", { query }); }
-    catch (e) { renderRows(qid, null, "Couldn't reach Anki. Make sure it's open and the Mnestic Bridge add-on is installed. (" + e + ")"); return; }
-    if (!nids.length) { renderRows(qid, []); return; }
+    currentSv = null;
+    const found = await resolveNotes(qid);
+    if (found.error) {
+      renderRows(qid, null, "Couldn't reach Anki. Make sure it's open and the Mnestic Bridge add-on is installed. (" + found.error + ")");
+      return;
+    }
+    const nids = found.nids;
+    currentSv = found.sv;
+    if (!nids.length) { renderRows(qid, [], null, found); return; }
     let notes;
     try { notes = await bridge("noteInfo", { notes: nids }); }
     catch (e) { renderRows(qid, null, "Anki error: " + e); return; }
@@ -2254,14 +2323,37 @@
         const imgTags = await pics.upload(SITE.id + "-" + qid);
         let noteHtml = ta.value.trim() ? escapeHtml(ta.value.trim()).replace(/\n/g, "<br>") : "";
         if (imgTags.length) noteHtml += (noteHtml ? "<br>" : "") + imgTags.join("<br>");
-        const params = { noteId: chosenNote.noteId, deck, addTags: [MISSED_TAG] };
-        if (noteHtml) params.fieldAppends = { "Missed Questions": noteHtml };
-        await bridge("copyNote", params);
+        // copyNote always makes a NEW note, so saving the same question twice
+        // used to plant duplicate cards in the collection with no warning. The
+        // copy keeps the source's tags, so an existing one is findable: append
+        // to it instead of breeding another.
+        const sv = await svForQuestion();
+        let existing = [];
+        try { existing = await bridge("searchNotes", { query: qidQuery(qid, sv) + " tag:" + MISSED_TAG }); }
+        catch (e) { existing = []; }
+
+        let appended = false;
+        if (existing.length) {
+          if (noteHtml) {
+            await bridge("updateNote", { noteId: existing[0], fieldAppends: { "Missed Questions": noteHtml } });
+            appended = true;
+          }
+        } else {
+          const params = { noteId: chosenNote.noteId, deck, addTags: [MISSED_TAG] };
+          if (noteHtml) params.fieldAppends = { "Missed Questions": noteHtml };
+          await bridge("copyNote", params);
+        }
         chrome.storage.local.set({ akMissedDeck: deck });
         if (deckCache && !deckCache.includes(deck)) deckCache.push(deck);
         m.close();
         const extra = imgTags.length ? (" + " + imgTags.length + " image" + (imgTags.length === 1 ? "" : "s")) : "";
-        toast("Saved a copy to " + deckLeaf(deck) + (noteHtml ? " with your note" + extra + "." : "."));
+        if (existing.length) {
+          toast(appended
+            ? "Added your note" + extra + " to the copy you already saved."
+            : "You've already saved this question — nothing to add.");
+        } else {
+          toast("Saved a copy to " + deckLeaf(deck) + (noteHtml ? " with your note" + extra + "." : "."));
+        }
       } catch (e) {
         saveBtn.disabled = false; saveBtn.textContent = "Save copy"; toast("Couldn't save (" + e + ")");
       }
@@ -2305,7 +2397,7 @@
     if (headEl && headEl.nextSibling) panel.insertBefore(strip, headEl.nextSibling);
     else panel.appendChild(strip);
 
-    let sv; try { sv = await getSv(); } catch (e) { sv = 1; }
+    const sv = await svForQuestion();
     const query = qidQuery(qid, sv);
     let m;
     try { m = (await bridge("cardMaturity", { queries: [query] }))[0]; }
@@ -2573,7 +2665,12 @@
   chrome.storage.local.get({ [TRACKER_KEY]: null }, c => { if (c[TRACKER_KEY]) trackerLog = normalizeLog(c[TRACKER_KEY]); });
 
   function currentQbankSlug() { try { return SITE.blockSlug() || "default"; } catch (e) { return "default"; } }
-  const seenUnanswered = new Set();        // qids seen unanswered this page session
+  // qid -> how many consecutive ticks we saw it UNANSWERED. Reviewing a finished
+  // test renders the explanation immediately, but the SPA can flash the stem
+  // first — one such frame used to count as "answered today" and inflate the
+  // streak. Require the question to sit unanswered for a couple of seconds.
+  const seenUnanswered = new Map();
+  const ANSWER_MIN_TICKS = 2;
 
   // Reliable correctness: backfill from the results table / Question List (both
   // mark each qid correct/incorrect), instead of scanning the player's answer
@@ -2584,7 +2681,7 @@
     let changed = false;
     rows.forEach(r => {
       const e = trackerLog.answered[slug + " " + r.qid];
-      if (e && e.correct !== !r.wrong) { e.correct = !r.wrong; changed = true; }
+      if (e && e.correct !== !isMissed(r)) { e.correct = !isMissed(r); changed = true; }
     });
     if (changed) saveLog();
   }
@@ -2622,9 +2719,10 @@
     const qid = findQid();
     if (qid) {
       if (SITE.isReviewing()) {
-        if (seenUnanswered.has(qid)) { logAnswered(qid); seenUnanswered.delete(qid); }
+        if ((seenUnanswered.get(qid) || 0) >= ANSWER_MIN_TICKS) logAnswered(qid);
+        seenUnanswered.delete(qid);
       } else {
-        seenUnanswered.add(qid);
+        seenUnanswered.set(qid, (seenUnanswered.get(qid) || 0) + 1);
       }
     }
     scrapeDashboardTotals();
@@ -2765,7 +2863,7 @@
     return null;                                        // couldn't tell
   }
   async function addExpectedLine(qid) {
-    let sv; try { sv = await getSv(); } catch (e) { sv = 1; }
+    const sv = await svForQuestion();
     let cards;
     try { const r = await bridge("cardStats", { queries: [qidQuery(qid, sv)] }); cards = r && r[0]; }
     catch (e) { return; }
@@ -2791,9 +2889,9 @@
       host.appendChild(b);
     } else if (!esOn && existing) { existing.remove(); }
   }
-  function openInAnki(qid) { getSv().then(sv => bridge("openBrowser", { query: qidQuery(qid, sv) }).catch(() => {})); }
+  function openInAnki(qid) { svForQuestion().then(sv => bridge("openBrowser", { query: qidQuery(qid, sv) }).catch(() => {})); }
   async function computeSummary() {
-    const items = resultData().map(r => ({ qid: r.qid, correct: !r.wrong }));
+    const items = resultData().map(r => ({ qid: r.qid, correct: !isMissed(r) }));
     if (!items.length) { toast("No questions found on this page."); return; }
     let sv; try { sv = await getSv(); } catch (e) { sv = 1; }
     let byQ;

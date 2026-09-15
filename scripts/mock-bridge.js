@@ -50,10 +50,21 @@ const NOTE = {
 
 const seen = [];   // every {op,args} the extension sent — asserted on by the test
 
+// Test knobs, so a run can simulate a real collection's state:
+//   onlyStep    - the deck only has tags for this step (exercises step fallback)
+//   savedCopies - how many "Missed Qs" copies exist (exercises the dup guard)
+const state = { onlyStep: null, savedCopies: 0 };
+
 const OPS = {
   ping: () => ({ name: "Mnestic Bridge (mock)", version: "1.0.2-mock" }),
   auth: () => ({ paired: true }),
-  searchNotes: (a) => (/::1633$|::12345$|::4211$/.test(a.query || "") ? [NOTE.noteId] : []),
+  searchNotes: (a) => {
+    const q = a.query || "";
+    // the already-saved-copy lookup
+    if (q.indexOf("tag:Mnestic::Missed") >= 0) return state.savedCopies ? [9999] : [];
+    if (state.onlyStep && q.indexOf("#AK_Step" + state.onlyStep + "_") < 0) return [];
+    return /::1633$|::12345$|::4211$/.test(q) ? [NOTE.noteId] : [];
+  },
   noteInfo: () => [NOTE],
   readMedia: () => PNG_B64,
   writeMedia: (a) => a.filename,
@@ -64,7 +75,7 @@ const OPS = {
   cardMaturity: (a) => (a.queries || []).map(() =>
     ({ new: 1, learning: 1, young: 2, mature: 3, suspended: 2, total: 9 })),
   unsuspend: () => 1,
-  copyNote: () => 2222222222222,
+  copyNote: () => { state.savedCopies++; return 2222222222222; },
   updateNote: () => true,
   newNote: () => 3333333333333
 };
@@ -100,4 +111,4 @@ function calls() { return seen; }
 if (require.main === module) {
   server.listen(PORT, "127.0.0.1", () => console.log("mock bridge on 127.0.0.1:" + PORT));
 }
-module.exports = { server, calls, PORT, NOTE };
+module.exports = { server, calls, PORT, NOTE, state };

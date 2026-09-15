@@ -100,10 +100,13 @@ function listenFree(server, from) {
   let sw = ctx.serviceWorkers()[0];
   if (!sw) sw = await ctx.waitForEvent("serviceworker", { timeout: 20000 });
   const extId = new URL(sw.url()).host;
-  const cfg = await ctx.newPage();
-  await cfg.goto(`chrome-extension://${extId}/popup.html`);
-  await cfg.evaluate((pp) => new Promise((r) => chrome.storage.local.set({ bridgePort: pp }, r)), port);
-  await cfg.close();
+  async function setCfg(obj) {
+    const c = await ctx.newPage();
+    await c.goto(`chrome-extension://${extId}/popup.html`);
+    await c.evaluate((o) => new Promise((r) => chrome.storage.local.set(o, r)), obj);
+    await c.close();
+  }
+  await setCfg({ bridgePort: port });
 
   for (const site of SITES) {
     console.log(site.id + ":");
@@ -292,6 +295,61 @@ function listenFree(server, from) {
         q.slice(0, 120));
     }
     await p2.close();
+  }
+  console.log("");
+
+  // ---- accuracy: the step the deck actually uses, not the one we guessed ----
+  console.log("step fallback:");
+  {
+    mock.state.onlyStep = 2;                 // this deck only tags Step 2
+    await setCfg({ sv: 1 });                 // ...but the popup says Step 1
+    const p3 = await ctx.newPage();
+    await p3.route("**/*", (r) => r.fulfill({ status: 200, contentType: "text/html", body: SITES[0].html }));
+    await p3.goto(SITES[0].url, { waitUntil: "domcontentloaded" });
+    let found = false;
+    try { await p3.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 15000 }); found = true; } catch (e) {}
+    check("coursology", "finds cards even when the step setting is wrong", found);
+    const q2 = mock.calls().filter((c) => c.op === "searchNotes").map((c) => c.args.query || "");
+    check("coursology", "it retried the other steps",
+      q2.some((q) => q.includes("#AK_Step1_")) && q2.some((q) => q.includes("#AK_Step2_")));
+    // follow-up calls must use the step that actually matched, not the guess
+    const mat = mock.calls().filter((c) => c.op === "cardMaturity").slice(-1)[0];
+    const mq = mat ? (mat.args.queries || [""])[0] : "";
+    check("coursology", "follow-up calls use the step that matched", mq.includes("#AK_Step2_"), mq.slice(0, 60));
+    await p3.close();
+    mock.state.onlyStep = null;
+    await setCfg({ sv: 1 });
+  }
+  console.log("");
+
+  // ---- accuracy: saving the same question twice must not duplicate a card ----
+  console.log("save to Missed Qs:");
+  {
+    const p4 = await ctx.newPage();
+    await p4.route("**/*", (r) => r.fulfill({ status: 200, contentType: "text/html", body: SITES[0].html }));
+    await p4.goto(SITES[0].url, { waitUntil: "domcontentloaded" });
+    await p4.waitForSelector("#mnx-resources", { timeout: 15000 });
+
+    async function saveOnce(note) {
+      await p4.locator("#mnx-resources button", { hasText: "Save to Missed Qs" }).click({ timeout: 6000 });
+      await p4.waitForSelector("#mnx-md-overlay textarea", { timeout: 6000 });
+      await p4.fill("#mnx-md-overlay textarea", note);
+      await p4.locator("#mnx-md-overlay button", { hasText: "Save copy" }).click({ timeout: 6000 });
+      await p4.waitForTimeout(900);
+    }
+    try {
+      await saveOnce("first note");
+      await saveOnce("second note");
+    } catch (e) {}
+    const copies = mock.calls().filter((c) => c.op === "copyNote").length;
+    const updates = mock.calls().filter((c) => c.op === "updateNote").length;
+    check("coursology", "saving twice makes ONE card, not two (" + copies + " copy, " + updates + " update)",
+      copies === 1 && updates === 1);
+    const up = mock.calls().filter((c) => c.op === "updateNote").slice(-1)[0];
+    check("coursology", "the second note is appended to the existing copy",
+      !!up && up.args.noteId === 9999 && /second note/.test(JSON.stringify(up.args.fieldAppends || {})));
+    await p4.close();
+    mock.state.savedCopies = 0;
   }
   console.log("");
 
