@@ -30,11 +30,14 @@ Link your question bank to your Anki cards: resource overlays on each question, 
 Mnestic connects the question you're studying to your own AnKing cards — no
 copy-pasting and no tab-switching.
 
+Works on UWorld, Coursology and MedPark.
+
 On a question it can:
 • Show the study resources your deck links to (First Aid, Sketchy, and more) and
   pop their images right over the question — one keystroke each: press F, S, P …
 • Make a new Cloze or Basic card, or keep the exact card the question maps to, in
-  a chapter deck — with your note and even the question's own images.
+  a chapter deck — with your note and even the question's own images. Saved one
+  by mistake? One click takes it back out again.
 • Break a finished block into your weakest System / Subject / Topic, and open just
   those missed questions in Anki.
 • Track your pace: a daily streak, a 16-week heatmap, targets, and a projected
