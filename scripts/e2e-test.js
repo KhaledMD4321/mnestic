@@ -408,6 +408,16 @@ function listenFree(server, from) {
     check("coursology", "copying a second time appends instead of duplicating",
       !calls.some((c) => c.op === "copyNote") && calls.some((c) => c.op === "updateNote"));
     mock.state.savedCopies = 0;
+
+    // The browser updates the extension by itself; the add-on doesn't. A new
+    // extension against an old bridge must degrade, not lose the save.
+    await setCfg({ mnxMissedMode: "move" });
+    mock.state.oldAddon = true;
+    calls = await run("move", (p) => openAndSave(p, "note E"));
+    mock.state.oldAddon = false;
+    check("coursology", "an out-of-date add-on still tags rather than failing the save",
+      !!calls.find((c) => c.op === "setDeck") && !!calls.find((c) => c.op === "updateNote"));
+
     await setCfg({ mnxMissedMode: "move" });
   }
   console.log("");

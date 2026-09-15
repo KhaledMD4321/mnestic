@@ -2662,10 +2662,24 @@
           await bridge("updateNote", params);
           try { await bridge("unsuspend", { queries: [qidQuery(qid, sv)] }); } catch (e) {}
           if (missedMode === "move" && deck) {
-            const res = await bridge("setDeck", { notes: [chosenNote.noteId], deck });
-            const n = (res && res.moved) || 0;
-            what = "Moved " + n + (n === 1 ? " card" : " cards") + " to " + deckLeaf(deck) +
-              (noteHtml ? " with your note" + extraLabel(imgTags) + "." : ".");
+            // The browser updates the extension on its own; the Anki add-on has
+            // to be updated by hand. Someone can easily be running a new
+            // extension against an old bridge, where setDeck doesn't exist —
+            // the tag above has already been written, so degrade to that rather
+            // than failing the save and losing their note.
+            let res = null, tooOld = false;
+            try { res = await bridge("setDeck", { notes: [chosenNote.noteId], deck }); }
+            catch (err) {
+              if (/unknown op/i.test(String(err))) tooOld = true; else throw err;
+            }
+            if (tooOld) {
+              what = "Tagged it, but your Mnestic Bridge add-on is too old to move cards — " +
+                     "update the add-on in Anki to use Move mode.";
+            } else {
+              const n = (res && res.moved) || 0;
+              what = "Moved " + n + (n === 1 ? " card" : " cards") + " to " + deckLeaf(deck) +
+                (noteHtml ? " with your note" + extraLabel(imgTags) + "." : ".");
+            }
           } else {
             what = "Tagged " + chapTag + (noteHtml ? " and added your note" + extraLabel(imgTags) + "." : ".");
           }

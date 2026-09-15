@@ -285,7 +285,7 @@ function renderTracker(t) {
 
   const buckets = {};                 // day -> questions, both signals combined
   const inferredByDay = {};           // day -> questions only the qbank counted
-  let today = 0, week = 0, last14 = 0, acc7C = 0, acc7T = 0, liveTotal = 0, inferredTotal = 0;
+  let today = 0, week = 0, last14 = 0, acc7C = 0, acc7T = 0, liveTotal = 0, inferredTotal = 0, guessed7 = 0;
   const cut14 = d0 - 13 * DAY, cut7 = d0 - 6 * DAY;
 
   // 1. what the panel actually watched. Entries with no ts came from a results
@@ -299,6 +299,7 @@ function renderTracker(t) {
     }
     liveTotal++;
     const day = dayStart(ts);
+    if (day >= cut7 && (e.conf === "guessed" || e.conf === "noidea")) guessed7++;
     buckets[day] = (buckets[day] || 0) + 1;
     if (ts >= d0) today++;
     if (ts >= w0) week++;
@@ -364,6 +365,8 @@ function renderTracker(t) {
       bits.push("≈ " + daysLeft + " days left at your pace · finish ~" + fmtDate(d0 + daysLeft * DAY));
     }
     if (acc7T > 0) bits.push(Math.round(100 * acc7C / acc7T) + "% correct · last 7 days (" + acc7T + " q)");
+    // A right answer you weren't sure of is the highest-yield thing to revisit.
+    if (guessed7 > 0) bits.push(guessed7 + " you guessed or didn't know · last 7 days");
     proj.replaceChildren();
     bits.forEach((b, i) => {
       if (i) proj.appendChild(document.createElement("br"));

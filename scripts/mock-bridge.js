@@ -70,7 +70,7 @@ const seen = [];   // every {op,args} the extension sent — asserted on by the 
 // Test knobs, so a run can simulate a real collection's state:
 //   onlyStep    - the deck only has tags for this step (exercises step fallback)
 //   savedCopies - how many "Missed Qs" copies exist (exercises the dup guard)
-const state = { onlyStep: null, savedCopies: 0 };
+const state = { onlyStep: null, savedCopies: 0, oldAddon: false };
 
 const OPS = {
   ping: () => ({ name: "Mnestic Bridge (mock)", version: "1.0.2-mock" }),
@@ -128,7 +128,9 @@ const server = http.createServer((req, res) => {
   req.on("end", () => {
     let msg = {};
     try { msg = JSON.parse(body || "{}"); } catch (e) {}
-    const fn = OPS[msg.op];
+    let fn = OPS[msg.op];
+    // simulate an out-of-date add-on that predates the newer ops
+    if (state.oldAddon && ["setDeck", "createDeck", "filteredDeck", "missedIds", "countNotes"].indexOf(msg.op) >= 0) fn = null;
     seen.push({ op: msg.op, args: msg.args || {} });
     res.writeHead(200, Object.assign({ "Content-Type": "application/json" }, cors));
     if (!fn) return res.end(JSON.stringify({ ok: false, error: "unknown op " + msg.op }));

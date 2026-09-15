@@ -49,7 +49,7 @@ from aqt.utils import askUser, showText, tooltip
 _UW_ID_RE = re.compile(r"^#AK_Step(\d)_v[^:]*::#UWorld::(?:Step::)?(\d+)$", re.I)
 
 ADDON_NAME = "Mnestic Bridge"
-ADDON_VERSION = "1.1.0"
+ADDON_VERSION = "1.2.0"
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8790
 
