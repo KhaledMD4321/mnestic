@@ -203,11 +203,19 @@ number UWorld used**, and your AnKing cards are tagged with it. Check one:
   open those questions' cards in Anki's Browser (or unsuspend them with *Easy
   mode* on), plus **📊 Weak areas** — a per-**System/Subject/Topic** accuracy
   breakdown of the block, weakest-first, with an *Open N missed* button that sends
-  just that group to Anki. Open the **"Question List"** popup once per test so
+  just that group to Anki — or **Drill weakest 3** to send the three worst
+  groups at once. Open the **"Question List"** popup once per test so
   *Marked* and un-paginated *All / Missed* have the full, colour-coded list.
-- **Review a question**: a resource panel lists the matching AnKing resources;
+- **Review a question**: a resource panel lists the matching AnKing resources,
+  **collapsed** — one line each with the topics it covers, its overlay key, and
+  how many chapters — so it never buries the explanation. Open the ones you use;
+  it remembers, and floats what you open most to the top. A readiness strip
+  shows how the matching cards stand (*9 cards · 3 mature · 2 suspended*) with a
+  one-click **Unsuspend**. Then:
   press **F / S / P / O / E / A** to overlay First Aid / Sketchy / Physeo / OME /
-  Extra / Additional Resources images right on the question. OME and Picmonic show
+  Extra / Additional Resources images right on the question. Multi-page
+  resources **page** — *2 / 5*, arrow keys, and a filmstrip of every page — and
+  images are warmed while you read, so the first keypress is instant. OME and Picmonic show
   too, so **Step 2/3** resources light up alongside the Step-1 ones.
 - **Quick open in Anki** (question header): a small **Anki** button opens that
   question's AnKing cards in Anki's Browser.

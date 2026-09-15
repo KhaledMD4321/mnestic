@@ -61,7 +61,8 @@ const OPS = {
   listTags: () => NOTE.tags,
   listDecks: () => ["Default", "AnKing Step 1", "Missed Questions"],
   cardStats: () => ({ [NOTE.noteId]: [{ type: 2, ivl: 30, lapses: 0, suspended: false, yield: "HighYield" }] }),
-  cardMaturity: () => ({ mature: 1, young: 0, newCards: 0, suspended: 0 }),
+  cardMaturity: (a) => (a.queries || []).map(() =>
+    ({ new: 1, learning: 1, young: 2, mature: 3, suspended: 2, total: 9 })),
   unsuspend: () => 1,
   copyNote: () => 2222222222222,
   updateNote: () => true,

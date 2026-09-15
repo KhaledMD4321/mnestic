@@ -613,6 +613,27 @@
     #${PANEL_ID} .mnx-r-body{padding:2px 13px 12px 26px;animation:mnx-rise .2s cubic-bezier(.2,.7,.3,1) both}
     #${PANEL_ID} .mnx-r-key{flex:none;font-size:10.5px;font-weight:700;color:var(--mnx-accent);
       background:var(--mnx-accent-soft);border-radius:var(--mnx-r-xs);padding:1px 5px;letter-spacing:.02em}
+
+    /* ---- how ready you are for this question ---- */
+    #${PANEL_ID} .mnx-cards{display:flex;align-items:center;gap:10px;padding:8px 13px;
+      border-bottom:1px solid var(--mnx-border);background:var(--mnx-surface-2);font-size:12.5px}
+    #${PANEL_ID} .mnx-cards-bar{display:flex;flex:none;width:96px;height:6px;border-radius:999px;overflow:hidden;background:var(--mnx-border)}
+    #${PANEL_ID} .mnx-cards-bar i{display:block;height:100%}
+    #${PANEL_ID} .mnx-seg-mature{background:var(--mnx-good)}
+    #${PANEL_ID} .mnx-seg-young{background:var(--mnx-accent)}
+    #${PANEL_ID} .mnx-seg-learning{background:var(--mnx-warn)}
+    #${PANEL_ID} .mnx-seg-new{background:var(--mnx-muted);opacity:.45}
+    #${PANEL_ID} .mnx-seg-suspended{background:var(--mnx-bad);opacity:.6}
+    #${PANEL_ID} .mnx-cards-txt{color:var(--mnx-muted);font-variant-numeric:tabular-nums;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    #${PANEL_ID} .mnx-cards-txt b{color:var(--mnx-ink);font-weight:700}
+    #${PANEL_ID} .mnx-unsus{margin-left:auto;flex:none;font:inherit;font-size:12px;font-weight:600;cursor:pointer;
+      border:1px solid var(--mnx-border);background:var(--mnx-surface);color:var(--mnx-accent);
+      border-radius:var(--mnx-r-xs);padding:3px 10px;transition:background .14s,transform .14s}
+    #${PANEL_ID} .mnx-unsus:hover{background:var(--mnx-accent-soft)}
+    #${PANEL_ID} .mnx-unsus:active{transform:scale(.97)}
+    #${PANEL_ID} .mnx-unsus:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
+    #${PANEL_ID} .mnx-unsus[disabled]{opacity:.55;cursor:default}
     @media (prefers-reduced-motion:reduce){
       #${PANEL_ID} .mnx-r-chev,#${PANEL_ID} .mnx-r-head{transition:none}
       #${PANEL_ID} .mnx-r-body{animation:none}
@@ -1012,8 +1033,10 @@
     const sub = document.createElement("div"); sub.className = "mnx-brk-sub";
     const list = document.createElement("div");
     m.body.appendChild(sub); m.body.appendChild(list);
+    let shownGroups = [];
     function render() {
       const groups = aggregateBy(rows, key);
+      shownGroups = groups;
       const total = rows.length, correct = rows.filter(r => !r.wrong).length;
       const pag = (total === 10 || total === 20 || total === 25) ? " · set page size to All for the whole block" : "";
       sub.textContent = total + " questions · " + correct + " correct (" + Math.round(100 * correct / total) + "%)" + pag;
@@ -1037,6 +1060,22 @@
       });
     }
     render();
+
+    // The breakdown told you where you're weak but left you to open each group
+    // by hand. This takes the three worst groups that actually have misses and
+    // sends the lot to Anki in one go — the drill you'd have assembled yourself.
+    function drillWeakest() {
+      const weak = shownGroups
+        .filter(g => g.wrongQids.length)
+        .sort((a, b) => a.acc - b.acc)
+        .slice(0, 3);
+      if (!weak.length) { toast("No missed questions to drill in this block."); return; }
+      const seen = new Set(); const qids = [];
+      weak.forEach(g => g.wrongQids.forEach(q => { if (!seen.has(q)) { seen.add(q); qids.push(q); } }));
+      toast("Opening " + qids.length + " missed from " + weak.map(g => g.name).join(", ") + ".");
+      runBrowse(qids);
+    }
+    m.foot.appendChild(mdButton("Drill weakest 3", "mnx-md-cancel", drillWeakest));
     m.foot.appendChild(mdButton("Open all missed", "mnx-md-cancel", () => runBrowse(rows.filter(r => r.wrong).map(r => r.qid))));
     m.foot.appendChild(mdButton("Close", "mnx-md-ok", m.close));
   }
@@ -1597,6 +1636,33 @@
     addImageHint();
     ensureVisible();
     if (esOn) addExpectedLine(qid);
+    prefetchImages(qid);
+  }
+
+  // Image bytes used to be fetched only when you pressed the key, one readMedia
+  // round-trip per page — so the first F on a five-page First Aid topic stalled.
+  // Warm them while you're reading the explanation instead, most-used resource
+  // first, and abandon the moment you move to another question.
+  //
+  // Deliberately only the CURRENT question: a whole block's images would be
+  // hundreds of megabytes of data: URLs held in the page.
+  const PREFETCH_BUDGET = 24 * 1024 * 1024;   // ~24MB of base64, then stop
+  let prefetchToken = 0;
+  async function prefetchImages(qid) {
+    const token = ++prefetchToken;
+    const keys = Object.keys(IMG_SOURCES)
+      .filter(k => (currentFiles[k] || []).length && !cachedUris[k])
+      .sort((a, b) => (resourceUses[IMG_SOURCES[b].label] || 0) - (resourceUses[IMG_SOURCES[a].label] || 0));
+    let held = 0;
+    for (const k of keys) {
+      if (token !== prefetchToken || lastQid !== qid) return;   // moved on
+      if (held > PREFETCH_BUDGET) return;
+      let uris;
+      try { uris = await fetchImages(currentFiles[k]); } catch (e) { continue; }
+      if (token !== prefetchToken || lastQid !== qid) return;   // moved on mid-fetch
+      cachedUris[k] = uris;
+      for (const u of uris) held += u.length;
+    }
   }
 
   // ---------- image overlay (modal with X / backdrop / Esc) ----------
@@ -2220,6 +2286,74 @@
       head.appendChild(pbtn("★ Save to Missed Qs", "mnx-save", () => openSaveDialog(qid)));
     }
     panel.appendChild(head);
+    if (currentNotes.length) addCardStatus(qid);
+  }
+
+  // How ready are you for THIS question? The panel already knows which cards
+  // match it; showing their state turns "here are your resources" into "here's
+  // where you actually stand", and surfaces suspended cards you'd never see.
+  async function addCardStatus(qid) {
+    const panel = document.getElementById(PANEL_ID); if (!panel) return;
+    const strip = document.createElement("div");
+    strip.className = "mnx-cards";
+    const bar = document.createElement("div"); bar.className = "mnx-cards-bar";
+    const txt = document.createElement("span"); txt.className = "mnx-cards-txt";
+    txt.textContent = "Checking your cards…";
+    strip.append(bar, txt);
+    // Directly under the button row, above the resources.
+    const headEl = panel.querySelector(".mnx-phead");
+    if (headEl && headEl.nextSibling) panel.insertBefore(strip, headEl.nextSibling);
+    else panel.appendChild(strip);
+
+    let sv; try { sv = await getSv(); } catch (e) { sv = 1; }
+    const query = qidQuery(qid, sv);
+    let m;
+    try { m = (await bridge("cardMaturity", { queries: [query] }))[0]; }
+    catch (e) { strip.remove(); return; }
+    if (!m || !m.total) { strip.remove(); return; }
+    if (lastQid !== qid) { strip.remove(); return; }       // moved on while we waited
+
+    const SEGS = [
+      ["mature", m.mature, "mature"],
+      ["young", m.young, "still young"],
+      ["learning", m.learning, "learning"],
+      ["new", m.new, "unseen"],
+      ["suspended", m.suspended, "suspended"]
+    ];
+    for (const [cls, n] of SEGS) {
+      if (!n) continue;
+      const i = document.createElement("i");
+      i.className = "mnx-seg-" + cls;
+      i.style.width = (100 * n / m.total) + "%";
+      bar.appendChild(i);
+    }
+    const parts = SEGS.filter(s => s[1]).map(s => s[1] + " " + s[2]);
+    txt.replaceChildren();
+    const strong = document.createElement("b");
+    strong.textContent = m.total + (m.total === 1 ? " card" : " cards");
+    txt.append(strong, document.createTextNode(parts.length ? "  ·  " + parts.join("  ·  ") : ""));
+    bar.title = parts.join(", ");
+
+    if (m.suspended > 0) {
+      const btn = document.createElement("button");
+      btn.type = "button"; btn.className = "mnx-unsus";
+      btn.textContent = "Unsuspend " + m.suspended;
+      btn.title = "Unsuspend this question's suspended AnKing cards";
+      btn.addEventListener("click", onUserClick(async () => {
+        btn.disabled = true; btn.textContent = "Unsuspending…";
+        try {
+          await bridge("unsuspend", { queries: [query] });
+          toast("Unsuspended " + m.suspended + (m.suspended === 1 ? " card" : " cards") + ".");
+          btn.remove();
+          const again = document.querySelector("#" + PANEL_ID + " .mnx-cards");
+          if (again) { again.remove(); addCardStatus(qid); }
+        } catch (e) {
+          btn.disabled = false; btn.textContent = "Unsuspend " + m.suspended;
+          toast("Couldn't unsuspend: " + e);
+        }
+      }));
+      strip.appendChild(btn);
+    }
   }
 
   // ============================================================

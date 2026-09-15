@@ -146,6 +146,11 @@ function listenFree(server, from) {
     });
     check(site.id, "Anki button docked to the id label, not floating", dock !== "floating" && dock !== "missing", "got " + dock);
 
+    // 5b. images are warmed while you read, so the first keypress is instant
+    await p.waitForTimeout(1500);
+    const warmed = mock.calls().filter((c) => c.op === "readMedia").length;
+    check(site.id, "images prefetched before any keypress (" + warmed + " fetched)", warmed > 0);
+
     // 6. pressing F opens the First Aid overlay
     await p.keyboard.press("f");
     let overlay = false;
@@ -154,7 +159,10 @@ function listenFree(server, from) {
     const gotMedia = mock.calls().some((c) => c.op === "readMedia");
     check(site.id, "overlay pulled image bytes from the bridge", gotMedia);
 
-    // 6b. a multi-page resource pages instead of stacking into one long scroll
+    // 6b. a multi-page resource pages instead of stacking into one long scroll.
+    //     Images arrive from the bridge after the overlay opens, so wait for
+    //     the pager itself rather than assuming it is there.
+    try { await p.waitForSelector("#mnx-overlay .mnx-ovl-count", { timeout: 10000 }); } catch (e) {}
     const pager = await p.evaluate(() => {
       const c = document.querySelector("#mnx-overlay .mnx-ovl-count");
       return {
@@ -188,6 +196,22 @@ function listenFree(server, from) {
       !links.some((h) => /^javascript:/i.test(h)) && links.some((h) => /^https:/i.test(h)),
       JSON.stringify(links.slice(0, 3)));
 
+    // 7b. the card-readiness strip, and one-click unsuspend
+    let strip = null;
+    try {
+      await p.waitForSelector("#mnx-resources .mnx-cards-txt b", { timeout: 8000 });
+      strip = await p.textContent("#mnx-resources .mnx-cards-txt");
+    } catch (e) {}
+    check(site.id, "card status strip shows (" + (strip || "").trim() + ")",
+      !!strip && /9 cards/.test(strip) && /3 mature/.test(strip) && /2 suspended/.test(strip));
+    const segs = await p.$$eval("#mnx-resources .mnx-cards-bar i", (n) => n.length);
+    check(site.id, "readiness bar is segmented (" + segs + " segments)", segs === 5);
+    const before = mock.calls().filter((c) => c.op === "unsuspend").length;
+    try { await p.locator("#mnx-resources .mnx-unsus").click({ timeout: 4000 }); } catch (e) {}
+    await p.waitForTimeout(600);
+    check(site.id, "Unsuspend reaches the bridge",
+      mock.calls().filter((c) => c.op === "unsuspend").length > before);
+
     // 8. a SYNTHETIC click must be ignored — the page's own scripts share this
     //    DOM, so every control that can reach Anki requires a trusted event.
     await p.evaluate(() => {
@@ -215,6 +239,61 @@ function listenFree(server, from) {
     await p.close();
     console.log("");
   }
+
+  // Weak areas -> "Drill weakest 3" sends the worst groups to Anki in one go.
+  console.log("weak areas:");
+  {
+    const rowsHtml = [
+      ["1", "101", "Cardiovascular", "fa-xmark"], ["2", "102", "Cardiovascular", "fa-xmark"],
+      ["3", "103", "Renal", "fa-xmark"], ["4", "104", "Renal", "fa-check"],
+      ["5", "105", "Pulmonary", "fa-xmark"], ["6", "106", "Pulmonary", "fa-check"],
+      ["7", "107", "Neurology", "fa-check"], ["8", "108", "Neurology", "fa-check"]
+    ].map(([n, id, sys, icon]) =>
+      `<tr><td>${n}</td><td>${id}</td><td>${sys}</td><td><i class="${icon}"></i></td></tr>`).join("");
+    const html = page(`<table><thead><tr><th>#</th><th>ID</th><th>System</th><th>Result</th></tr></thead>
+      <tbody>${rowsHtml}</tbody></table>`);
+    const p2 = await ctx.newPage();
+    await p2.route("**/*", (r) => r.fulfill({ status: 200, contentType: "text/html", body: html }));
+    await p2.goto("https://coursology-qbank.com/qbanks/usmle1/dashboard/previous-tests",
+      { waitUntil: "domcontentloaded" });
+    let ok = false;
+    try { await p2.waitForSelector("#mnx-float-toolbar", { timeout: 12000 }); ok = true; } catch (e) {}
+    check("coursology", "results toolbar appears on a results table", ok);
+
+    // it must not sit on top of the site's own controls
+    const clear = await p2.evaluate(() => {
+      const bar = document.getElementById("mnx-float-toolbar");
+      if (!bar) return false;
+      const r = bar.getBoundingClientRect();
+      return ![...document.querySelectorAll("input,button,select")].some((el) => {
+        if (el.closest("[id^='mnx-']")) return false;
+        const b = el.getBoundingClientRect();
+        return b.width > 8 && b.height > 8 &&
+          b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top;
+      });
+    });
+    check("coursology", "toolbar does not cover the site's own controls", clear);
+
+    if (ok) {
+      const before = mock.calls().filter((c) => c.op === "openBrowser").length;
+      try {
+        await p2.locator("#mnx-float-toolbar button", { hasText: "Weak areas" }).click({ timeout: 5000 });
+        await p2.waitForSelector("#mnx-md-overlay", { timeout: 5000 });
+        await p2.locator("#mnx-md-overlay button", { hasText: "Drill weakest" }).click({ timeout: 5000 });
+        await p2.waitForTimeout(800);
+      } catch (e) {}
+      const call = mock.calls().filter((c) => c.op === "openBrowser").slice(-1)[0];
+      const q = call ? call.args.query || "" : "";
+      // the three weakest systems are Cardiovascular (0%), Renal and Pulmonary (50%)
+      const wanted = ["101", "102", "103", "105"];
+      check("coursology", "Drill weakest 3 opens the worst groups' missed questions",
+        mock.calls().filter((c) => c.op === "openBrowser").length > before &&
+        wanted.every((id) => q.includes("::" + id)) && !q.includes("::107"),
+        q.slice(0, 120));
+    }
+    await p2.close();
+  }
+  console.log("");
 
   // The unanswered case, on every site: the panel must NOT appear.
   console.log("spoiler gate (unanswered):");
