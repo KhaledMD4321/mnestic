@@ -133,8 +133,18 @@ function listenFree(server, from) {
     // 3. it asked Anki for THIS question's tag
     const asked = mock.calls().filter((c) => c.op === "searchNotes").map((c) => c.args.query || "");
     check(site.id, "queried the right AnKing tag",
-      asked.some((q) => q.endsWith("::" + site.qid)),
+      asked.some((q) => q.includes("::#UWorld::Step::" + site.qid)),
       "queries seen: " + JSON.stringify(asked.slice(-2)));
+
+    // 3b. the query must name the UWorld namespace precisely. A bare "*"
+    //     wildcard also matches COMLEX ids — a different exam — and misses the
+    //     older bare Step 3 tag shape entirely.
+    const q0 = asked.filter((q) => q.includes(site.qid)).slice(-1)[0] || "";
+    check(site.id, "query targets ::Step:: and the bare form, not a wildcard",
+      q0.includes("::#UWorld::Step::" + site.qid) &&
+      q0.includes("::#UWorld::" + site.qid) &&
+      !q0.includes("::*::"),
+      q0.slice(0, 90));
 
     // 4. the matched resources are listed
     const panelText = panel ? await p.textContent("#mnx-resources") : "";

@@ -276,6 +276,65 @@ document.getElementById("portSave").addEventListener("click", () => {
 document.getElementById("retry").addEventListener("click", (e) => { e.preventDefault(); checkConnection(); });
 checkConnection();
 
+// ---- "Check my deck": can matching work at all? ----
+// The commonest failure isn't a bug — it's a deck with no UWorld tags, or one
+// tagged for a different Step than the selector says. Count them and say so.
+const deckOut = document.getElementById("deckOut");
+document.getElementById("deckBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("deckBtn");
+  deckOut.hidden = false;
+  deckOut.textContent = "Counting…";
+  btn.disabled = true;
+  const counts = {};
+  for (const step of [1, 2, 3]) {
+    const r = await bridge("searchNotes", { query: "tag:#AK_Step" + step + "_v*::#UWorld::*" });
+    counts[step] = r.ok && Array.isArray(r.data) ? r.data.length : -1;
+  }
+  btn.disabled = false;
+  if (Object.values(counts).every((n) => n < 0)) {
+    deckOut.textContent = "Couldn't reach Anki. Open it, then try again.";
+    return;
+  }
+  const chosen = parseInt(sel.value, 10) || 1;
+  deckOut.replaceChildren();
+  for (const step of [1, 2, 3]) {
+    const row = document.createElement("div");
+    const n = counts[step];
+    row.textContent = "Step " + step + ": " +
+      (n < 0 ? "couldn't check" : n.toLocaleString() + " tagged card" + (n === 1 ? "" : "s")) +
+      (step === chosen ? "   ← selected" : "");
+    row.style.color = n > 0 ? "inherit" : "#8a8f98";
+    if (step === chosen) row.style.fontWeight = "700";
+    deckOut.appendChild(row);
+  }
+  const best = [1, 2, 3].filter((s) => counts[s] > 0);
+  const note = document.createElement("div");
+  note.style.marginTop = "5px";
+  if (!best.length) {
+    note.textContent = "No AnKing UWorld tags found. Mnestic matches on tags like " +
+      "#AK_Step1_v12::#UWorld::…::<id> — without them there's nothing to match.";
+    note.style.color = "#b3261e";
+  } else if (counts[chosen] > 0) {
+    note.textContent = "Looks right — matching should work.";
+    note.style.color = "#2e9e4f";
+  } else {
+    note.textContent = "Your Step is set to " + chosen + ", but the cards are in Step " +
+      best.join(" and ") + ".";
+    note.style.color = "#a86412";
+    const fix = document.createElement("button");
+    fix.className = "chip";
+    fix.style.marginTop = "4px";
+    fix.textContent = "Switch to Step " + best[0];
+    fix.addEventListener("click", () => {
+      sel.value = String(best[0]);
+      chrome.storage.local.set({ sv: best[0] }, () => { fix.textContent = "Switched"; });
+    });
+    note.appendChild(document.createElement("br"));
+    note.appendChild(fix);
+  }
+  deckOut.appendChild(note);
+});
+
 // ---- "Check this page": ask the qbank tab what the site adapter can see ----
 // Structure only (tags / ids / classes) — never question text or account data —
 // so the report is safe to paste into a bug report.

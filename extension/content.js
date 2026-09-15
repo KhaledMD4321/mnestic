@@ -73,16 +73,21 @@
     const order = [];
     const add = v => { v = +v; if (v >= 1 && v <= 3 && order.indexOf(v) < 0) order.push(v); };
     add(detected); add(stepBySlug[slug]); add(1); add(2); add(3);
-    for (const sv of order) {
-      let nids;
-      try { nids = await bridge("searchNotes", { query: qidQuery(qid, sv) }); }
-      catch (e) { return { nids: [], sv: detected, error: e, tried: order }; }
-      if (nids && nids.length) {
-        if (sv !== detected && stepBySlug[slug] !== sv) {
-          stepBySlug[slug] = sv;                       // remember for this qbank
-          chrome.storage.local.set({ mnxStepBySlug: stepBySlug });
+    const remember = sv => {
+      if (sv !== detected && stepBySlug[slug] !== sv) {
+        stepBySlug[slug] = sv;                         // remember for this qbank
+        chrome.storage.local.set({ mnxStepBySlug: stepBySlug });
+      }
+    };
+    for (const build of [qidQuery, qidQueryLoose]) {
+      for (const sv of order) {
+        let nids;
+        try { nids = await bridge("searchNotes", { query: build(qid, sv) }); }
+        catch (e) { return { nids: [], sv: detected, error: e, tried: order }; }
+        if (nids && nids.length) {
+          remember(sv);
+          return { nids, sv, error: null, tried: order, loose: build === qidQueryLoose };
         }
-        return { nids, sv, error: null, tried: order };
       }
     }
     return { nids: [], sv: detected, error: null, tried: order };
@@ -1138,7 +1143,7 @@
     runBrowse(qids);
   }
   function buildTagQuery(qids, sv) {
-    return qids.map(q => "tag:#AK_Step" + sv + "_" + ANKING_VER + "::#UWorld::*::" + q).join(" OR ");
+    return qids.map(q => qidQuery(q, sv)).join(" OR ");
   }
   const ANKI_DOWN = "Couldn't reach Anki. Make sure it's open and the Mnestic Bridge add-on is installed.";
   const HY_LEVELS = ["HighYield", "RelativelyHighYield"];
@@ -2811,7 +2816,27 @@
   // ============================================================
   const ES_GUESS = 0.2;   // 5-option MCQ guess floor
   const YIELD_W = { HighYield: 2.0, RelativelyHighYield: 1.6, "HighYield-temporary": 1.4, LowerYield: 0.8, LowYield: 0.5 };
-  function qidQuery(qid, sv) { return "tag:#AK_Step" + sv + "_" + ANKING_VER + "::#UWorld::*::" + qid; }
+  // Matching a question id to AnKing tags, precisely.
+  //
+  // Read off a real v12 deck, #UWorld tags come in three shapes:
+  //     #AK_Step1_v12::#UWorld::Step::2108      the UWorld question id
+  //     #AK_Step1_v12::#UWorld::COMLEX::25217   a COMLEX id — a DIFFERENT exam
+  //     #AK_Step3_v12::#UWorld::122790          older/bare form, no namespace
+  //
+  // The old query was "::#UWorld::*::<id>", which was wrong twice over: the
+  // wildcard happily matched COMLEX ids (and those genuinely collide with Step
+  // ids — 8 of them in that deck), while the bare Step 3 form has no middle
+  // segment at all, so 1,896 Step 3 tags could never match anything.
+  function qidQuery(qid, sv) {
+    const base = "tag:#AK_Step" + sv + "_" + ANKING_VER + "::#UWorld::";
+    return "(" + base + "Step::" + qid + " OR " + base + qid + ")";
+  }
+  // The original wildcard, kept only as a last resort so no deck that used to
+  // match stops matching — it can pull in other namespaces, so it is never tried
+  // before the precise forms above.
+  function qidQueryLoose(qid, sv) {
+    return "tag:#AK_Step" + sv + "_" + ANKING_VER + "::#UWorld::*::" + qid;
+  }
   // probability you know one card's fact right now (0..1)
   function cardMaturity(c) {
     if (c.type === 2) {                                // review card

@@ -80,7 +80,11 @@ const OPS = {
     // the already-saved-copy lookup
     if (q.indexOf("tag:Mnestic::Missed") >= 0) return state.savedCopies ? [9999] : [];
     if (state.onlyStep && q.indexOf("#AK_Step" + state.onlyStep + "_") < 0) return [];
-    return /::1633$|::12345$|::4211$/.test(q) ? [NOTE.noteId] : [];
+    // The real query is an OR of the precise tag shapes, e.g.
+    //   (tag:…::#UWorld::Step::1633 OR tag:…::#UWorld::1633)
+    // Refuse the old wildcard form so a regression back to it fails loudly.
+    if (q.indexOf("::*::") >= 0) return [];
+    return /(?:^|::)(1633|12345|4211)(?![0-9])/.test(q) ? [NOTE.noteId] : [];
   },
   noteInfo: () => [NOTE, NOTE2],
   readMedia: () => PNG_B64,
