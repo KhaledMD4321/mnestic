@@ -6,9 +6,9 @@
 
 ![How it works — question to AnKing](docs/demo.svg)
 
-**Mnestic** links every question in your qbank — **Coursology** or **UWorld** —
-to your **AnKing** Anki cards. On a question it shows the matching resources
-(Sketchy, Boards & Beyond, First Aid, …)
+**Mnestic** links every question in your qbank — **Coursology**, **MedPark** or
+**UWorld** — to your **AnKing** Anki cards. On a question it shows the matching
+resources (Sketchy, Boards & Beyond, First Aid, …)
 and their images **right on the page**, unsuspends the matching cards in bulk,
 lets you **make and keep cards without leaving the question**, breaks a block down
 into your **weakest areas**, and tracks your **study pace** — all through a small
@@ -108,8 +108,8 @@ account details — and **Copy report** puts it on your clipboard for a bug repo
 
 ## How it works (30-second version)
 
-Both question banks use the same question IDs, and the AnKing deck tags each
-UWorld question with that same ID. So the matching is just one local Anki
+All three use the same question IDs, and the AnKing deck tags each UWorld
+question with that same ID. So the matching is just one local Anki
 search — no server, no database:
 
 ```
