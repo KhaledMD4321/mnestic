@@ -272,13 +272,14 @@ extension/               the browser extension
 anki-addon/
   mnestic_bridge/        the Anki add-on — local bridge + Tools menu
 scripts/                 build, test and the demo recorder
-docs/                    the guide, release runbook, store listing copy
+docs/                    the guides, release runbook, store copy, demo media
 ```
 
 <details><summary>Building and testing</summary><br>
 
 ```bash
 python scripts/check-addon.py    # the add-on can actually import
+python scripts/check-listing.py  # store copy fits the store's limits
 python scripts/guard-test.py     # destructive ops refuse what they should
 node   scripts/adapter-test.js   # every site adapter still parses its pages
 node   scripts/e2e-test.js       # the real extension, in a real browser

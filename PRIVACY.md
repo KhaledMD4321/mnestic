@@ -1,6 +1,6 @@
 # Mnestic — Privacy Policy
 
-_Last updated: 2026-08-30_
+_Last updated: 2026-09-15_
 
 **Mnestic does not collect, transmit, sell, or share any personal data.** It has
 no backend server, no analytics, no accounts, and no ads.
@@ -22,9 +22,18 @@ Anki collection, entirely on your own computer.
 
 ## What it stores
 
-Only **locally, in your browser** (`chrome.storage.local`): your settings, your
-study-pace log, and the pairing code that links the extension to your Anki. This
-never leaves your device and is not transmitted anywhere.
+Only **locally, in your browser** (`chrome.storage.local`). Nothing here ever
+leaves your device, and there is nowhere for it to be sent.
+
+| What | Why |
+|---|---|
+| Your settings | Step, theme, how to save missed questions, deck names, toggles, your AI prompt |
+| Your study-pace log | Which questions you answered and when, how they went, and the qbank totals it read — this is what draws the tracker |
+| Which resource rows you open | So the panel can put the ones you use at the top |
+| Where a moved card came from | Saving a question in *move* mode takes the card out of its home deck; this is what lets **Remove from Missed Qs** put it back |
+| Your pairing code | The code that lets the extension talk to your own Anki |
+
+Uninstalling the extension removes all of it.
 
 ## What it does NOT do
 
@@ -41,6 +50,13 @@ never leaves your device and is not transmitted anywhere.
   question so it can be matched to your Anki cards. The extension runs only on
   those sites.
 - **Access to `127.0.0.1:8790`** — talk to your local Mnestic Bridge Anki add-on.
+
+## The Anki add-on
+
+The companion add-on (**Mnestic Bridge**) binds to `127.0.0.1` only, so it is
+never reachable from your network. Every request must carry your pairing code,
+and requests whose origin is a website are refused. It has no network access of
+its own: it does not phone home, check for updates, or report anything.
 
 ## Contact
 

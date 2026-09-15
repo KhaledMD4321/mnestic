@@ -3068,7 +3068,7 @@
     const dlbl = document.createElement("label"); dlbl.className = "mnx-md-lbl"; dlbl.textContent = "Deck"; m.body.appendChild(dlbl);
     const sel = document.createElement("select"); m.body.appendChild(sel);
     const newWrap = document.createElement("div"); newWrap.style.cssText = "margin-top:6px;display:none";
-    const newInput = document.createElement("input"); newInput.type = "text"; newInput.placeholder = "e.g. 000001.Missed Qs::My cards";
+    const newInput = document.createElement("input"); newInput.type = "text"; newInput.placeholder = "e.g. Missed Qs::My cards";
     newWrap.appendChild(newInput); m.body.appendChild(newWrap);
     const NEW_OPT = "➕ New deck…";
     function fillDecks(all) {

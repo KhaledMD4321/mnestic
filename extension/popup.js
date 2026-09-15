@@ -47,9 +47,9 @@ function applyDark(pref) {
 // What "Save to Missed Qs" does. Changeable whenever you like — some people
 // want a real subdeck, some won't move an AnKing card for anything.
 const MISSED_HINTS = {
-  move: "Moves the card into a chapter subdeck. Keeps its review history and AnKing updates. Your notes go on the original card — protect the “Missed Questions” field in AnkiHub so a deck update can't overwrite them.",
-  tag: "Tags the note Mnestic::Missed::Chapter and unsuspends it. Nothing changes decks. Your notes go on the original card — protect the “Missed Questions” field in AnkiHub so a deck update can't overwrite them.",
-  copy: "Duplicates the card into a chapter subdeck as a local note. Your notes can never be overwritten by a deck update — but the copy never receives AnKing updates either."
+  move: "Moves the real card into a chapter subdeck, keeping its review history and AnKing updates. Your note is added to the card's “Missed Questions” field, and Mnestic tags it AnkiHub_Protect so a deck update can't overwrite it.",
+  tag: "Tags the note Mnestic::Missed::Chapter and unsuspends it — nothing changes decks. Your note is added to the card's “Missed Questions” field, and Mnestic tags it AnkiHub_Protect so a deck update can't overwrite it.",
+  copy: "Duplicates the card into a chapter subdeck as a local note, so nothing can overwrite it — but the copy never receives AnKing updates again. Undo deletes the copy."
 };
 function applyMissedMode(mode) {
   missedMode.value = mode;

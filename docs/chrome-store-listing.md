@@ -16,9 +16,11 @@ Everything you need for the submission form. Copy each field across.
 Mnestic
 ```
 
-**Summary** (≤ 132 chars)
+**Summary** (≤ 132 chars) — keep this identical to `description` in
+`extension/manifest.json`; the Web Store defaults the summary to it, and two
+copies of one sentence is how they end up disagreeing.
 ```
-Link your question bank to your Anki cards: resource overlays on each question, one-click cards, weak-area breakdowns, and a tracker.
+Link your question bank to your AnKing cards: resource overlays on every question, one-click cards, weak areas, and a tracker.
 ```
 
 **Category:** `Education`

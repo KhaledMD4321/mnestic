@@ -13,6 +13,54 @@ deck at all.
 
 ---
 
+## Everything it does, at a glance
+
+If you only read one table, read this one.
+
+### On a question you've answered
+
+| | What it does | Key |
+|---|---|:---:|
+| **Resource panel** | The resources your own card links to — First Aid, Sketchy, Physeo, OME, B&B, Picmonic — one collapsed line each, with the topics covered | |
+| **Image overlays** | That resource's images, over the question. Multi-page topics page with the arrows | **F S P O E A** |
+| **Card readiness** | How the matching cards stand: mature, young, learning, suspended — with one-click **Unsuspend** | |
+| **Preview** | Read the matched card as Anki renders it, clozes revealed, images inline | |
+| **Open in Anki** | This question's cards in Anki's Browse window | **D** |
+| **Copy for AI** | Your editable prompt + the whole question, on the clipboard | **Q** |
+| **Copy explanation** | Just the explanation text | |
+| **Save to Missed Qs** | Keep it in a chapter subdeck with your note — move, tag, or copy | **V** |
+| **Remove from Missed Qs** | Undo that save. Untags, moves the card home, deletes the copy | |
+| **Make a card** | Select explanation text → a new Cloze or Basic card in Anki | **G** |
+| **How did that go?** | Mark a question guessed, so a lucky right answer still counts as weak | |
+
+### When the block is finished
+
+| | What it does |
+|---|---|
+| **Anki: Missed / All / Marked / High-Yield** | Opens those questions' cards in Anki — or unsuspends them, with Easy mode on |
+| **Weak areas** | Per System / Subject / Topic accuracy, weakest first |
+| **Open N missed** | Sends just that group to Anki |
+| **Drill weakest 3** | Sends the three worst groups at once |
+
+### In the popup, over the weeks
+
+| | What it does |
+|---|---|
+| **Study tracker** | Today and this week vs targets, daily streak, 16-week heatmap, 7-day accuracy, projected finish date |
+| **Missed questions** | Your saved questions grouped by chapter, with **Copy ids** for your qbank's test builder |
+| **Study them in Anki** | Builds a filtered deck of everything you missed |
+| **Find a topic in Anki** | Opens Browse on any topic, for drilling outside the qbank |
+| **AI prompt** | The prompt Copy for AI uses — four presets or your own |
+| **Check my deck / this page** | Diagnostics when something isn't matching |
+
+### Settings
+
+**Step** · **Panel theme** (match the site / light / dark) · **Missed questions
+mode** and deck · **Expected score** · **Easy mode** · **High-yield only** ·
+**Keyboard shortcuts** · **Bridge port**
+
+---
+
 ## Contents
 
 | | |

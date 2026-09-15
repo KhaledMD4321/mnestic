@@ -25,10 +25,16 @@ All four must be green. None of them needs Anki running except the last.
 
 ```bash
 python scripts/check-addon.py     # the add-on can actually IMPORT
+python scripts/check-listing.py   # the store copy fits the store's limits
 python scripts/guard-test.py      # the destructive ops refuse what they should
 node scripts/adapter-test.js      # every site adapter still parses its pages
 node scripts/e2e-test.js          # the real extension, driven in a real browser
 ```
+
+`check-listing.py` catches the failure nothing else can: a listing field one
+character over its limit, which no test and no amount of proof-reading finds --
+only a rejected submission does. It also holds the Summary and the manifest's
+`description` to the same string, since the Web Store defaults one to the other.
 
 `check-addon.py` is the one that matters most before an upload: a dispatch table
 referencing an op defined below it is valid Python that fails at import, and an
