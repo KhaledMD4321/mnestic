@@ -153,6 +153,26 @@ function listenFree(server, from) {
     check(site.id, "F opens the resource overlay", overlay);
     const gotMedia = mock.calls().some((c) => c.op === "readMedia");
     check(site.id, "overlay pulled image bytes from the bridge", gotMedia);
+
+    // 6b. a multi-page resource pages instead of stacking into one long scroll
+    const pager = await p.evaluate(() => {
+      const c = document.querySelector("#mnx-overlay .mnx-ovl-count");
+      return {
+        count: c ? c.textContent.trim() : null,
+        thumbs: document.querySelectorAll("#mnx-overlay .mnx-ovl-thumb").length,
+        shown: document.querySelectorAll("#mnx-overlay .mnx-ovl-stage img").length
+      };
+    });
+    check(site.id, "multi-page overlay paginates (" + pager.count + ", " +
+      pager.thumbs + " thumbs, " + pager.shown + " shown)",
+      pager.count === "1 / 3" && pager.thumbs === 3 && pager.shown === 1);
+    await p.keyboard.press("ArrowRight");
+    await p.waitForTimeout(250);
+    const after = await p.evaluate(() => {
+      const c = document.querySelector("#mnx-overlay .mnx-ovl-count");
+      return c ? c.textContent.trim() : null;
+    });
+    check(site.id, "right arrow turns the page", after === "2 / 3", "got " + after);
     await p.keyboard.press("Escape");
 
     // 7. no javascript: link survived the deck sanitiser. Rows render their

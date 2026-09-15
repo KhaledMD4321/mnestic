@@ -627,6 +627,24 @@
     #${OVERLAY_ID} .mnx-x{border:none;background:transparent;font-size:26px;line-height:1;cursor:pointer;color:var(--mnx-muted);padding:0 6px;border-radius:var(--mnx-r-xs);transition:background .12s,color .12s}
     #${OVERLAY_ID} .mnx-x:hover{color:var(--mnx-text);background:var(--mnx-surface-2)}
     #${OVERLAY_ID} .mnx-ovl-img{display:block;width:100%;height:auto;margin:0 0 12px;border-radius:var(--mnx-r-xs)}
+    /* multi-page overlay: pager in the header, filmstrip underneath */
+    #${OVERLAY_ID} .mnx-ovl-nav{display:flex;align-items:center;gap:10px;margin-left:auto;margin-right:12px}
+    #${OVERLAY_ID} .mnx-ovl-count{font-size:12.5px;font-weight:600;color:var(--mnx-muted);font-variant-numeric:tabular-nums;min-width:44px;text-align:center}
+    #${OVERLAY_ID} .mnx-ovl-arrow{font:inherit;font-size:12.5px;font-weight:600;border:1px solid var(--mnx-border);
+      background:var(--mnx-surface);color:var(--mnx-accent);border-radius:var(--mnx-r-xs);padding:4px 10px;cursor:pointer;
+      transition:background .14s,transform .14s}
+    #${OVERLAY_ID} .mnx-ovl-arrow:hover{background:var(--mnx-accent-soft)}
+    #${OVERLAY_ID} .mnx-ovl-arrow:active{transform:scale(.97)}
+    #${OVERLAY_ID} .mnx-ovl-arrow:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
+    #${OVERLAY_ID} .mnx-ovl-stage{max-height:70vh;overflow:auto;border-radius:var(--mnx-r-xs)}
+    #${OVERLAY_ID} .mnx-ovl-thumbs{display:flex;gap:8px;overflow-x:auto;padding:12px 2px 2px;border-top:1px solid var(--mnx-border);margin-top:4px}
+    #${OVERLAY_ID} .mnx-ovl-thumb{flex:none;width:74px;height:54px;padding:0;overflow:hidden;cursor:pointer;
+      border:2px solid var(--mnx-border);border-radius:var(--mnx-r-xs);background:var(--mnx-surface-2);
+      transition:border-color .14s,transform .14s}
+    #${OVERLAY_ID} .mnx-ovl-thumb img{width:100%;height:100%;object-fit:cover;object-position:top;display:block}
+    #${OVERLAY_ID} .mnx-ovl-thumb:hover{transform:translateY(-1px)}
+    #${OVERLAY_ID} .mnx-ovl-thumb.on{border-color:var(--mnx-accent)}
+    #${OVERLAY_ID} .mnx-ovl-thumb:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
 
     .mnx-es{background:#2a9d8f}
     #${PANEL_ID} .mnx-expected{font-size:12.5px;padding:9px 12px;border-radius:var(--mnx-r-sm);margin:11px;border-left:3px solid var(--mnx-muted);background:var(--mnx-surface-2);color:var(--mnx-text)}
@@ -1619,15 +1637,66 @@
   }
   function renderOverlay(o, key, label) {
     o.dataset.key = key; o.style.display = "flex"; o.replaceChildren();
+    o._mnxPage = null;
     const dlg = document.createElement("div"); dlg.className = "mnx-dialog";
-    dlg.appendChild(buildHead(o, label, key));
+    const head = buildHead(o, label, key);
+    dlg.appendChild(head);
     const uris = cachedUris[key] || [];
+
     if (!uris.length) {
       const n = document.createElement("div"); n.textContent = "(couldn't load images)"; dlg.appendChild(n);
-    } else {
-      uris.forEach(u => { const img = document.createElement("img"); img.src = u; img.className = "mnx-ovl-img"; dlg.appendChild(img); });
+      o.appendChild(dlg); return;
     }
+    if (uris.length === 1) {
+      const img = document.createElement("img");
+      img.src = uris[0]; img.className = "mnx-ovl-img"; img.alt = label + " page";
+      dlg.appendChild(img);
+      o.appendChild(dlg); return;
+    }
+
+    // Several pages — a First Aid topic routinely has four or five. Stacking
+    // them in one scroll gave no clue how many there were or where you are, so
+    // page through them instead, with the whole set visible as thumbnails.
+    let idx = 0;
+    const stage = document.createElement("div"); stage.className = "mnx-ovl-stage";
+    const img = document.createElement("img"); img.className = "mnx-ovl-img";
+    stage.appendChild(img);
+
+    const nav = document.createElement("div"); nav.className = "mnx-ovl-nav";
+    const prev = document.createElement("button"); prev.className = "mnx-ovl-arrow"; prev.type = "button";
+    prev.textContent = "‹ Prev"; prev.title = "Previous page (←)";
+    const count = document.createElement("span"); count.className = "mnx-ovl-count";
+    const next = document.createElement("button"); next.className = "mnx-ovl-arrow"; next.type = "button";
+    next.textContent = "Next ›"; next.title = "Next page (→)";
+    nav.append(prev, count, next);
+    head.insertBefore(nav, head.lastElementChild);
+
+    const thumbs = document.createElement("div"); thumbs.className = "mnx-ovl-thumbs";
+    const thumbEls = uris.map((u, i) => {
+      const t = document.createElement("button");
+      t.type = "button"; t.className = "mnx-ovl-thumb"; t.title = "Page " + (i + 1);
+      const ti = document.createElement("img"); ti.src = u; ti.alt = "Page " + (i + 1);
+      t.appendChild(ti);
+      t.addEventListener("click", onUserClick(() => show(i)));
+      thumbs.appendChild(t);
+      return t;
+    });
+
+    function show(i) {
+      idx = (i + uris.length) % uris.length;
+      img.src = uris[idx];
+      img.alt = label + " page " + (idx + 1) + " of " + uris.length;
+      count.textContent = (idx + 1) + " / " + uris.length;
+      thumbEls.forEach((t, k) => t.classList.toggle("on", k === idx));
+      stage.scrollTop = 0;
+    }
+    prev.addEventListener("click", onUserClick(() => show(idx - 1)));
+    next.addEventListener("click", onUserClick(() => show(idx + 1)));
+
+    dlg.append(stage, thumbs);
     o.appendChild(dlg);
+    o._mnxPage = { show: (d) => show(idx + d) };
+    show(0);
   }
   async function showImages(key) {
     const src = IMG_SOURCES[key];
@@ -1651,6 +1720,12 @@
     const k = (e.key || "").toLowerCase();
     if (k === "escape") { const su = document.getElementById(SUMMARY_ID); if (su && su.style.display === "flex") closeSummary(); if (o && o.style.display === "flex") hideOverlay(); return; }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // Arrows page a multi-page overlay (a First Aid topic is often 4-5 pages).
+    if (o && o.style.display === "flex" && o._mnxPage && (k === "arrowleft" || k === "arrowright")) {
+      o._mnxPage.show(k === "arrowright" ? 1 : -1);
+      e.preventDefault();
+      return;
+    }
     const tgt = e.target;
     const tag = ((tgt && tgt.tagName) || "").toLowerCase();
     if (tag === "input" || tag === "textarea" || (tgt && tgt.isContentEditable)) return;

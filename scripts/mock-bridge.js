@@ -32,7 +32,8 @@ const NOTE = {
   fields: {
     Text: { value: "The {{c1::cochlea}} transduces sound.", order: 0 },
     Extra: { value: "Extra note text.", order: 1 },
-    "First Aid": { value: '<img src="fa-page.png">', order: 2 },
+    // several pages, so the overlay pager is covered by the e2e run
+    "First Aid": { value: '<img src="fa-1.png"><img src="fa-2.png"><img src="fa-3.png">', order: 2 },
     Sketchy: { value: '<img src="sketchy-1.png">', order: 3 },
     Physeo: { value: '<img src="physeo-1.png">', order: 4 },
     OME: { value: '<a href="https://example.org/ome-lesson">OME lesson</a>', order: 5 },
