@@ -73,7 +73,7 @@ const seen = [];   // every {op,args} the extension sent — asserted on by the 
 // Test knobs, so a run can simulate a real collection's state:
 //   onlyStep    - the deck only has tags for this step (exercises step fallback)
 //   savedCopies - how many "Missed Qs" copies exist (exercises the dup guard)
-const state = { onlyStep: null, savedCopies: 0, oldAddon: false };
+const state = { onlyStep: null, savedCopies: 0, oldAddon: false, slowDecks: 0 };
 
 const OPS = {
   ping: () => ({ name: "Mnestic Bridge (mock)", version: "1.0.2-mock" }),
@@ -137,7 +137,12 @@ const server = http.createServer((req, res) => {
     seen.push({ op: msg.op, args: msg.args || {} });
     res.writeHead(200, Object.assign({ "Content-Type": "application/json" }, cors));
     if (!fn) return res.end(JSON.stringify({ ok: false, error: "unknown op " + msg.op }));
-    try { res.end(JSON.stringify({ ok: true, data: fn(msg.args || {}) })); }
+    try {
+      const payload = JSON.stringify({ ok: true, data: fn(msg.args || {}) });
+      // let a test reproduce "user saved before the deck list arrived"
+      if (msg.op === "listDecks" && state.slowDecks) setTimeout(() => res.end(payload), state.slowDecks);
+      else res.end(payload);
+    }
     catch (e) { res.end(JSON.stringify({ ok: false, error: String(e) })); }
   });
 });

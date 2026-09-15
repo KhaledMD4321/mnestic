@@ -544,7 +544,10 @@ def op_set_deck(args):
             continue
         for card in note.cards():
             if src_did is None:
-                src_did = card.did or card.odid
+                # A card sitting in a filtered deck has did = the FILTERED deck
+                # and odid = its real home, so "did or odid" picks the wrong one
+                # and the new deck inherits nothing. Prefer the home deck.
+                src_did = card.odid or card.did
             cids.append(card.id)
     if not cids:
         return {"moved": 0, "deck": deck}

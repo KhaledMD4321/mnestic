@@ -438,6 +438,7 @@ async function checkConnection() {
   const auth = await bridge("auth");
   setPill(auth.ok ? "on" : "pair");            // reachable — paired or not
   refreshSetup(true, !!auth.ok);
+  if (auth.ok) loadMissed();                   // only once we know we can ask
 }
 
 // pairing-code + port inputs
@@ -460,7 +461,6 @@ document.getElementById("portSave").addEventListener("click", () => {
 
 document.getElementById("retry").addEventListener("click", (e) => { e.preventDefault(); checkConnection(); });
 checkConnection();
-loadMissed();
 
 // ---- "Check my deck": can matching work at all? ----
 // The commonest failure isn't a bug — it's a deck with no UWorld tags, or one

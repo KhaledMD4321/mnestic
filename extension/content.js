@@ -2617,10 +2617,22 @@
     m.body.appendChild(modeNote);
 
     const saveBtn = mdButton(missedMode === "copy" ? "Save copy" : missedMode === "tag" ? "Tag it" : "Move it", "mnx-md-ok", async () => {
-      const deck = targetDeck();
-      if (!deck) { toast("Pick or type a deck."); return; }
+      const label = saveBtn.textContent;
       saveBtn.disabled = true; saveBtn.textContent = "Saving…";
       try {
+        // The deck list may still be in flight. Without it, existingChapterDeck
+        // can't match, and we'd create "Missed Qs::Respiratory" beside the
+        // user's own "Missed Qs::03_Respiratory" — the exact fragmentation this
+        // is meant to prevent. Wait for it, THEN resolve the target deck.
+        if (deckCache === null) {
+          try { deckCache = (await bridge("listDecks")) || []; } catch (e) { deckCache = []; }
+        }
+        const deck = targetDeck();
+        if (!deck) {
+          toast("Pick or type a deck.");
+          saveBtn.disabled = false; saveBtn.textContent = label;
+          return;
+        }
         const imgTags = await pics.upload(SITE.id + "-" + qid);
         let noteHtml = ta.value.trim() ? escapeHtml(ta.value.trim()).replace(/\n/g, "<br>") : "";
         if (imgTags.length) noteHtml += (noteHtml ? "<br>" : "") + imgTags.join("<br>");
@@ -2694,8 +2706,7 @@
         m.close();
         toast(what);
       } catch (e) {
-        saveBtn.disabled = false;
-        saveBtn.textContent = missedMode === "copy" ? "Save copy" : missedMode === "tag" ? "Tag it" : "Move it";
+        saveBtn.disabled = false; saveBtn.textContent = label;
         toast("Couldn't save (" + e + ")");
       }
     });

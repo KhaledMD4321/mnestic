@@ -413,6 +413,21 @@ function listenFree(server, from) {
       !calls.some((c) => c.op === "copyNote") && calls.some((c) => c.op === "updateNote"));
     mock.state.savedCopies = 0;
 
+    // Saving before the deck list arrives must still reuse the existing
+    // numbered subdeck, not create a parallel one.
+    mock.state.slowDecks = 2500;
+    calls = await run("move", async (p) => {
+      await p.locator("#mnx-resources button", { hasText: "Save to Missed Qs" }).click({ timeout: 6000 });
+      await p.waitForSelector("#mnx-md-overlay textarea", { timeout: 6000 });
+      await p.locator("#mnx-md-overlay .mnx-md-ok").last().click({ timeout: 6000 });   // immediately
+      await p.waitForTimeout(4000);
+    });
+    mock.state.slowDecks = 0;
+    const raced = calls.find((c) => c.op === "setDeck");
+    check("coursology", "saving before decks load still reuses the existing subdeck",
+      !!raced && raced.args.deck === "Missed Questions::03_Respiratory",
+      raced && raced.args.deck);
+
     // The browser updates the extension by itself; the add-on doesn't. A new
     // extension against an old bridge must degrade, not lose the save.
     await setCfg({ mnxMissedMode: "move" });
