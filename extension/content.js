@@ -618,6 +618,9 @@
     #${PANEL_ID} .mnx-parent{font-size:12px;color:var(--mnx-muted);margin-bottom:2px}
     #${PANEL_ID} .mnx-leaf-row{padding:1px 0 1px 10px}
     #${PANEL_ID} .mnx-leaf{font-weight:600;color:var(--mnx-text)}
+    #${PANEL_ID} .mnx-weight{display:inline-block;margin-left:7px;font-size:10.5px;font-weight:700;
+      color:var(--mnx-muted);background:var(--mnx-surface-2);border:1px solid var(--mnx-border);
+      border-radius:var(--mnx-r-pill);padding:0 6px;font-variant-numeric:tabular-nums;vertical-align:1px}
     #${PANEL_ID} .mnx-watch{display:inline-block;color:var(--mnx-accent);text-decoration:none;font-size:12px;margin-left:8px;white-space:nowrap;font-weight:600}
     #${PANEL_ID} .mnx-watch:hover{text-decoration:underline}
     #${PANEL_ID} .mnx-msg{font-size:13px;color:var(--mnx-text);padding:12px 13px;line-height:1.5}
@@ -1485,7 +1488,7 @@
       links.forEach(l => { const a = makeLink(l.href, l.text, "mnx-link"); if (a) td.appendChild(a); });
       return;
     }
-    const leaves = paths.map(segs => ({ parent: segs.slice(0, -1).join(" \u203A "), leaf: segs[segs.length - 1] }));
+    const leaves = paths.map(p => ({ parent: p.segs.slice(0, -1).join(" › "), leaf: p.segs[p.segs.length - 1], n: p.n }));
     const linkTokens = links.map(l => akTokens(akLinkTopic(l.text)));
     const TH = 0.6;                 // a topic matches a video if >=60% of its words appear in it
     const pairs = [];
@@ -1524,6 +1527,12 @@
         const ls = document.createElement("span");
         ls.className = "mnx-leaf"; ls.textContent = lf.leaf;
         r.appendChild(ls);
+        if (lf.n > 1) {
+          const w = document.createElement("span");
+          w.className = "mnx-weight"; w.textContent = "×" + lf.n;
+          w.title = lf.n + " of this question's cards are tagged here";
+          r.appendChild(w);
+        }
         if (lf.watch) { const a = makeLink(lf.watch, "Watch", "mnx-watch"); if (a) r.appendChild(a); }
         g.appendChild(r);
       }
@@ -1613,7 +1622,7 @@
     const peek = document.createElement("span");
     peek.className = "mnx-r-peek";
     peek.textContent = row.paths.length
-      ? row.paths.slice(0, 3).map(p => p[p.length - 1]).join(" · ")
+      ? row.paths.slice(0, 3).map(p => p.segs[p.segs.length - 1]).join(" · ")
       : row.links.slice(0, 2).map(l => l.text).join(" · ");
 
     head.append(chev, name);
@@ -1686,11 +1695,24 @@
 
     const rows = [];
     for (const R of RESOURCES) {
-      const links = []; const paths = []; const seenP = new Set();
+      const links = [];
+      // A question matches several AnKing cards, each carrying its own chapter
+      // tags. Listing them in tag order made a chapter tagged on one card look
+      // as important as one tagged on all of them. Count the cards behind each
+      // chapter and lead with what this question is most about.
+      const byPath = new Map();
       for (const note of notes) {
         fieldAnchors(note, R.fields).forEach(l => links.push(l));
-        tagPaths(note.tags, R.tag).forEach(p => { const k = p.join(" \u203A "); if (!seenP.has(k)) { seenP.add(k); paths.push(p); } });
+        const seenHere = new Set();                    // count a chapter once per card
+        tagPaths(note.tags, R.tag).forEach(segs => {
+          const key = segs.join(" > ").toLowerCase().replace(/[^a-z0-9> ]+/g, "").replace(/\s+/g, " ").trim();
+          if (seenHere.has(key)) return;
+          seenHere.add(key);
+          const e = byPath.get(key);
+          if (e) e.n++; else byPath.set(key, { segs: segs, n: 1, i: byPath.size });
+        });
       }
+      const paths = Array.from(byPath.values()).sort((a, b) => (b.n - a.n) || (a.i - b.i));
       const seen = new Set();
       const ulinks = links.filter(l => !seen.has(l.href) && seen.add(l.href));
       if (ulinks.length || paths.length) rows.push({ R, links: ulinks, paths });

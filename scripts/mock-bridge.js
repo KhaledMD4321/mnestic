@@ -48,6 +48,23 @@ const NOTE = {
   }
 };
 
+// A second card for the same question, sharing ONE Sketchy chapter with the
+// first and adding another. The shared chapter must outrank the unshared ones.
+const NOTE2 = {
+  noteId: 1111111111112,
+  modelName: "Cloze-AnKingMaster",
+  mod: 1700000001,
+  tags: [
+    "#AK_Step1_v12::#UWorld::Respiratory::1633",
+    "#AK_Step1_v12::#Sketchy::Pharm::Beta_Blockers",
+    "#AK_Step1_v12::#Sketchy::Micro::Gram_Positives"
+  ],
+  fields: {
+    Text: { value: "A second card on the same question.", order: 0 },
+    Sketchy: { value: "", order: 1 }
+  }
+};
+
 const seen = [];   // every {op,args} the extension sent — asserted on by the test
 
 // Test knobs, so a run can simulate a real collection's state:
@@ -65,7 +82,7 @@ const OPS = {
     if (state.onlyStep && q.indexOf("#AK_Step" + state.onlyStep + "_") < 0) return [];
     return /::1633$|::12345$|::4211$/.test(q) ? [NOTE.noteId] : [];
   },
-  noteInfo: () => [NOTE],
+  noteInfo: () => [NOTE, NOTE2],
   readMedia: () => PNG_B64,
   writeMedia: (a) => a.filename,
   openBrowser: () => true,

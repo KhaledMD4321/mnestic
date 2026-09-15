@@ -215,6 +215,20 @@ function listenFree(server, from) {
     check(site.id, "Unsuspend reaches the bridge",
       mock.calls().filter((c) => c.op === "unsuspend").length > before);
 
+    // 7c. chapters carried by more cards rank first and show their weight
+    const sketchy = await p.evaluate(() => {
+      const heads = [...document.querySelectorAll("#mnx-resources .mnx-r-head")];
+      const h = heads.find((x) => /Sketchy/.test(x.textContent || ""));
+      if (!h) return null;
+      const sec = h.closest(".mnx-r");
+      const leaves = [...sec.querySelectorAll(".mnx-leaf")].map((n) => n.textContent.trim());
+      const weights = [...sec.querySelectorAll(".mnx-weight")].map((n) => n.textContent.trim());
+      return { first: leaves[0] || null, leaves: leaves.length, weights };
+    });
+    check(site.id, "shared chapters rank first, with their weight (" +
+      (sketchy && sketchy.first) + " " + JSON.stringify(sketchy && sketchy.weights) + ")",
+      !!sketchy && sketchy.first === "Beta Blockers" && sketchy.weights[0] === "×2");
+
     // 8. a SYNTHETIC click must be ignored — the page's own scripts share this
     //    DOM, so every control that can reach Anki requires a trusted event.
     await p.evaluate(() => {
