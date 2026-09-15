@@ -346,39 +346,61 @@ function listenFree(server, from) {
   }
   console.log("");
 
-  // ---- accuracy: saving the same question twice must not duplicate a card ----
+  // ---- how a missed question is kept: move / tag / copy ----
   console.log("save to Missed Qs:");
   {
-    const p4 = await ctx.newPage();
-    await p4.route("**/*", (r) => r.fulfill({ status: 200, contentType: "text/html", body: SITES[0].html }));
-    await p4.goto(SITES[0].url, { waitUntil: "domcontentloaded" });
-    await p4.waitForSelector("#mnx-resources", { timeout: 15000 });
-
-    async function saveOnce(note) {
-      await p4.locator("#mnx-resources button", { hasText: "Save to Missed Qs" }).click({ timeout: 6000 });
-      await p4.waitForSelector("#mnx-md-overlay textarea", { timeout: 6000 });
-      await p4.fill("#mnx-md-overlay textarea", note);
-      await p4.locator("#mnx-md-overlay button", { hasText: "Save copy" }).click({ timeout: 6000 });
-      await p4.waitForTimeout(900);
+    async function openAndSave(p, note) {
+      await p.locator("#mnx-resources button", { hasText: "Save to Missed Qs" }).click({ timeout: 6000 });
+      await p.waitForSelector("#mnx-md-overlay textarea", { timeout: 6000 });
+      await p.fill("#mnx-md-overlay textarea", note);
+      const btn = p.locator("#mnx-md-overlay .mnx-md-ok").last();
+      await btn.click({ timeout: 6000 });
+      await p.waitForTimeout(900);
     }
-    try {
-      await saveOnce("first note");
-      await saveOnce("second note");
-    } catch (e) {}
-    const copies = mock.calls().filter((c) => c.op === "copyNote").length;
-    const updates = mock.calls().filter((c) => c.op === "updateNote").length;
-    check("coursology", "saving twice makes ONE card, not two (" + copies + " copy, " + updates + " update)",
-      copies === 1 && updates === 1);
-    // the chapter subdeck is derived from the card's own numbered AnKing tags
-    const cp = mock.calls().filter((c) => c.op === "copyNote")[0];
-    check("coursology", "saved into a chapter subdeck (" + (cp && cp.args.deck) + ")",
-      !!cp && /::Respiratory$/.test(cp.args.deck || ""), cp && cp.args.deck);
+    async function run(mode, fn) {
+      await setCfg({ mnxMissedMode: mode });
+      const p = await ctx.newPage();
+      await p.route("**/*", (r) => r.fulfill({ status: 200, contentType: "text/html", body: SITES[0].html }));
+      await p.goto(SITES[0].url, { waitUntil: "domcontentloaded" });
+      await p.waitForSelector("#mnx-resources", { timeout: 15000 });
+      const before = mock.calls().length;
+      try { await fn(p); } catch (e) {}
+      const since = mock.calls().slice(before);
+      await p.close();
+      return since;
+    }
 
-    const up = mock.calls().filter((c) => c.op === "updateNote").slice(-1)[0];
-    check("coursology", "the second note is appended to the existing copy",
-      !!up && up.args.noteId === 9999 && /second note/.test(JSON.stringify(up.args.fieldAppends || {})));
-    await p4.close();
+    // move: the original card moves, nothing is duplicated
+    let calls = await run("move", (p) => openAndSave(p, "note A"));
+    const moved = calls.find((c) => c.op === "setDeck");
+    check("coursology", "move mode moves the original card (" + (moved && moved.args.deck) + ")",
+      !!moved && !calls.some((c) => c.op === "copyNote"));
+    check("coursology", "move mode reuses the existing numbered subdeck",
+      !!moved && moved.args.deck === "Missed Questions::03_Respiratory",
+      moved && moved.args.deck);
+    const tagged = calls.find((c) => c.op === "updateNote");
+    check("coursology", "move mode tags the note by chapter",
+      !!tagged && (tagged.args.addTags || []).some((t) => /^Mnestic::Missed::/.test(t)),
+      JSON.stringify(tagged && tagged.args.addTags));
+
+    // tag: nothing moves at all
+    calls = await run("tag", (p) => openAndSave(p, "note B"));
+    check("coursology", "tag mode moves nothing and copies nothing",
+      !calls.some((c) => c.op === "setDeck") && !calls.some((c) => c.op === "copyNote") &&
+      calls.some((c) => c.op === "updateNote"));
+
+    // copy: the old behaviour, still available
     mock.state.savedCopies = 0;
+    calls = await run("copy", (p) => openAndSave(p, "note C"));
+    check("coursology", "copy mode still makes a copy",
+      calls.some((c) => c.op === "copyNote") && !calls.some((c) => c.op === "setDeck"));
+
+    // and copying twice still appends instead of duplicating
+    calls = await run("copy", (p) => openAndSave(p, "note D"));
+    check("coursology", "copying a second time appends instead of duplicating",
+      !calls.some((c) => c.op === "copyNote") && calls.some((c) => c.op === "updateNote"));
+    mock.state.savedCopies = 0;
+    await setCfg({ mnxMissedMode: "move" });
   }
   console.log("");
 

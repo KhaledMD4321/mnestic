@@ -227,9 +227,14 @@ number UWorld used**, and your AnKing cards are tagged with it. Check one:
   - **📝 Copy explanation** — just the qbank's explanation, for your notes.
   - **👁 Preview** — reads the matched card(s) (clozes revealed, **images
     inline**) with **‹ Prev / Next ›** across every card matched to the question.
-  - **★ Save to Missed Qs** — duplicates the matched card into a chapter deck —
-    the **subdeck is derived from the card's own AnKing chapter tags**, so cards
-    land under `Missed Qs::Respiratory` rather than one flat pile — and
+  - **★ Save to Missed Qs** — keeps the question in a **chapter subdeck** built
+    from the card's own AnKing tags (organ systems on Step 1, rotations on
+    Step 2), so the pile stays studiable by topic. Pick how in the popup:
+    **Move the card** (real subdeck, keeps its review history and AnKing
+    updates), **Tag only** (nothing moves; browse the `Mnestic::Missed::…` tag
+    tree), or **Make a copy** (a separate card, which will never receive AnKing
+    updates again). It reuses subdecks you already have rather than creating
+    parallel ones, and
     appends **your note** to its *Missed Questions* field. Paste a screenshot, add
     files, or **click a thumbnail of the question's own image** (“📎 From this
     question”) to attach only the ones that matter. The original card is left

@@ -903,16 +903,21 @@
     if (changes.highYield) { hyOn = !!changes.highYield.newValue; }
     if ("aiPrompt" in changes) { aiPrompt = changes.aiPrompt.newValue == null ? "" : changes.aiPrompt.newValue; }
     if (changes.kbShortcuts) { kbShortcuts = changes.kbShortcuts.newValue !== false; }
+    if (changes.mnxMissedMode) { missedMode = changes.mnxMissedMode.newValue || "move"; }
   });
 
   // ---- which resources you actually use -----------------------------------
   // openResources: what to re-open on the next question (your working set).
   // resourceUses:  how often you've opened each, which decides the order.
+  // How "Save to Missed Qs" keeps a question: "move" | "tag" | "copy".
+  // Chosen in the popup; "move" until you say otherwise.
+  let missedMode = "move";
   let openResources = new Set();
   let resourceUses = {};
-  chrome.storage.local.get({ mnxOpenResources: [], mnxResourceUses: {} }, c => {
+  chrome.storage.local.get({ mnxOpenResources: [], mnxResourceUses: {}, mnxMissedMode: "move" }, c => {
     openResources = new Set(c.mnxOpenResources || []);
     resourceUses = c.mnxResourceUses || {};
+    missedMode = c.mnxMissedMode || "move";
   });
   function rememberResource(label, opened) {
     if (opened) {
@@ -2395,6 +2400,9 @@
     }
     return null;
   }
+  function extraLabel(imgTags) {
+    return imgTags.length ? (" + " + imgTags.length + " image" + (imgTags.length === 1 ? "" : "s")) : "";
+  }
   function openSaveDialog(qid) {
     if (!currentNotes.length) { toast("No AnKing card matched this question to save."); return; }
     const m = buildModal("Save to Missed Qs — QID " + qid, () => document.removeEventListener("paste", pics.handlePaste));
@@ -2489,15 +2497,37 @@
     // Strip a chapter we previously appended, whichever one it was.
     function stripKnownChapter(path) {
       if (!path) return path;
-      const leaf = deckLeaf(path).toLowerCase();
-      const known = chapters.map(c => c.name.toLowerCase()).concat(customChapter.toLowerCase());
-      if (known.indexOf(leaf) >= 0) return path.slice(0, -(leaf.length + 2));
+      const rawLeaf = deckLeaf(path);
+      // Compare normalised, so a deck already named "03_Respiratory" is
+      // recognised as the Respiratory chapter and we don't append a second one.
+      const leaf = akNormDeck(rawLeaf);
+      if (!leaf) return path;
+      const known = chapters.map(c => akNormDeck(c.name));
+      if (customChapter) known.push(akNormDeck(customChapter));
+      if (known.indexOf(leaf) >= 0) return path.slice(0, -(rawLeaf.length + 2));
       return path;
+    }
+    // Prefer a subdeck you already have. Someone whose decks are named
+    // "01_Cardiology, 02_Renal, 03_Respiratory" must not end up with a second,
+    // parallel "Cardiology" next to them — match the existing leaf and use it.
+    function existingChapterDeck(base, chap) {
+      if (!base || !chap || !deckCache) return null;
+      const want = akNormDeck(chap);
+      if (want.length < 3) return null;
+      const prefix = base + "::";
+      for (const d of deckCache) {
+        if (d.indexOf(prefix) !== 0) continue;
+        if (d.slice(prefix.length).indexOf("::") >= 0) continue;   // direct children only
+        const leaf = akNormDeck(deckLeaf(d));
+        if (leaf === want || leaf.indexOf(want) >= 0 || want.indexOf(leaf) >= 0) return d;
+      }
+      return null;
     }
     function targetDeck() {
       const base = baseDeck();
       if (!base) return "";
-      return chapter ? base + "::" + chapter : base;
+      if (!chapter) return base;
+      return existingChapterDeck(base, chapter) || (base + "::" + chapter);
     }
     function refreshDest() {
       const t = targetDeck();
@@ -2547,7 +2577,16 @@
     document.addEventListener("paste", pics.handlePaste);   // removed on close (see buildModal onClose)
 
     // 4) save — upload pasted images to Anki media, then copy the card
-    const saveBtn = mdButton("Save copy", "mnx-md-ok", async () => {
+    const modeNote = document.createElement("div");
+    modeNote.className = "mnx-md-dest";
+    modeNote.textContent = missedMode === "copy"
+      ? "Mode: make a copy — the copy won't receive AnKing updates. Change in the Mnestic popup."
+      : missedMode === "tag"
+        ? "Mode: tag only — nothing moves decks. Change in the Mnestic popup."
+        : "Mode: move the card — keeps its history and AnKing updates. Change in the Mnestic popup.";
+    m.body.appendChild(modeNote);
+
+    const saveBtn = mdButton(missedMode === "copy" ? "Save copy" : missedMode === "tag" ? "Tag it" : "Move it", "mnx-md-ok", async () => {
       const deck = targetDeck();
       if (!deck) { toast("Pick or type a deck."); return; }
       saveBtn.disabled = true; saveBtn.textContent = "Saving…";
@@ -2555,39 +2594,59 @@
         const imgTags = await pics.upload(SITE.id + "-" + qid);
         let noteHtml = ta.value.trim() ? escapeHtml(ta.value.trim()).replace(/\n/g, "<br>") : "";
         if (imgTags.length) noteHtml += (noteHtml ? "<br>" : "") + imgTags.join("<br>");
-        // copyNote always makes a NEW note, so saving the same question twice
-        // used to plant duplicate cards in the collection with no warning. The
-        // copy keeps the source's tags, so an existing one is findable: append
-        // to it instead of breeding another.
+        // Three ways to keep a missed question, chosen in the popup:
+        //
+        //   move  the ORIGINAL card moves into the chapter subdeck. Real deck,
+        //         no duplicate, keeps its review history, and the note keeps its
+        //         ankihub_id so AnKing updates keep arriving.
+        //   tag   nothing moves; the note is tagged Mnestic::Missed::<chapter>,
+        //         which gives the same tree in Browse without touching decks.
+        //   copy  duplicate the note into the subdeck. A separate card that will
+        //         never receive AnKing updates again — offered, not the default.
         const sv = await svForQuestion();
+        const chapTag = chapter ? MISSED_TAG + "::" + String(chapter).split("::").join("_") : MISSED_TAG;
+
+        // Already kept? Then this is a second note on the same question — append
+        // to what's there rather than making another of anything.
         let existing = [];
         try { existing = await bridge("searchNotes", { query: qidQuery(qid, sv) + " tag:" + MISSED_TAG }); }
         catch (e) { existing = []; }
 
-        let appended = false;
-        if (existing.length) {
-          if (noteHtml) {
-            await bridge("updateNote", { noteId: existing[0], fieldAppends: { "Missed Questions": noteHtml } });
-            appended = true;
+        let what;
+        if (missedMode === "copy") {
+          if (existing.length) {
+            if (noteHtml) await bridge("updateNote", { noteId: existing[0], fieldAppends: { "Missed Questions": noteHtml } });
+            what = noteHtml ? "Added your note" + extraLabel(imgTags) + " to the copy you already saved."
+                            : "You've already saved this question — nothing to add.";
+          } else {
+            const params = { noteId: chosenNote.noteId, deck, addTags: [MISSED_TAG, chapTag] };
+            if (noteHtml) params.fieldAppends = { "Missed Questions": noteHtml };
+            await bridge("copyNote", params);
+            what = "Saved a copy to " + deckLeaf(deck) + (noteHtml ? " with your note" + extraLabel(imgTags) + "." : ".");
           }
         } else {
-          const params = { noteId: chosenNote.noteId, deck, addTags: [MISSED_TAG] };
+          const params = { noteId: chosenNote.noteId, addTags: [MISSED_TAG, chapTag] };
           if (noteHtml) params.fieldAppends = { "Missed Questions": noteHtml };
-          await bridge("copyNote", params);
+          await bridge("updateNote", params);
+          try { await bridge("unsuspend", { queries: [qidQuery(qid, sv)] }); } catch (e) {}
+          if (missedMode === "move" && deck) {
+            const res = await bridge("setDeck", { notes: [chosenNote.noteId], deck });
+            const n = (res && res.moved) || 0;
+            what = "Moved " + n + (n === 1 ? " card" : " cards") + " to " + deckLeaf(deck) +
+              (noteHtml ? " with your note" + extraLabel(imgTags) + "." : ".");
+          } else {
+            what = "Tagged " + chapTag + (noteHtml ? " and added your note" + extraLabel(imgTags) + "." : ".");
+          }
         }
+
         chrome.storage.local.set({ akMissedDeck: baseDeck() });
         if (deckCache && !deckCache.includes(deck)) deckCache.push(deck);
         m.close();
-        const extra = imgTags.length ? (" + " + imgTags.length + " image" + (imgTags.length === 1 ? "" : "s")) : "";
-        if (existing.length) {
-          toast(appended
-            ? "Added your note" + extra + " to the copy you already saved."
-            : "You've already saved this question — nothing to add.");
-        } else {
-          toast("Saved a copy to " + deckLeaf(deck) + (noteHtml ? " with your note" + extra + "." : "."));
-        }
+        toast(what);
       } catch (e) {
-        saveBtn.disabled = false; saveBtn.textContent = "Save copy"; toast("Couldn't save (" + e + ")");
+        saveBtn.disabled = false;
+        saveBtn.textContent = missedMode === "copy" ? "Save copy" : missedMode === "tag" ? "Tag it" : "Move it";
+        toast("Couldn't save (" + e + ")");
       }
     });
     m.foot.appendChild(mdButton("Cancel", "mnx-md-cancel", m.close));

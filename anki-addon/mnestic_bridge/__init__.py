@@ -34,6 +34,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
 import aqt
+from anki.utils import ids2str
 from aqt import gui_hooks, mw
 from aqt.qt import QAction
 
@@ -463,8 +464,81 @@ _OPS = {
     "updateNote": op_update_note,
     "newNote": op_new_note,
     "countNotes": op_count_notes,
+    "setDeck": op_set_deck,
     "status": op_status,
 }
+
+
+def op_set_deck(args):
+    """Move every card of `notes` into `deck`, creating the deck if needed.
+
+    This is how "Save to Missed Qs" can give you a real subdeck per chapter
+    WITHOUT duplicating the note: the card moves, the note is untouched, so it
+    keeps its ankihub_id and goes on receiving AnKing updates.
+
+    A freshly created deck would otherwise land on the Default options preset
+    and quietly change your daily limits, so it inherits the preset of the deck
+    the first card came from.
+    """
+    deck = (args.get("deck") or "").strip()
+    if not deck:
+        raise Exception("deck is required")
+    col = _col()
+    ids = args.get("notes") or []
+    cids = []
+    src_did = None
+    for nid in ids:
+        try:
+            note = col.get_note(int(nid))
+        except Exception:
+            continue
+        for card in note.cards():
+            if src_did is None:
+                src_did = card.did or card.odid
+            cids.append(card.id)
+    if not cids:
+        return {"moved": 0, "deck": deck}
+
+    existed = False
+    try:
+        existed = col.decks.by_name(deck) is not None
+    except Exception:
+        try:
+            existed = col.decks.id_for_name(deck) is not None
+        except Exception:
+            existed = False
+
+    did = col.decks.id(deck)
+    if not existed and src_did:
+        _inherit_deck_options(col, did, src_did)
+
+    try:
+        col.set_deck(cids, did)
+    except AttributeError:
+        try:
+            col.decks.set_deck(cids, did)
+        except AttributeError:
+            col.db.execute(
+                "update cards set did = ?, mod = ?, usn = ? where id in %s"
+                % ids2str(cids), did, int(time.time()), -1
+            )
+    return {"moved": len(cids), "deck": deck, "created": not existed}
+
+
+def _inherit_deck_options(col, did, src_did):
+    """Give a newly created deck the same options preset as the source deck."""
+    try:
+        src = col.decks.get(src_did)
+        dst = col.decks.get(did)
+        if not src or not dst or src.get("dyn") or dst.get("dyn"):
+            return
+        conf = src.get("conf")
+        if conf is None:
+            return
+        dst["conf"] = conf
+        col.decks.save(dst)
+    except Exception:
+        pass
 
 
 def op_count_notes(args):

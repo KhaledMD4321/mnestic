@@ -9,6 +9,8 @@
 const sel = document.getElementById("sv");
 const saved = document.getElementById("saved");
 const darkSelect = document.getElementById("darkSelect");
+const missedMode = document.getElementById("missedMode");
+const missedHint = document.getElementById("missedHint");
 const esToggle = document.getElementById("esToggle");
 const easyToggle = document.getElementById("easyToggle");
 const hyToggle = document.getElementById("hyToggle");
@@ -42,7 +44,24 @@ function applyDark(pref) {
   darkSelect.value = pref === true ? "dark" : pref === false ? "light" : "auto";
 }
 
-chrome.storage.local.get({ sv: 1, dark: "auto", expectedScore: false, easy: false, highYield: false, kbShortcuts: true }, (cfg) => {
+// What "Save to Missed Qs" does. Changeable whenever you like — some people
+// want a real subdeck, some won't move an AnKing card for anything.
+const MISSED_HINTS = {
+  move: "Moves the card into a chapter subdeck. Real deck per chapter, keeps its review history, and the card still receives AnKing updates.",
+  tag: "Tags the note Mnestic::Missed::Chapter and unsuspends it. Nothing changes decks — browse the tag tree in Anki instead.",
+  copy: "Duplicates the card into a chapter subdeck. Leaves the original alone, but the copy never receives AnKing updates again."
+};
+function applyMissedMode(mode) {
+  missedMode.value = mode;
+  missedHint.textContent = MISSED_HINTS[mode] || "";
+}
+missedMode.addEventListener("change", () => {
+  applyMissedMode(missedMode.value);
+  chrome.storage.local.set({ mnxMissedMode: missedMode.value });
+});
+
+chrome.storage.local.get({ sv: 1, dark: "auto", expectedScore: false, easy: false, highYield: false, kbShortcuts: true, mnxMissedMode: "move" }, (cfg) => {
+  applyMissedMode(cfg.mnxMissedMode || "move");
   sel.value = String(cfg.sv);
   applyDark(cfg.dark === true || cfg.dark === false ? cfg.dark : "auto");
   esToggle.checked = !!cfg.expectedScore;

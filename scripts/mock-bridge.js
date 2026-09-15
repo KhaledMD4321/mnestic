@@ -91,7 +91,8 @@ const OPS = {
   writeMedia: (a) => a.filename,
   openBrowser: () => true,
   listTags: () => NOTE.tags,
-  listDecks: () => ["Default", "AnKing Step 1", "Missed Questions"],
+  // a numbered chapter subdeck, like a real user's
+  listDecks: () => ["Default", "AnKing Step 1", "Missed Questions", "Missed Questions::03_Respiratory"],
   cardStats: () => ({ [NOTE.noteId]: [{ type: 2, ivl: 30, lapses: 0, suspended: false, yield: "HighYield" }] }),
   cardMaturity: (a) => (a.queries || []).map(() =>
     ({ new: 1, learning: 1, young: 2, mature: 3, suspended: 2, total: 9 })),
@@ -99,6 +100,7 @@ const OPS = {
   countNotes: (a) => (a.queries || []).map(() => 4242),
   status: () => ({ name: "Mnestic Bridge (mock)", version: "1.1.0-mock",
     taggedByStep: { "1": 4242, "2": 0, "3": 0 } }),
+  setDeck: (a) => ({ moved: 2, deck: a.deck, created: false }),
   copyNote: () => { state.savedCopies++; return 2222222222222; },
   updateNote: () => true,
   newNote: () => 3333333333333
