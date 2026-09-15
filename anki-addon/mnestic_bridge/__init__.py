@@ -590,6 +590,16 @@ def op_filtered_deck(args):
     limit = int(args.get("limit") or 100)
     col = _col()
 
+    # Ask first. Anki raises when a filtered deck would gather nothing, and the
+    # only way to tell that apart from a real failure is to read its English
+    # prose -- which is wrong on a localised Anki. Counting the search ourselves
+    # answers the common case in every language.
+    try:
+        if not col.find_cards(search):
+            return {"deck": name, "cards": 0, "empty": True}
+    except Exception:
+        pass                                 # a malformed search: let Anki say so
+
     existing = None
     try:
         existing = col.decks.by_name(name)
@@ -615,6 +625,8 @@ def op_filtered_deck(args):
             # suspended". Having nothing missed yet is the normal state for a
             # new user, not an error, so report an empty deck instead. An
             # existing deck has already returned its cards home by this point.
+            # Cards can match the search yet still be excluded, for already
+            # sitting in another filtered deck. Anki only says so in prose.
             if _MATCHED_NOTHING_RE.search(str(exc)):
                 return {"deck": name, "cards": 0, "empty": True}
             raise
