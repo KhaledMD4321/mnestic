@@ -117,6 +117,80 @@ async function createMissedDeck() {
 document.getElementById("missedDeckGo").addEventListener("click", createMissedDeck);
 missedDeck.addEventListener("keydown", (e) => { if (e.key === "Enter") createMissedDeck(); });
 
+// ---- missed questions: retest them, or study them ----------------------
+// The question ids are already in the AnKing tags, so the qbank's own test
+// builder can take them straight back — miss it, study it, sit it again.
+const missedList = document.getElementById("missedList");
+const missedSummary = document.getElementById("missedSummary");
+const missedStudyHint = document.getElementById("missedStudyHint");
+let missedRows = [];
+
+function copyIds(ids, btn) {
+  const text = ids.join(",");
+  navigator.clipboard.writeText(text).then(
+    () => { btn.textContent = "Copied " + ids.length; setTimeout(() => (btn.textContent = "Copy ids"), 1600); },
+    () => { btn.textContent = "Copy failed"; setTimeout(() => (btn.textContent = "Copy ids"), 1600); }
+  );
+}
+
+function renderMissed() {
+  missedList.replaceChildren();
+  if (!missedRows.length) {
+    missedSummary.textContent = "Nothing saved yet. Use ★ Save to Missed Qs on a question.";
+    return;
+  }
+  const byChapter = new Map();
+  missedRows.forEach((r) => {
+    const k = r.chapter || "No chapter";
+    if (!byChapter.has(k)) byChapter.set(k, []);
+    byChapter.get(k).push(r.qid);
+  });
+  missedSummary.textContent = missedRows.length + " saved across " + byChapter.size +
+    (byChapter.size === 1 ? " chapter" : " chapters") + ". Paste the ids into your qbank's test builder.";
+
+  const rows = [["All", missedRows.map((r) => r.qid)]]
+    .concat(Array.from(byChapter.entries()).sort((a, b) => b[1].length - a[1].length));
+  rows.forEach(([name, ids]) => {
+    const row = document.createElement("div"); row.className = "mrow";
+    const n = document.createElement("span"); n.className = "mname";
+    n.textContent = String(name).replace(/_/g, " ");
+    const c = document.createElement("span"); c.className = "mcount"; c.textContent = ids.length;
+    const b = document.createElement("button"); b.className = "chip"; b.textContent = "Copy ids";
+    b.addEventListener("click", () => copyIds(ids, b));
+    row.append(n, c, b);
+    missedList.appendChild(row);
+  });
+}
+
+async function loadMissed() {
+  missedSummary.textContent = "Reading your collection…";
+  const sv = parseInt(sel.value, 10) || 1;
+  const r = await bridge("missedIds", { step: sv });
+  if (!r.ok) {
+    missedSummary.textContent = r.error && /unknown op/i.test(r.error)
+      ? "Update the Mnestic Bridge add-on to use this."
+      : "Couldn't reach Anki.";
+    return;
+  }
+  missedRows = Array.isArray(r.data) ? r.data : [];
+  renderMissed();
+}
+document.getElementById("missedRefresh").addEventListener("click", loadMissed);
+
+document.getElementById("missedStudy").addEventListener("click", async () => {
+  const btn = document.getElementById("missedStudy");
+  btn.disabled = true; btn.textContent = "Building…";
+  const r = await bridge("filteredDeck", {
+    name: "Mnestic — Missed",
+    search: 'tag:Mnestic::Missed::* -is:suspended',
+    limit: 200
+  });
+  btn.disabled = false; btn.textContent = "Study them in Anki";
+  missedStudyHint.textContent = r.ok
+    ? "Built “" + r.data.deck + "” with " + r.data.cards + " cards — open Anki to study it."
+    : (/unknown op/i.test(r.error || "") ? "Update the Mnestic Bridge add-on to use this." : "Couldn't build it: " + r.error);
+});
+
 // ---- find a topic in Anki (drill a hard topic outside the qbank) ----
 const topicInput = document.getElementById("topicInput");
 const topicGo = document.getElementById("topicGo");
@@ -350,6 +424,7 @@ document.getElementById("portSave").addEventListener("click", () => {
 
 document.getElementById("retry").addEventListener("click", (e) => { e.preventDefault(); checkConnection(); });
 checkConnection();
+loadMissed();
 
 // ---- "Check my deck": can matching work at all? ----
 // The commonest failure isn't a bug — it's a deck with no UWorld tags, or one

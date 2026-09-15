@@ -34,6 +34,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
 import aqt
+from anki.decks import DeckId
 from anki.utils import ids2str
 from aqt import gui_hooks, mw
 from aqt.qt import QAction
@@ -43,6 +44,9 @@ try:
 except Exception:                                    # very old/new Anki
     buildinfo = None
 from aqt.utils import askUser, showText, tooltip
+
+# "#AK_Step1_v12::#UWorld::Step::2108" and the older bare "…::#UWorld::2108"
+_UW_ID_RE = re.compile(r"^#AK_Step(\d)_v[^:]*::#UWorld::(?:Step::)?(\d+)$", re.I)
 
 ADDON_NAME = "Mnestic Bridge"
 ADDON_VERSION = "1.1.0"
@@ -497,6 +501,8 @@ _OPS = {
     "countNotes": op_count_notes,
     "setDeck": op_set_deck,
     "createDeck": op_create_deck,
+    "filteredDeck": op_filtered_deck,
+    "missedIds": op_missed_ids,
     "status": op_status,
 }
 
@@ -576,6 +582,95 @@ def _inherit_deck_options(col, did, src_did):
         col.decks.save(dst)
     except Exception:
         pass
+
+
+def op_filtered_deck(args):
+    """Build (or rebuild) a filtered deck from a search — "study my missed".
+
+    A filtered deck gathers cards for a session and returns them to their home
+    deck afterwards, so studying a chapter costs nothing permanent.
+    """
+    name = (args.get("name") or "Mnestic — Missed").strip()
+    search = (args.get("search") or "").strip()
+    if not search:
+        raise Exception("search is required")
+    limit = int(args.get("limit") or 100)
+    col = _col()
+
+    existing = None
+    try:
+        existing = col.decks.by_name(name)
+    except Exception:
+        existing = None
+    if existing and not existing.get("dyn"):
+        raise Exception("a normal deck named %r already exists" % name)
+
+    try:
+        deck = col.sched.get_or_create_filtered_deck(deck_id=DeckId(existing["id"]) if existing else DeckId(0))
+        deck.name = name
+        del deck.config.search_terms[:]
+        term = deck.config.search_terms.add()
+        term.search = search
+        term.limit = limit
+        term.order = 0                                   # oldest seen first
+        deck.config.reschedule = True
+        out = col.sched.add_or_update_filtered_deck(deck)
+        did = getattr(out, "id", None) or (existing and existing["id"])
+    except AttributeError:
+        # older scheduler API
+        did = col.decks.new_filtered(name)
+        d = col.decks.get(did)
+        d["terms"] = [[search, limit, 0]]
+        d["resched"] = True
+        col.decks.save(d)
+        col.sched.rebuild_filtered_deck(did)
+
+    count = 0
+    try:
+        count = len(col.find_cards('deck:"%s"' % name))
+    except Exception:
+        pass
+    return {"deck": name, "cards": count}
+
+
+def op_missed_ids(args):
+    """Question ids of everything tagged missed, newest first, with chapters.
+
+    This is what makes "retest exactly what you got wrong" possible: the ids
+    live in the AnKing tags already, so the qbank's own test builder can take
+    them straight back.
+    """
+    col = _col()
+    tag = (args.get("tag") or "Mnestic::Missed").strip()
+    step = args.get("step")
+    chapter = (args.get("chapter") or "").strip()
+    search = 'tag:%s::*' % tag if chapter == "" else 'tag:%s::%s' % (tag, chapter.replace(" ", "_"))
+    search = '(tag:%s OR %s)' % (tag, search) if chapter == "" else search
+    out = []
+    seen = set()
+    for nid in col.find_notes(search):
+        try:
+            note = col.get_note(nid)
+        except Exception:
+            continue
+        chap = ""
+        for t in note.tags:
+            if t.lower().startswith((tag + "::").lower()):
+                chap = t[len(tag) + 2:]
+                break
+        for t in note.tags:
+            m = _UW_ID_RE.match(t)
+            if not m:
+                continue
+            if step and int(m.group(1)) != int(step):
+                continue
+            qid = m.group(2)
+            if qid in seen:
+                continue
+            seen.add(qid)
+            out.append({"qid": qid, "chapter": chap, "mod": note.mod})
+    out.sort(key=lambda r: -r["mod"])
+    return out
 
 
 def op_count_notes(args):

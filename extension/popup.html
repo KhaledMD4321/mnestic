@@ -69,6 +69,12 @@
     .setup li.done { color:#8a8f98; }
     .setup li.now i { border-color:var(--mn); }
     .setup li.now b { color:var(--mn); }
+    .mlist { margin:4px 0 0; font-size:11.5px; }
+    .mlist .mrow { display:flex; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid #f0f2f5; }
+    body.dark .mlist .mrow { border-bottom-color:#2c3340; }
+    .mlist .mrow:last-child { border-bottom:none; }
+    .mlist .mname { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .mlist .mcount { color:#8a8f98; font-variant-numeric:tabular-nums; }
     .adv { font-size:11px; color:#8a8f98; }
     .adv summary { cursor:pointer; margin-top:8px; }
     .adv .field { margin-top:6px; }
@@ -143,6 +149,16 @@
   <div class="row"><span>Easy mode (auto-unsuspend)</span><input type="checkbox" id="easyToggle"></div>
   <div class="row"><span>High-yield only</span><input type="checkbox" id="hyToggle"></div>
   <div class="row"><span>Keyboard shortcuts <span class="muted" style="font-size:10px">(press ?)</span></span><input type="checkbox" id="kbToggle"></div>
+
+  <hr>
+  <div class="row" style="margin-bottom:2px"><span><b>Missed questions</b></span>
+    <button id="missedRefresh" class="chip">Refresh</button></div>
+  <p class="hint" id="missedSummary">Save a few questions and they'll show up here, by chapter.</p>
+  <div id="missedList" class="mlist"></div>
+  <div class="field" style="margin-top:8px">
+    <button id="missedStudy" class="btn" style="width:100%">Study them in Anki</button>
+  </div>
+  <p class="hint" id="missedStudyHint">Builds a filtered deck from the missed tag — cards return to their own decks afterwards.</p>
 
   <hr>
   <div class="row" style="margin-bottom:4px"><span>Find a topic in Anki</span></div>

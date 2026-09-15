@@ -662,6 +662,20 @@
     #${PANEL_ID} .mnx-r-key{flex:none;font-size:10.5px;font-weight:700;color:var(--mnx-accent);
       background:var(--mnx-accent-soft);border-radius:var(--mnx-r-xs);padding:1px 5px;letter-spacing:.02em}
 
+    /* ---- how confident were you, really ---- */
+    #${PANEL_ID} .mnx-conf{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:8px 13px;
+      border-bottom:1px solid var(--mnx-border);font-size:12.5px}
+    #${PANEL_ID} .mnx-conf-lbl{color:var(--mnx-muted);margin-right:2px}
+    #${PANEL_ID} .mnx-conf-btn{font:inherit;font-size:12px;font-weight:600;cursor:pointer;padding:3px 10px;
+      border-radius:var(--mnx-r-pill);border:1px solid var(--mnx-border);background:var(--mnx-surface);
+      color:var(--mnx-text);transition:background .14s,border-color .14s,transform .12s}
+    #${PANEL_ID} .mnx-conf-btn:hover{background:var(--mnx-surface-2)}
+    #${PANEL_ID} .mnx-conf-btn:active{transform:scale(.97)}
+    #${PANEL_ID} .mnx-conf-btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
+    #${PANEL_ID} .mnx-conf-knew.on{background:rgba(31,157,87,.14);border-color:var(--mnx-good);color:var(--mnx-good)}
+    #${PANEL_ID} .mnx-conf-guessed.on{background:rgba(213,137,28,.16);border-color:var(--mnx-warn);color:var(--mnx-warn)}
+    #${PANEL_ID} .mnx-conf-noidea.on{background:rgba(220,75,69,.14);border-color:var(--mnx-bad);color:var(--mnx-bad)}
+
     /* ---- how ready you are for this question ---- */
     #${PANEL_ID} .mnx-cards{display:flex;align-items:center;gap:10px;padding:8px 13px;
       border-bottom:1px solid var(--mnx-border);background:var(--mnx-surface-2);font-size:12.5px}
@@ -1075,7 +1089,13 @@
   }
   // One definition of "missed", used by the breakdown, the buttons and the
   // accuracy figures alike: anything you didn't get right.
-  function isMissed(r) { return !!(r.wrong || r.omitted); }
+  function isMissed(r) { return !!(r.wrong || r.omitted || wasGuessed(r.qid)); }
+  // A right answer you weren't sure of is not a question you know, so the
+  // breakdown, the accuracy figures and "Anki: Missed" all count it as weak.
+  function wasGuessed(qid) {
+    const e = trackerLog.answered[currentQbankSlug() + " " + qid];
+    return !!(e && (e.conf === "guessed" || e.conf === "noidea"));
+  }
   function aggregateBy(rows, key) {
     const map = new Map();
     rows.forEach(r => {
@@ -1959,6 +1979,12 @@
   // Uses currentNotes (set by buildTable) + the bridge write actions.
   // ============================================================
   const MISSED_TAG = "Mnestic::Missed";
+  // AnkiHub overwrites a managed note's fields on a deck update unless the field
+  // is protected. Verified against the AnkiHub add-on's own note_conversion.py:
+  // protection_tag_for_field(name) -> "AnkiHub_Protect::<name with _ for spaces>".
+  // Mnestic writes your notes into "Missed Questions", so it protects it too —
+  // otherwise a term of notes can vanish on a routine deck update.
+  const PROTECT_TAG = "AnkiHub_Protect::Missed_Questions";
   let deckCache = null;                 // cached deckNames list from the bridge
 
   function revealCloze(html) {          // we're past the answer, so show clozes
@@ -2621,18 +2647,18 @@
         let what;
         if (missedMode === "copy") {
           if (existing.length) {
-            if (noteHtml) await bridge("updateNote", { noteId: existing[0], fieldAppends: { "Missed Questions": noteHtml } });
+            if (noteHtml) await bridge("updateNote", { noteId: existing[0], fieldAppends: { "Missed Questions": noteHtml }, addTags: [PROTECT_TAG] });
             what = noteHtml ? "Added your note" + extraLabel(imgTags) + " to the copy you already saved."
                             : "You've already saved this question — nothing to add.";
           } else {
             const params = { noteId: chosenNote.noteId, deck, addTags: [MISSED_TAG, chapTag] };
-            if (noteHtml) params.fieldAppends = { "Missed Questions": noteHtml };
+            if (noteHtml) { params.fieldAppends = { "Missed Questions": noteHtml }; params.addTags.push(PROTECT_TAG); }
             await bridge("copyNote", params);
             what = "Saved a copy to " + deckLeaf(deck) + (noteHtml ? " with your note" + extraLabel(imgTags) + "." : ".");
           }
         } else {
           const params = { noteId: chosenNote.noteId, addTags: [MISSED_TAG, chapTag] };
-          if (noteHtml) params.fieldAppends = { "Missed Questions": noteHtml };
+          if (noteHtml) { params.fieldAppends = { "Missed Questions": noteHtml }; params.addTags.push(PROTECT_TAG); }
           await bridge("updateNote", params);
           try { await bridge("unsuspend", { queries: [qidQuery(qid, sv)] }); } catch (e) {}
           if (missedMode === "move" && deck) {
@@ -2675,7 +2701,49 @@
       head.appendChild(pbtn("★ Save to Missed Qs", "mnx-save", () => openSaveDialog(qid)));
     }
     panel.appendChild(head);
+    addConfidenceRow(qid);
     if (currentNotes.length) addCardStatus(qid);
+  }
+
+  // A question you got RIGHT by guessing is the highest-yield thing to review,
+  // and no qbank records it — they only see "correct". One tap does.
+  const CONFIDENCE = [
+    ["knew", "Knew it", "You could explain why"],
+    ["guessed", "Guessed", "Right, but you weren't sure — review this"],
+    ["noidea", "No idea", "Flag it for a proper read"]
+  ];
+  function addConfidenceRow(qid) {
+    const panel = document.getElementById(PANEL_ID); if (!panel) return;
+    const row = document.createElement("div");
+    row.className = "mnx-conf";
+    const lbl = document.createElement("span");
+    lbl.className = "mnx-conf-lbl"; lbl.textContent = "How did that go?";
+    row.appendChild(lbl);
+    const slug = currentQbankSlug();
+    const current = (trackerLog.answered[slug + " " + qid] || {}).conf || null;
+    CONFIDENCE.forEach(([key, label, title]) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "mnx-conf-btn mnx-conf-" + key + (current === key ? " on" : "");
+      b.textContent = label; b.title = title;
+      b.addEventListener("click", onUserClick(() => {
+        setConfidence(qid, current === key ? null : key);
+        const again = panel.querySelector(".mnx-conf");
+        if (again) { again.remove(); addConfidenceRow(qid); }
+      }));
+      row.appendChild(b);
+    });
+    const headEl = panel.querySelector(".mnx-phead");
+    if (headEl && headEl.nextSibling) panel.insertBefore(row, headEl.nextSibling);
+    else panel.appendChild(row);
+  }
+  function setConfidence(qid, conf) {
+    const slug = currentQbankSlug();
+    const key = slug + " " + qid;
+    const e = trackerLog.answered[key] || (trackerLog.answered[key] = { ts: Date.now(), slug, qid });
+    if (conf) e.conf = conf; else delete e.conf;
+    saveLog();
+    if (conf === "guessed") toast("Noted — a right answer you weren't sure of counts as weak.");
   }
 
   // How ready are you for THIS question? The panel already knows which cards

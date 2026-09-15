@@ -102,6 +102,12 @@ const OPS = {
     taggedByStep: { "1": 4242, "2": 0, "3": 0 } }),
   setDeck: (a) => ({ moved: 2, deck: a.deck, created: false }),
   createDeck: (a) => ({ deck: a.deck, created: true }),
+  filteredDeck: (a) => ({ deck: a.name, cards: 37, search: a.search }),
+  missedIds: () => ([
+    { qid: "1633", chapter: "Respiratory", mod: 3 },
+    { qid: "1634", chapter: "Respiratory", mod: 2 },
+    { qid: "2101", chapter: "Cardiovascular", mod: 1 }
+  ]),
   copyNote: () => { state.savedCopies++; return 2222222222222; },
   updateNote: () => true,
   newNote: () => 3333333333333

@@ -404,6 +404,30 @@ function listenFree(server, from) {
   }
   console.log("");
 
+  // ---- the loop closes: retest what you missed, study what you missed ----
+  console.log("missed questions in the popup:");
+  {
+    const p = await ctx.newPage();
+    await p.goto(`chrome-extension://${extId}/popup.html`);
+    await p.waitForTimeout(1500);
+    const summary = (await p.textContent("#missedSummary")) || "";
+    check("popup", "lists saved missed questions by chapter", /3 saved across 2 chapters/.test(summary), summary.slice(0, 70));
+    const rows = await p.$$eval(".mlist .mrow .mname", (n) => n.map((x) => x.textContent));
+    check("popup", "groups them (" + rows.join(", ") + ")",
+      rows[0] === "All" && rows.indexOf("Respiratory") > 0);
+
+    const before = mock.calls().filter((c) => c.op === "filteredDeck").length;
+    await p.click("#missedStudy");
+    await p.waitForTimeout(800);
+    const fd = mock.calls().filter((c) => c.op === "filteredDeck").slice(-1)[0];
+    check("popup", "Study them builds a filtered deck from the missed tag",
+      mock.calls().filter((c) => c.op === "filteredDeck").length > before &&
+      !!fd && /tag:Mnestic::Missed/.test(fd.args.search || ""),
+      fd && fd.args.search);
+    await p.close();
+  }
+  console.log("");
+
   // The unanswered case, on every site: the panel must NOT appear.
   console.log("spoiler gate (unanswered):");
   const UNANSWERED = [
