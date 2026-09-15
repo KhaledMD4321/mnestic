@@ -70,6 +70,7 @@ it is the only place the two packages are published as a matched pair.
 <https://ankiweb.net/shared/mine> → the add-on → **Update** → upload
 `dist/mnestic_bridge.ankiaddon`.
 
+- Paste-ready copy is in `docs/ankiweb-listing.md`.
 - The **description** is markdown and is the add-on's whole landing page.
 - Anki's shared-add-on page has no version field: the uploaded file IS the
   version. Users get it through Tools → Add-ons → Check for Updates.
