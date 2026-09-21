@@ -21,6 +21,11 @@
     .pill.checking { background: #eef0f2; color: #667; }
     .hint { font-size: 11px; color: #8a8f98; margin-top: 6px; line-height: 1.45; }
     a { color: var(--mn); }
+    /* Recheck performs an action, so it is a button. Styled as a link because
+       that is what it reads as, but a screen reader now announces it correctly
+       and it cannot jump the page if the script fails to load. */
+    .linkish { background: none; border: 0; padding: 0; font: inherit;
+               color: var(--mn); text-decoration: underline; cursor: pointer; }
     hr { border: none; border-top: 1px solid #e6e9ec; margin: 12px 0; }
     body.dark hr { border-top-color: #333b49; }
     .trk { margin: 0 0 4px; }
@@ -178,7 +183,7 @@
   <hr>
   <div class="row">
     <span class="pill checking" id="pill"><span id="pillText">Checking…</span></span>
-    <a href="#" id="retry">Recheck</a>
+    <button type="button" class="linkish" id="retry">Recheck</button>
   </div>
 
   <!-- shown when the bridge is running but this browser isn't paired yet -->

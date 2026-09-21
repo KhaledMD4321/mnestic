@@ -121,9 +121,11 @@ async function scene(name, fn, { record = true, art, port, gif } = {}) {
   };
   // Paired, on Step 1, with a Missed Qs deck already chosen — the state someone
   // is in after setup, which is what the demos are about.
+  // The extension's real keys. `dark` is a boolean or "auto"; akToken, mnxStep
+  // and mnxKb are not keys it reads at all.
   await cfg({
-    bridgePort: port, akToken: "demo", mnxStep: 1, akMissedDeck: "Missed Qs",
-    mnxMissedMode: "move", mnxKb: true, mnxDark: "auto",
+    bridgePort: port, bridgeToken: "demo", sv: 1, akMissedDeck: "Missed Qs",
+    mnxMissedMode: "move", kbShortcuts: true, dark: "auto",
     akTrackerV2: seedTracker()
   });
 
