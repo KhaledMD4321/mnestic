@@ -91,6 +91,61 @@ const BANKS = [
   }
 ];
 
+// Text nobody can read is a bug the eye catches late and a number catches
+// immediately. Measures every text run in our UI against what is actually
+// painted behind it -- walking past a gradient would land on the page and
+// report a styled button as invisible, so a gradient counts as its own
+// backdrop. 4.5:1 is what body-size text needs.
+async function checkContrast(page, where) {
+  const hits = await page.evaluate(() => {
+    const lum = (c) => {
+      const [r, g, b] = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const parse = (s) => {
+      const m = (s || "").match(/rgba?\(([^)]+)\)/);
+      if (!m) return null;
+      const p = m[1].split(",").map((x) => parseFloat(x.trim()));
+      return { rgb: [p[0], p[1], p[2]], a: p.length > 3 ? p[3] : 1 };
+    };
+    const bgOf = (el) => {
+      for (let n = el; n; n = n.parentElement) {
+        const st = getComputedStyle(n);
+        if (st.backgroundImage && st.backgroundImage !== "none") return null;
+        const c = parse(st.backgroundColor);
+        if (c && c.a > 0.1) return c.rgb;
+      }
+      return [255, 255, 255];
+    };
+    const out = [], seen = new Set();
+    for (const el of document.querySelectorAll("*")) {
+      if (!el.closest("[id^='mnx-']")) continue;
+      if (![...el.childNodes].some((n) => n.nodeType === 3 && n.nodeValue.trim())) continue;
+      const st = getComputedStyle(el);
+      if (st.visibility === "hidden" || st.display === "none" || +st.opacity === 0) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2) continue;
+      const fg = parse(st.color);
+      if (!fg || fg.a < 0.1) continue;
+      const bg = bgOf(el);
+      if (!bg) continue;
+      const L1 = lum(fg.rgb), L2 = lum(bg);
+      const ratio = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
+      if (ratio >= 4.5) continue;
+      const key = String(el.className) + "|" + (el.textContent || "").slice(0, 20);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ ratio: Math.round(ratio * 100) / 100,
+        text: (el.textContent || "").trim().slice(0, 34),
+        cls: String(el.className || el.tagName).slice(0, 34) });
+    }
+    return out.slice(0, 6);
+  });
+  hits.forEach((h) => note(where, "text below 4.5:1 contrast",
+    h.ratio + "  \"" + h.text + "\"  " + h.cls));
+  if (!hits.length) ok("contrast clean");
+}
+
 // Anything drawn outside its own container, or spilling past the viewport, is a
 // visual bug whether or not a test asserts on it.
 async function checkLayout(page, where) {
@@ -119,6 +174,7 @@ async function checkLayout(page, where) {
   });
   bad.forEach((b) => note(where, b.what, b.el + " " + b.detail));
   if (!bad.length) ok("layout clean");
+  await checkContrast(page, where);
 }
 
 async function run() {

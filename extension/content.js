@@ -604,8 +604,19 @@
       --mnx-accent-ring:rgba(109,64,224,.30);
       --mnx-good:#1f9d57; --mnx-good-600:#178048; --mnx-warn:#d5891c; --mnx-bad:#dc4b45;
       --mnx-violet:#0ca5a0;
+      /* The two accent BUTTONS carry their own pair, because a token that works
+         as a bar or a label does not necessarily work under text. White on the
+         plain warn/violet measured 2.83 and 3.04 here, and 2.10 and 1.86 in
+         dark -- all under the 4.5 that body-size text needs. Light darkens the
+         background; dark keeps the light background and darkens the text. */
+      --mnx-hy-bg:#a46914; --mnx-on-hy:#ffffff;
+      --mnx-brk-bg:#078480; --mnx-on-brk:#ffffff;
+      /* good/warn/bad are tuned as FILLS. As text on our own surfaces they
+         measured 3.49 / 2.83 / 4.09, so percentages and labels get their own. */
+      --mnx-good-txt:#188448; --mnx-warn-txt:#a46914; --mnx-bad-txt:#ca453f;
+      --mnx-save-bg:#188448; --mnx-on-save:#ffffff;
       --mnx-surface:#ffffff; --mnx-surface-2:#f4f6fb; --mnx-elev:#ffffff;
-      --mnx-border:#e6e9f2; --mnx-text:#1c2333; --mnx-muted:#69718a; --mnx-ink:#232a45;
+      --mnx-border:#e6e9f2; --mnx-text:#1c2333; --mnx-muted:#656d85; --mnx-ink:#232a45;
       --mnx-r:16px; --mnx-r-sm:11px; --mnx-r-xs:8px; --mnx-r-pill:999px;
       --mnx-shadow:0 20px 48px -16px rgba(38,45,90,.34), 0 6px 16px -8px rgba(38,45,90,.18);
       --mnx-shadow-sm:0 2px 8px rgba(38,45,90,.12);
@@ -617,6 +628,11 @@
       --mnx-accent-ring:rgba(164,139,255,.34);
       --mnx-good:#3fbf78; --mnx-good-600:#35a95c; --mnx-warn:#e2a94a; --mnx-bad:#f0665e;
       --mnx-violet:#2dd4bf;
+      --mnx-hy-bg:#e2a94a; --mnx-on-hy:#2a1c05;
+      --mnx-brk-bg:#2dd4bf; --mnx-on-brk:#04302c;
+      /* on a dark ground these already clear 4.5 as text, so they stay */
+      --mnx-good-txt:#3fbf78; --mnx-warn-txt:#e2a94a; --mnx-bad-txt:#f0665e;
+      --mnx-save-bg:#3fbf78; --mnx-on-save:#04240f;
       --mnx-surface:#161a26; --mnx-surface-2:#1e2436; --mnx-elev:#212842;
       --mnx-border:#333c56; --mnx-text:#e8ecf6; --mnx-muted:#98a2bd; --mnx-ink:#f0f3fb;
       --mnx-shadow:0 24px 60px -18px rgba(0,0,0,.62), 0 8px 20px -10px rgba(0,0,0,.5);
@@ -632,8 +648,8 @@
     .mnx-btn:hover{filter:brightness(1.04);transform:translateY(-1px)}
     .mnx-btn:active{transform:translateY(0) scale(.985)}
     .mnx-btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring),var(--mnx-shadow-btn)}
-    .mnx-hy{background:var(--mnx-warn);box-shadow:0 5px 14px -4px rgba(213,137,28,.5),inset 0 1px 0 rgba(255,255,255,.2)}
-    .mnx-brkbtn{background:var(--mnx-violet);box-shadow:0 5px 14px -4px rgba(12,165,160,.5),inset 0 1px 0 rgba(255,255,255,.2)}
+    .mnx-hy{background:var(--mnx-hy-bg);color:var(--mnx-on-hy);box-shadow:0 5px 14px -4px rgba(213,137,28,.5),inset 0 1px 0 rgba(255,255,255,.2)}
+    .mnx-brkbtn{background:var(--mnx-brk-bg);color:var(--mnx-on-brk);box-shadow:0 5px 14px -4px rgba(12,165,160,.5),inset 0 1px 0 rgba(255,255,255,.2)}
     .mnx-qid-open{display:inline-flex;align-items:center;margin-left:8px;vertical-align:middle;background:linear-gradient(180deg,var(--mnx-accent),var(--mnx-accent-600));color:#fff;border:none;border-radius:var(--mnx-r-sm);padding:3px 11px;font:700 12px var(--mnx-font);cursor:pointer;line-height:1.5;white-space:nowrap;box-shadow:var(--mnx-shadow-btn);transition:transform .16s,filter .16s}
     .mnx-qid-open:hover{filter:brightness(1.06);transform:translateY(-1px)}
     .mnx-qid-open:active{transform:translateY(0) scale(.97)}
@@ -814,7 +830,7 @@
     #${PANEL_ID} .mnx-pbtn:hover{filter:brightness(.97);transform:translateY(-1px)}
     #${PANEL_ID} .mnx-pbtn:active{transform:translateY(0) scale(.98)}
     #${PANEL_ID} .mnx-pbtn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
-    #${PANEL_ID} .mnx-pbtn.mnx-save{background:var(--mnx-good);color:#fff;box-shadow:0 4px 12px -4px rgba(31,157,87,.5)}
+    #${PANEL_ID} .mnx-pbtn.mnx-save{background:var(--mnx-save-bg);color:var(--mnx-on-save);box-shadow:0 4px 12px -4px rgba(31,157,87,.5)}
     #${PANEL_ID} .mnx-pbtn.mnx-save:hover{filter:brightness(1.05)}
 
     /* modal system (preview / save / make card / breakdown) */
@@ -1158,7 +1174,9 @@
     arr.sort((a, b) => a.acc - b.acc || b.total - a.total);   // weakest first
     return arr;
   }
-  function accColor(a) { return a >= 0.75 ? "var(--mnx-good)" : a >= 0.5 ? "var(--mnx-warn)" : "var(--mnx-bad)"; }
+  // Text, not a bar — so the text-safe variants, which are darker in the light
+  // theme. The fill colours read 2.83 to 4.09 against our own surfaces.
+  function accColor(a) { return a >= 0.75 ? "var(--mnx-good-txt)" : a >= 0.5 ? "var(--mnx-warn-txt)" : "var(--mnx-bad-txt)"; }
   function openBreakdown() {
     const rows = blockRows();
     if (!rows.length) { toast("Couldn't read the results table — open the test results (and set the page size to All)."); return; }
