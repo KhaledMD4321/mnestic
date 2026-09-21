@@ -202,6 +202,28 @@ function listenFree(server, from) {
       return c ? c.textContent.trim() : null;
     });
     check(site.id, "right arrow turns the page", after === "2 / 3", "got " + after);
+
+    // The qbank listens for the same arrows to change QUESTION. preventDefault
+    // only cancels the browser's own default action, so paging a five-page
+    // topic used to press "next question" five times underneath, and you came
+    // out of the overlay several questions along.
+    await p.evaluate(() => {
+      window.__mnxPageArrows = 0;
+      const bump = () => { window.__mnxPageArrows++; };
+      // the shapes a qbank actually uses: document bubble, and window capture
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") bump();
+      });
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") bump();
+      });
+    });
+    await p.keyboard.press("ArrowRight");
+    await p.keyboard.press("ArrowLeft");
+    await p.waitForTimeout(300);
+    const leaked = await p.evaluate(() => window.__mnxPageArrows);
+    check(site.id, "overlay arrows do not also reach the qbank", leaked === 0,
+      "page saw " + leaked + " arrow key(s)");
     await p.keyboard.press("Escape");
 
     // 7. no javascript: link survived the deck sanitiser. Rows render their
@@ -364,6 +386,29 @@ function listenFree(server, from) {
     }));
     check("coursology", "the toolbar holds still while the page scrolls",
       settled.ok, "tops seen: " + JSON.stringify(settled.seen));
+
+    // A results table that blinks empty for a tick must not destroy the bar:
+    // rebuilding it loses the position it settled on, and it slides in from the
+    // top again -- which is the bounce, once per blink.
+    const survived = await p2.evaluate(() => new Promise((resolve) => {
+      const tbody = document.querySelector("tbody");
+      const rows = tbody ? [...tbody.children] : [];
+      const before = document.getElementById("mnx-float-toolbar");
+      const topBefore = before ? before.dataset.mnxTop : null;
+      rows.forEach((r) => r.remove());                       // blink empty
+      setTimeout(() => {
+        rows.forEach((r) => tbody.appendChild(r));           // and back
+        setTimeout(() => {
+          const after = document.getElementById("mnx-float-toolbar");
+          resolve({ stillThere: !!after,
+                    keptPlacement: !!after && after.dataset.mnxTop === topBefore,
+                    topBefore, topAfter: after ? after.dataset.mnxTop : null });
+        }, 1600);
+      }, 1200);
+    }));
+    check("coursology", "a table that blinks empty does not rebuild the toolbar",
+      survived.stillThere && survived.keptPlacement,
+      JSON.stringify(survived));
 
     if (ok) {
       const before = mock.calls().filter((c) => c.op === "openBrowser").length;

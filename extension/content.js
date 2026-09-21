@@ -524,9 +524,11 @@
     if (bar) { placeFloatingToolbar(bar); return bar; }
     bar = document.createElement("div");
     bar.id = "mnx-float-toolbar";
+    // No transition until it has been placed once: a new bar would otherwise
+    // animate in from the default offset every time it is rebuilt.
     bar.style.cssText = "position:fixed;top:74px;right:16px;z-index:2147483646;display:flex;gap:8px;" +
       "background:var(--mnx-surface);padding:6px;border-radius:var(--mnx-r-sm);border:1px solid var(--mnx-border);" +
-      "box-shadow:var(--mnx-shadow-sm);transition:top .2s ease";
+      "box-shadow:var(--mnx-shadow-sm)";
     document.body.appendChild(bar);
     placeFloatingToolbar(bar);
     return bar;
@@ -589,6 +591,8 @@
     // Write only on a real change: an unchanged value must not restart the
     // transition, or a once-a-second caller turns it into a jitter of its own.
     if (bar.style.top !== want + "px") bar.style.top = want + "px";
+    // Animate only from here on, once it has a home to move from.
+    if (first) requestAnimationFrame(() => { bar.style.transition = "top .2s ease"; });
   }
 
   // ---------- styles (tuned to blend with the qbank UI) ----------
@@ -1973,6 +1977,35 @@
     }
     renderOverlay(o, key, src.label);
   }
+  // While OUR overlay is open, the keys that drive it must not also reach the
+  // qbank. preventDefault() only cancels the browser's own default action --
+  // it does nothing to the page's listeners, so paging through a five-page
+  // First Aid topic was also pressing "next question" five times underneath,
+  // and you came out of the overlay several questions along.
+  //
+  // Capture on window fires before any capture listener on document, and
+  // stopImmediatePropagation ends the event there.
+  function overlayIsOpen() {
+    const o = document.getElementById(OVERLAY_ID);
+    return !!(o && o.style.display === "flex");
+  }
+  window.addEventListener("keydown", e => {
+    if (!e.isTrusted) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (!overlayIsOpen()) return;
+    const k = (e.key || "").toLowerCase();
+    if (k !== "arrowleft" && k !== "arrowright" && k !== "escape") return;
+    const o = document.getElementById(OVERLAY_ID);
+    if ((k === "arrowleft" || k === "arrowright") && o._mnxPage) {
+      o._mnxPage.show(k === "arrowright" ? 1 : -1);
+    } else if (k === "escape") {
+      hideOverlay();
+    } else return;                        // a single-page overlay: let it through
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+  }, true);
+
   document.addEventListener("keydown", e => {
     if (!e.isTrusted) return;            // page script must not drive the shortcuts
     const o = document.getElementById(OVERLAY_ID);
@@ -1980,9 +2013,12 @@
     if (k === "escape") { const su = document.getElementById(SUMMARY_ID); if (su && su.style.display === "flex") closeSummary(); if (o && o.style.display === "flex") hideOverlay(); return; }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     // Arrows page a multi-page overlay (a First Aid topic is often 4-5 pages).
+    // The window-capture handler above normally consumes these first; this
+    // stays as the fallback for anything that reaches the bubble phase.
     if (o && o.style.display === "flex" && o._mnxPage && (k === "arrowleft" || k === "arrowright")) {
       o._mnxPage.show(k === "arrowright" ? 1 : -1);
       e.preventDefault();
+      e.stopPropagation();
       return;
     }
     const tgt = e.target;
@@ -3414,12 +3450,23 @@
   }
 
   // ---------- main loop ----------
+  // A results table that re-renders -- pagination, virtual scrolling, a framework
+  // repaint -- can read as EMPTY for a tick. Removing the bar on that one tick
+  // and building it again on the next gives a brand-new element with none of the
+  // placement it had settled on, so it starts at the top and slides back down.
+  // Once a second, that is a bar bouncing. Let it miss a few ticks first.
+  const RESULTS_GRACE = 4;
+  let emptyTicks = 0;
+
   setInterval(() => {
     const hasResults = SITE.resultRows().length > 0;
+    emptyTicks = hasResults ? 0 : emptyTicks + 1;
     let toolbar = SITE.toolbar();
     if (!toolbar && hasResults) toolbar = ensureFloatingToolbar();
     if (toolbar && !document.getElementById(BTN_HOST_ID)) addButtons(toolbar);
-    if (!hasResults) { const fb = document.getElementById("mnx-float-toolbar"); if (fb) fb.remove(); }
+    if (emptyTicks > RESULTS_GRACE) {
+      const fb = document.getElementById("mnx-float-toolbar"); if (fb) fb.remove();
+    }
     const host = document.getElementById(BTN_HOST_ID);
     if (host) syncExpectedButton(host);
 
