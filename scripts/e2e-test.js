@@ -285,7 +285,23 @@ function listenFree(server, from) {
       ["7", "107", "Neurology", "fa-check"], ["8", "108", "Neurology", "fa-check"]
     ].map(([n, id, sys, icon]) =>
       `<tr><td>${n}</td><td>${id}</td><td>${sys}</td><td><i class="${icon}"></i></td></tr>`).join("");
-    const html = page(`<table><thead><tr><th>#</th><th>ID</th><th>System</th><th>Result</th></tr></thead>
+    // A row of site controls pinned top-right, like Coursology's own header.
+    // Without something the bar has to dodge, placeFloatingToolbar never moves
+    // it and the bounce this fixture exists to catch cannot happen.
+    const html = page(`
+      <div style="position:fixed;top:40px;right:20px;height:46px;display:flex;gap:10px;
+                  align-items:center;z-index:50;background:#fff">
+        <button style="width:34px;height:34px">A</button>
+        <button style="width:34px;height:34px">B</button>
+        <button style="width:34px;height:34px">C</button>
+      </div>
+      <!-- a control in NORMAL FLOW sitting in the bar's band: it scrolls away,
+           so the bar must ignore it rather than chase it -->
+      <div style="position:absolute;top:90px;right:24px">
+        <button style="width:120px;height:40px">Scrolls away</button>
+      </div>
+      <div style="height:1600px"></div>
+      <table><thead><tr><th>#</th><th>ID</th><th>System</th><th>Result</th></tr></thead>
       <tbody>${rowsHtml}</tbody></table>`);
     const p2 = await ctx.newPage();
     await p2.route("**/*", (r) => r.fulfill({ status: 200, contentType: "text/html", body: html }));
@@ -295,19 +311,59 @@ function listenFree(server, from) {
     try { await p2.waitForSelector("#mnx-float-toolbar", { timeout: 12000 }); ok = true; } catch (e) {}
     check("coursology", "results toolbar appears on a results table", ok);
 
-    // it must not sit on top of the site's own controls
-    const clear = await p2.evaluate(() => {
+    // it must not sit on top of the site's own controls.
+    // Placement waits for the bar's buttons, so it happens a tick after the bar
+    // appears -- wait for it rather than racing the loop.
+    try {
+      await p2.waitForFunction(
+        () => !!document.getElementById("mnx-float-toolbar")?.dataset.mnxPlaced,
+        { timeout: 8000 });
+    } catch (e) {}
+    await p2.waitForTimeout(400);           // let `transition: top` finish
+    const cover = await p2.evaluate(() => {
       const bar = document.getElementById("mnx-float-toolbar");
-      if (!bar) return false;
+      if (!bar) return { clear: false, why: "no bar" };
       const r = bar.getBoundingClientRect();
-      return ![...document.querySelectorAll("input,button,select")].some((el) => {
+      const hit = [...document.querySelectorAll("input,button,select")].find((el) => {
         if (el.closest("[id^='mnx-']")) return false;
         const b = el.getBoundingClientRect();
         return b.width > 8 && b.height > 8 &&
           b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top;
       });
+      const box = (e) => { const b = e.getBoundingClientRect();
+        return Math.round(b.top) + ".." + Math.round(b.bottom); };
+      return { clear: !hit,
+        why: "placed=" + bar.dataset.mnxPlaced + " settled=" + bar.dataset.mnxTop +
+             " styleTop=" + bar.style.top + " | " +
+             (hit ? ("bar " + box(bar) + " over " + (hit.textContent || "").trim() + " " + box(hit))
+                  : "bar " + box(bar)) };
     });
-    check("coursology", "toolbar does not cover the site's own controls", clear);
+    check("coursology", "toolbar does not cover the site's own controls", cover.clear, cover.why);
+
+    // The bar is position:fixed but used to dodge ANY control it overlapped,
+    // including ones in normal flow. Those scroll, so their viewport position
+    // changed every tick, the target moved with them, and the bar's own
+    // `transition: top` rendered the chase as a slow bounce. Scroll while
+    // watching it: a scrolling control must not drag the bar around.
+    const settled = await p2.evaluate(() => new Promise((resolve) => {
+      const bar = document.getElementById("mnx-float-toolbar");
+      if (!bar) return resolve({ ok: false, seen: [] });
+      const seen = [];
+      const t0 = Date.now();
+      let y = 0;
+      const id = setInterval(() => {
+        window.scrollTo(0, (y += 40) % 400);            // keep the page moving
+        seen.push(Math.round(bar.getBoundingClientRect().top));
+        if (Date.now() - t0 > 4200) {
+          clearInterval(id);
+          // Allow the first placement to settle, then require stillness.
+          const tail = seen.slice(-14);
+          resolve({ ok: new Set(tail).size === 1, seen: [...new Set(seen)] });
+        }
+      }, 120);
+    }));
+    check("coursology", "the toolbar holds still while the page scrolls",
+      settled.ok, "tops seen: " + JSON.stringify(settled.seen));
 
     if (ok) {
       const before = mock.calls().filter((c) => c.op === "openBrowser").length;

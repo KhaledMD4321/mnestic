@@ -533,19 +533,62 @@
   }
   // Parked at a fixed top-right offset, the bar landed straight on top of
   // Coursology's own search box. Drop below anything it would cover.
+  //
+  // Measure where the bar WOULD sit rather than actually moving it there. The
+  // first version wrote top=74px and then read the rect back, once a second,
+  // from the main loop. That read forces a style flush, so the browser commits
+  // 74px as the current value -- and the next write animates down from there
+  // through the bar's own `transition: top`. The result was a visible bounce
+  // every tick. The bar's left/right and height do not depend on its top, so
+  // the candidate rectangle can be worked out arithmetically instead.
+  const BAR_TOP = 74;
+  // Is this control pinned to the viewport, or does it scroll away with the page?
+  function isPinned(el) {
+    for (let n = el; n && n !== document.body; n = n.parentElement) {
+      const pos = getComputedStyle(n).position;
+      if (pos === "fixed" || pos === "sticky") return true;
+    }
+    return false;
+  }
+  // The bar settles. Its first placement clears whatever is on screen then --
+  // which is how it stopped landing on Coursology's search box -- and after that
+  // it will only ever yield FURTHER DOWN, for something pinned over it.
+  //
+  // It used to re-dodge every control every second. A control in normal flow
+  // scrolls, so its viewport position changed on every tick, the target moved
+  // with it, and the bar's `transition: top` rendered the chase as a slow bounce
+  // up and down. Only moving downward makes that impossible: there is no value
+  // for the bar to oscillate between.
   function placeFloatingToolbar(bar) {
-    bar.style.top = "74px";
     const r = bar.getBoundingClientRect();
-    if (r.width < 10) return;
+    // The bar is created empty and its buttons are added later in the loop. An
+    // empty one is still ~14px each way -- padding and border -- so a width test
+    // does NOT catch it, and measuring then gives a band only 14px tall that
+    // misses everything the full-height bar would cover. Wait for the buttons.
+    if (r.width < 10 || !bar.firstChild) return;
+    const first = !bar.dataset.mnxPlaced;
+    bar.dataset.mnxPlaced = "1";
+    const top = BAR_TOP, bottom = BAR_TOP + r.height;
     let lowest = 0;
     for (const el of document.querySelectorAll("input,button,select,textarea,a[role=button]")) {
       if (el.closest("[id^='mnx-']")) continue;
       const b = el.getBoundingClientRect();
       if (b.width < 8 || b.height < 8) continue;
-      const hits = b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top;
-      if (hits && b.bottom > lowest) lowest = b.bottom;
+      // Horizontal from the bar's real rect (its left/right never change);
+      // vertical against where the bar WOULD sit, so this never has to move the
+      // bar in order to measure it.
+      const hits = b.left < r.right && b.right > r.left && b.top < bottom && b.bottom > top;
+      if (!hits || b.bottom <= lowest) continue;
+      if (!first && !isPinned(el)) continue;
+      lowest = b.bottom;
     }
-    if (lowest > 0) bar.style.top = Math.round(lowest + 10) + "px";
+    let want = Math.round(lowest > 0 ? lowest + 10 : BAR_TOP);
+    const settled = parseInt(bar.dataset.mnxTop || "", 10);
+    if (!isNaN(settled) && want < settled) want = settled;      // never creep back up
+    bar.dataset.mnxTop = String(want);
+    // Write only on a real change: an unchanged value must not restart the
+    // transition, or a once-a-second caller turns it into a jitter of its own.
+    if (bar.style.top !== want + "px") bar.style.top = want + "px";
   }
 
   // ---------- styles (tuned to blend with the qbank UI) ----------
