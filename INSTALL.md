@@ -4,6 +4,10 @@ Written for friends — no coding needed. Takes about 5 minutes. You'll install
 two small pieces: an **Anki add-on** and a **browser extension**, then link them
 with a one-time code.
 
+**[▶️ There's also a 2-minute video](https://github.com/KhaledMD4321/mnestic/releases/download/v1.3.1/mnestic-tutorial.mp4)**
+covering what the extension actually does once it's installed, with every click
+highlighted on screen.
+
 ---
 
 ## Before you start

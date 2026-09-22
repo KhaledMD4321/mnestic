@@ -12,7 +12,7 @@
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-7c4dff?style=flat-square)](LICENSE)
 [![Buy me a coffee](https://img.shields.io/badge/%E2%98%95-Buy%20me%20a%20coffee-d5891c?style=flat-square)](https://buymeacoffee.com/bnkhaled)
 
-[**📖 Extension guide**](docs/guide.md) · [**🔌 Add-on guide**](docs/addon-guide.md) · [**Install**](#install) · [**Features**](#what-it-does) · [**Privacy**](PRIVACY.md)
+[**▶️ Watch the 2-minute walkthrough**](https://github.com/KhaledMD4321/mnestic/releases/download/v1.3.1/mnestic-tutorial.mp4) · [**📖 Extension guide**](docs/guide.md) · [**🔌 Add-on guide**](docs/addon-guide.md) · [**Install**](#install) · [**Features**](#what-it-does) · [**Privacy**](PRIVACY.md)
 
 </div>
 

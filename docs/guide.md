@@ -7,9 +7,11 @@
 
 Everything Mnestic does, in the order you'll meet it.
 
-**New here?** Do [Setup](#1-setup) and [Check your ids match](#2-check-your-ids-match)
-first — the second takes 30 seconds and tells you whether this will work for your
-deck at all.
+**New here?** [▶️ Watch the 2-minute walkthrough](https://github.com/KhaledMD4321/mnestic/releases/download/v1.3.1/mnestic-tutorial.mp4)
+first — it's faster than reading, and every click is highlighted so you can see
+exactly what's being pressed. Then do [Setup](#1-setup) and
+[Check your ids match](#2-check-your-ids-match), which takes 30 seconds and
+tells you whether this will work for your deck at all.
 
 ---
 
