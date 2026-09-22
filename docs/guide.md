@@ -22,7 +22,7 @@ If you only read one table, read this one.
 | | What it does | Key |
 |---|---|:---:|
 | **Resource panel** | The resources your own card links to — First Aid, Sketchy, Physeo, OME, B&B, Picmonic — one collapsed line each, with the topics covered | |
-| **Image overlays** | That resource's images, over the question. Multi-page topics page with the arrows | **F S P O E A** |
+| **Image overlays** | That resource's images, over the question — press its key or click the key badge on its row. Multi-page topics page with the arrows | **F S P O E A** |
 | **Card readiness** | How the matching cards stand: mature, young, learning, suspended — with one-click **Unsuspend** | |
 | **Preview** | Read the matched card as Anki renders it, clozes revealed, images inline | |
 | **Open in Anki** | This question's cards in Anki's Browse window | **D** |
@@ -165,8 +165,8 @@ Step 2 and Step 3 resources show alongside the Step 1 ones.
 
 ### Image overlays — the one you'll use every question
 
-With the explanation open, press a key and that resource's images appear **over
-the question**:
+With the explanation open, press a key — or click the little key badge on that
+resource's row — and its images appear **over the question**:
 
 | Key | Resource |
 |:---:|---|
@@ -190,8 +190,9 @@ A line under the buttons says how the matching cards actually stand —
 
 ### Quick open in Anki
 
-A small **Anki** button beside the question id opens that question's cards in
-Anki's Browser. (Shortcut: **D**.)
+Once you've answered, a small **Anki** button appears beside the question id and
+opens that question's cards in Anki's Browser. (Shortcut: **D**.) It stays hidden
+while a question is unanswered — those cards are the answer.
 
 ---
 
@@ -410,8 +411,15 @@ your own.
 
 ## 9. Keyboard shortcuts
 
-On the question page, once the explanation is open. Ignored while you're typing in
-a field. Turn them off in the popup.
+They only work once you've **answered** and the panel is showing. Before that,
+every key goes straight to your qbank untouched — so a letter key still picks an
+answer, and nothing can open Anki on a question you haven't answered yet.
+
+When a shortcut does fire, it's ours alone: the qbank doesn't also react to it.
+Ignored while you're typing in a field.
+
+**Turn them all off** in the popup (*Keyboard shortcuts*). The images stay one
+click away on each row's key badge.
 
 | Key | Action |
 |:---:|---|

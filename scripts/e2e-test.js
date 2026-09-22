@@ -225,6 +225,44 @@ function listenFree(server, from) {
     check(site.id, "overlay arrows do not also reach the qbank", leaked === 0,
       "page saw " + leaked + " arrow key(s)");
     await p.keyboard.press("Escape");
+    await p.waitForTimeout(250);
+
+    // Once answered, a key we act on is ours: the qbank must not also act on
+    // it. Same class as the arrows, for the letter shortcuts.
+    await p.evaluate(() => {
+      window.__mnxPageLetters = 0;
+      const bump = (e) => { if ("dfDF".indexOf(e.key) >= 0) window.__mnxPageLetters++; };
+      document.addEventListener("keydown", bump);
+      window.addEventListener("keydown", bump);
+    });
+    const beforeD = mock.calls().filter((c) => c.op === "openBrowser").length;
+    await p.keyboard.press("d");                          // open in Anki
+    await p.waitForTimeout(500);
+    await p.keyboard.press("f");                          // First Aid overlay
+    await p.waitForTimeout(700);
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(250);
+    const letters = await p.evaluate(() => window.__mnxPageLetters);
+    const openedD = mock.calls().filter((c) => c.op === "openBrowser").length > beforeD;
+    check(site.id, "answered: D reaches Anki and the qbank never sees D or F",
+      openedD && letters === 0, "opened=" + openedD + ", page saw " + letters + " letter key(s)");
+
+    // The images used to be keyboard-only. The key badge on each row now opens
+    // them too -- without also toggling the row it sits in.
+    const badge = p.locator("#mnx-resources button.mnx-r-key", { hasText: "F" }).first();
+    if (await badge.count()) {
+      const rowWasOpen = await badge.evaluate((b) => b.closest("section.mnx-r").classList.contains("open"));
+      await badge.click();
+      let byClick = false;
+      try { await p.waitForSelector("#mnx-overlay", { state: "visible", timeout: 5000 }); byClick = true; } catch (e) {}
+      const rowNowOpen = await badge.evaluate((b) => b.closest("section.mnx-r").classList.contains("open"));
+      check(site.id, "clicking a resource's key badge opens its images",
+        byClick && rowWasOpen === rowNowOpen, "overlay=" + byClick + ", row toggled=" + (rowWasOpen !== rowNowOpen));
+      await p.keyboard.press("Escape");
+      await p.waitForTimeout(250);
+    } else {
+      check(site.id, "clicking a resource's key badge opens its images", false, "no F badge rendered");
+    }
 
     // 7. no javascript: link survived the deck sanitiser. Rows render their
     //    body lazily, so open every one first or this asserts nothing.
@@ -744,6 +782,40 @@ function listenFree(server, from) {
   console.log("");
 
   // The unanswered case, on every site: the panel must NOT appear.
+  // The popup's "Keyboard shortcuts" toggle used to leave F/S/P/O/E/A live,
+  // because the images had no other way in. With the key badge clickable, off
+  // now means off -- and the images are still one click away.
+  console.log("shortcuts toggle:");
+  {
+    await setCfg({ kbShortcuts: false });
+    const p = await ctx.newPage();
+    await p.route("**/*", (r) => r.fulfill({ status: 200, contentType: "text/html", body: SITES[0].html }));
+    await p.goto(SITES[0].url, { waitUntil: "domcontentloaded" });
+    await p.waitForSelector("#mnx-resources", { timeout: 15000 });
+    await p.waitForTimeout(1200);
+    const before = mock.calls().filter((c) => c.op === "openBrowser").length;
+    await p.keyboard.press("f");
+    await p.keyboard.press("d");
+    await p.waitForTimeout(800);
+    const overlayByKey = await p.evaluate(() => {
+      const o = document.getElementById("mnx-overlay");
+      return !!(o && o.style.display === "flex");
+    });
+    const anki = mock.calls().filter((c) => c.op === "openBrowser").length > before;
+    check("toggle", "with shortcuts off, F and D do nothing", !overlayByKey && !anki,
+      "overlay=" + overlayByKey + ", openBrowser=" + anki);
+    const badge = p.locator("#mnx-resources button.mnx-r-key", { hasText: "F" }).first();
+    let byClick = false;
+    if (await badge.count()) {
+      await badge.click();
+      try { await p.waitForSelector("#mnx-overlay", { state: "visible", timeout: 5000 }); byClick = true; } catch (e) {}
+    }
+    check("toggle", "with shortcuts off, the key badge still opens the images", byClick);
+    await p.close();
+    await setCfg({ kbShortcuts: true });
+  }
+  console.log("");
+
   console.log("spoiler gate (unanswered):");
   const UNANSWERED = [
     ["coursology", "https://coursology-qbank.com/qbanks/usmle1/test/1",
@@ -763,6 +835,29 @@ function listenFree(server, from) {
     await p.waitForTimeout(3000);
     const shown = await p.$("#mnx-resources");
     check(id, "no resource panel before answering", !shown);
+    // The quick-open button beside the question id opens Anki on this
+    // question's cards. Shown mid-test, it is one click from the answer.
+    const quick = await p.$("#mnx-qid-open");
+    check(id, "no Anki quick-open button before answering", !quick);
+
+    // The panel is gated, but the KEYBOARD must be too. The header carries the
+    // question id during a test, so a shortcut that only checks for an id can
+    // fire mid-question -- and D opens Anki on this question's cards, which is
+    // the answer. On a bank where letters pick a choice, choosing D does it by
+    // accident. Nothing may reach Anki, and no dialog may open, until answered.
+    const before = mock.calls().length;
+    for (const key of ["d", "q", "v", "g", "f", "s"]) {
+      await p.keyboard.press(key);
+      await p.waitForTimeout(150);
+    }
+    await p.waitForTimeout(700);
+    const reached = mock.calls().slice(before)
+      .filter((c) => c.op !== "ping" && c.op !== "auth" && c.op !== "status")
+      .map((c) => c.op);
+    const dialog = await p.$("#mnx-md-overlay, #mnx-overlay[style*='flex']");
+    check(id, "shortcuts do nothing before answering (no Anki call, no dialog)",
+      !reached.length && !dialog,
+      "reached Anki: " + JSON.stringify(reached) + (dialog ? " + a dialog opened" : ""));
     await p.close();
   }
 

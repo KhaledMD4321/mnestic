@@ -12,12 +12,22 @@ dist/mnestic_bridge.ankiaddon   -> AnkiWeb
 
 ## 0. Before you build
 
-Bump BOTH versions, in the same commit, to the same number:
+Bump the version of **whichever half changed**:
 
 | File | Field |
 |---|---|
 | `extension/manifest.json` | `"version"` |
 | `anki-addon/mnestic_bridge/__init__.py` | `ADDON_VERSION` |
+
+When both change, bump both to the same number. When only one does, bump only
+that one -- re-uploading an unchanged add-on to AnkiWeb just to keep numbers in
+step pushes every user an update that does nothing. 1.3.1 is the example: the
+extension moved, the add-on stayed at 1.3.0.
+
+**The Chrome Web Store will not take a version it has already published.** Once
+a version is live there, the next upload must be higher. A version that was only
+*submitted* and then cancelled is a grey area -- use the next number rather than
+find out.
 
 ## 1. Verify
 

@@ -721,7 +721,11 @@
     #${PANEL_ID} .mnx-r.open .mnx-r-peek{opacity:0}
     #${PANEL_ID} .mnx-r-body{padding:2px 13px 12px 26px;animation:mnx-rise .2s cubic-bezier(.2,.7,.3,1) both}
     #${PANEL_ID} .mnx-r-key{flex:none;font-size:10.5px;font-weight:700;color:var(--mnx-accent);
-      background:var(--mnx-accent-soft);border-radius:var(--mnx-r-xs);padding:1px 5px;letter-spacing:.02em}
+      background:var(--mnx-accent-soft);border-radius:var(--mnx-r-xs);padding:1px 5px;letter-spacing:.02em;
+      border:none;font-family:inherit;line-height:inherit;cursor:pointer;transition:filter .14s,transform .12s}
+    #${PANEL_ID} .mnx-r-key:hover{filter:brightness(.94)}
+    #${PANEL_ID} .mnx-r-key:active{transform:scale(.94)}
+    #${PANEL_ID} .mnx-r-key:focus-visible{outline:2px solid var(--mnx-accent-ring);outline-offset:1px}
 
     /* ---- how confident were you, really ---- */
     #${PANEL_ID} .mnx-recall{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:8px 13px;
@@ -1755,10 +1759,15 @@
     // Right beside the name, so the shortcut is learned by association.
     const key = Object.keys(IMG_SOURCES).find(k => IMG_SOURCES[k].label === row.R.label);
     if (key) {
-      const kb = document.createElement("span");
+      const kb = document.createElement("button");
+      kb.type = "button";
       kb.className = "mnx-r-key";
       kb.textContent = key;
-      kb.title = "Press " + key + " to overlay these images";
+      kb.title = "Show these images over the question (or press " + key + ")";
+      kb.setAttribute("aria-label", "Show " + row.R.label + " images");
+      // The images were keyboard-only, which also meant the shortcuts toggle
+      // could never switch F/S/P/O off without hiding the feature entirely.
+      kb.addEventListener("click", onUserClick((e) => { e.stopPropagation(); showImages(key); }));
       head.appendChild(kb);
     }
     head.append(count, peek);
@@ -1789,7 +1798,10 @@
     // Each row now shows its own key badge, so this is a nudge, not a legend.
     let any = false;
     for (const k in IMG_SOURCES) if (currentFiles[k] && currentFiles[k].length) { any = true; break; }
-    let txt = any ? "Press a resource's key for its images · Esc closes" : "";
+    let txt = any
+      ? (kbShortcuts ? "Press a resource's key, or click it, for its images · Esc closes"
+                     : "Click a resource's key for its images · Esc closes")
+      : "";
     if (kbShortcuts) txt += (txt ? "   ·   " : "") + "? for all shortcuts";
     if (!txt) return;
     const n = document.createElement("div");
@@ -2014,46 +2026,50 @@
     const k = (e.key || "").toLowerCase();
     if (k !== "arrowleft" && k !== "arrowright" && k !== "escape") return;
     const o = document.getElementById(OVERLAY_ID);
-    if ((k === "arrowleft" || k === "arrowright") && o._mnxPage) {
-      o._mnxPage.show(k === "arrowright" ? 1 : -1);
-    } else if (k === "escape") {
-      hideOverlay();
-    } else return;                        // a single-page overlay: let it through
+    if (k === "escape") hideOverlay();
+    else if (o._mnxPage) o._mnxPage.show(k === "arrowright" ? 1 : -1);
+    // A single-page overlay has nothing to turn, but the arrow still must not
+    // reach the page: the question would change underneath the overlay.
     e.preventDefault();
     e.stopPropagation();
     e.stopImmediatePropagation();
   }, true);
 
-  document.addEventListener("keydown", e => {
+  // The keyboard obeys the same rule as the panel: nothing until the question is
+  // answered and its panel is up. The header carries the question id DURING a
+  // test, so checking for an id alone let D open Anki on this question's own
+  // cards mid-question -- the answer -- and on a bank where letters pick a
+  // choice, choosing D did it by accident. Before that point every key goes to
+  // the qbank untouched.
+  //
+  // Once we act on a key we claim it outright: capture phase on window, then
+  // stopImmediatePropagation, so the qbank never also acts on it.
+  window.addEventListener("keydown", e => {
     if (!e.isTrusted) return;            // page script must not drive the shortcuts
-    const o = document.getElementById(OVERLAY_ID);
     const k = (e.key || "").toLowerCase();
-    if (k === "escape") { const su = document.getElementById(SUMMARY_ID); if (su && su.style.display === "flex") closeSummary(); if (o && o.style.display === "flex") hideOverlay(); return; }
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
-    // Arrows page a multi-page overlay (a First Aid topic is often 4-5 pages).
-    // The window-capture handler above normally consumes these first; this
-    // stays as the fallback for anything that reaches the bubble phase.
-    if (o && o.style.display === "flex" && o._mnxPage && (k === "arrowleft" || k === "arrowright")) {
-      o._mnxPage.show(k === "arrowright" ? 1 : -1);
-      e.preventDefault();
-      e.stopPropagation();
+    const claim = () => { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); };
+    if (k === "escape") {
+      const su = document.getElementById(SUMMARY_ID);
+      if (su && su.style.display === "flex") { closeSummary(); claim(); }
       return;
     }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
     const tgt = e.target;
     const tag = ((tgt && tgt.tagName) || "").toLowerCase();
-    if (tag === "input" || tag === "textarea" || (tgt && tgt.isContentEditable)) return;
+    if (tag === "input" || tag === "textarea" || tag === "select" || (tgt && tgt.isContentEditable)) return;
     if (document.getElementById("mnx-md-overlay")) return;   // a dialog is open — don't hijack keys
-    if (e.key === "?") { showShortcutHelp(); e.preventDefault(); return; }
+    if (!kbShortcuts) return;            // the toggle turns ALL of them off; overlays stay a click away
+    if (!lastQid || !isAnswered()) return;
+    if (e.key === "?") { showShortcutHelp(); claim(); return; }
     if (k.length !== 1) return;
     const up = k.toUpperCase();
-    if (IMG_SOURCES[up]) { showImages(up); return; }          // F/S/P/O/E/A image overlays
-    if (!kbShortcuts) return;
-    const qid = findQid();
-    if (up === "G") { openMakeCardDialog(String((window.getSelection && window.getSelection()) || "")); e.preventDefault(); }        // make card
-    else if (up === "Q" && qid) { copyFullQuestion(qid); e.preventDefault(); }                                                      // copy for AI
-    else if (up === "V" && qid) { openSaveDialog(qid); e.preventDefault(); }                                                        // save to Missed Qs
-    else if (up === "D" && qid) { openInAnki(qid); e.preventDefault(); }                                                            // open in Anki
-  });
+    const qid = lastQid;
+    if (IMG_SOURCES[up]) { showImages(up); claim(); }                                                   // F/S/P/O/E/A image overlays
+    else if (up === "G") { openMakeCardDialog(String((window.getSelection && window.getSelection()) || "")); claim(); }   // make card
+    else if (up === "Q") { copyFullQuestion(qid); claim(); }                                            // copy for AI
+    else if (up === "V") { openSaveDialog(qid); claim(); }                                              // save to Missed Qs
+    else if (up === "D") { openInAnki(qid); claim(); }                                                  // open in Anki
+  }, true);
   // small keyboard cheatsheet (press ?)
   function showShortcutHelp() {
     const m = buildModal("Keyboard shortcuts");
@@ -3287,7 +3303,11 @@
   function ensureQidButton() {
     const qid = findQid();
     const existing = document.getElementById(QID_BTN_ID);
-    if (!qid) { if (existing) existing.remove(); return; }
+    // The question id sits in the header for every question of a test, so an
+    // id alone put this button beside every UNANSWERED question -- one click
+    // from opening Anki on its own cards, which is the answer. It follows the
+    // panel's rule now: nothing until the question is answered.
+    if (!qid || !isAnswered()) { if (existing) existing.remove(); return; }
     if (existing) { existing.dataset.qid = qid; return; }   // keep button, just refresh target
     const btn = document.createElement("button");
     btn.id = QID_BTN_ID; btn.type = "button"; btn.className = "mnx-qid-open";
