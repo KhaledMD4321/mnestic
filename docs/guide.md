@@ -7,6 +7,9 @@
 
 Everything Mnestic does, in the order you'll meet it.
 
+**Just curious?** The [1:46 promo](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-promo.mp4)
+shows the whole idea.
+
 **New here?** [▶️ Watch the 7-minute walkthrough](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-real-walkthrough.mp4)
 first — it's faster than reading, it's recorded on a real qbank, and every click
 and key is highlighted so you can see exactly what's being pressed. Each section

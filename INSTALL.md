@@ -7,7 +7,9 @@ with a one-time code.
 **[▶️ There's also a 7-minute video](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-real-walkthrough.mp4)**
 of what the extension does once it's installed, recorded on a real qbank with
 every click and key highlighted on screen. Prefer it feature by feature? See the
-[feature tour](README.md#feature-tour).
+[feature tour](README.md#feature-tour), or the
+[1:46 promo](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-promo.mp4)
+for the short version.
 
 ---
 

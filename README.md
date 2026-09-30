@@ -12,7 +12,7 @@
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-7c4dff?style=flat-square)](LICENSE)
 [![Buy me a coffee](https://img.shields.io/badge/%E2%98%95-Buy%20me%20a%20coffee-d5891c?style=flat-square)](https://buymeacoffee.com/bnkhaled)
 
-[**▶️ Watch the full walkthrough (7 min)**](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-real-walkthrough.mp4) · [**🎞️ Feature tour**](#feature-tour) · [**📖 Extension guide**](docs/guide.md) · [**🔌 Add-on guide**](docs/addon-guide.md) · [**Install**](#install) · [**Privacy**](PRIVACY.md)
+[**▶️ Promo (1:46)**](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-promo.mp4) · [**🎬 Full walkthrough (7 min)**](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-real-walkthrough.mp4) · [**🎞️ Feature tour**](#feature-tour) · [**📖 Extension guide**](docs/guide.md) · [**🔌 Add-on guide**](docs/addon-guide.md) · [**Install**](#install) · [**Privacy**](PRIVACY.md)
 
 </div>
 
@@ -27,11 +27,13 @@ your study pace.
 Everything runs on your own computer, through a small local link to your own Anki.
 **No server, no account, no telemetry.**
 
-![Pressing F opens the question's First Aid pages right over the question, paged with the arrow keys](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/02a-first-aid-images.gif)
+<div align="center">
 
-<div align="center"><sub>Recorded on a real qbank, with the real extension and a real Anki — no
-mock-ups. Every feature has its own clip in the <a href="#feature-tour">feature tour</a>.
-See <a href="#content--copyright">Content &amp; copyright</a>.</sub></div>
+[![Watch the 1:46 promo: everything, on the question](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/promo-thumbnail.png)](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-promo.mp4)
+
+<sub>**New to Mnestic?** The [1:46 promo](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-promo.mp4) shows the whole idea — then the [feature tour](#feature-tour) below shows each feature on a real qbank.</sub>
+
+</div>
 
 ---
 
@@ -100,8 +102,9 @@ Claude or Gemini.
 ## Feature tour
 
 Nine short clips, in the order you'll meet each feature. They were recorded on a
-real qbank, with the real extension and a real Anki. Each one is also available
-as a sharper **MP4**, and all of them together as one
+real qbank, with the real extension and a real Anki — no mock-ups (see
+[Content & copyright](#content--copyright)). Each one is also available as a
+sharper **MP4**, and all of them together as one
 [**7-minute walkthrough**](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-real-walkthrough.mp4) —
 see the [tutorial media release](https://github.com/KhaledMD4321/mnestic/releases/tag/tutorial-media).
 
