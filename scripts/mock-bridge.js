@@ -73,7 +73,7 @@ const seen = [];   // every {op,args} the extension sent — asserted on by the 
 // Test knobs, so a run can simulate a real collection's state:
 //   onlyStep    - the deck only has tags for this step (exercises step fallback)
 //   savedCopies - how many "Missed Qs" copies exist (exercises the dup guard)
-const state = { onlyStep: null, savedCopies: 0, oldAddon: false, slowDecks: 0, emptyFiltered: false,
+const state = { onlyStep: null, savedCopies: 0, oldAddon: false, slowDecks: 0, slowNoteInfo: 0, emptyFiltered: false,
                 savedTagged: 0, lastRemoveTags: null, lastDeleted: null, refuseDelete: false,
                 cardElsewhere: false };
 
@@ -165,6 +165,8 @@ const server = http.createServer((req, res) => {
       const payload = JSON.stringify({ ok: true, data: fn(msg.args || {}) });
       // let a test reproduce "user saved before the deck list arrived"
       if (msg.op === "listDecks" && state.slowDecks) setTimeout(() => res.end(payload), state.slowDecks);
+      // ...and "a panel build still in flight when the next tick looks"
+      else if (msg.op === "noteInfo" && state.slowNoteInfo) setTimeout(() => res.end(payload), state.slowNoteInfo);
       else res.end(payload);
     }
     catch (e) { res.end(JSON.stringify({ ok: false, error: String(e) })); }

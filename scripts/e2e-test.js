@@ -172,6 +172,21 @@ function listenFree(server, from) {
     const warmed = mock.calls().filter((c) => c.op === "readMedia").length;
     check(site.id, "images prefetched before any keypress (" + warmed + " fetched)", warmed > 0);
 
+    // 5c. the qbank can re-render the explanation and take the panel with it
+    //     (Coursology does when its question rail is toggled). The id hasn't
+    //     changed, so the panel must come back on its own -- built once, not
+    //     once a tick while a slow Anki call is still in flight.
+    const builds = () => mock.calls().filter((c) => c.op === "noteInfo").length;
+    const beforeRe = builds();
+    mock.state.slowNoteInfo = 2600;          // the rebuild spans two or three ticks
+    await p.evaluate(() => document.getElementById("mnx-resources").remove());
+    let back = false;
+    try { await p.waitForSelector("#mnx-resources", { timeout: 8000 }); back = true; } catch (e) {}
+    mock.state.slowNoteInfo = 0;
+    await p.waitForTimeout(3000);
+    check(site.id, "panel comes back after the page re-renders it away, built once",
+      back && builds() - beforeRe === 1, "back=" + back + ", rebuilds=" + (builds() - beforeRe));
+
     // 6. pressing F opens the First Aid overlay
     await p.keyboard.press("f");
     let overlay = false;
@@ -694,6 +709,63 @@ function listenFree(server, from) {
 
     mock.state.savedCopies = 0; mock.state.savedTagged = 0;
     await setCfg({ mnxMissedMode: "move" });
+  }
+  console.log("");
+
+  // ---- make a card from the explanation: selection -> chip -> Anki ----
+  // "Create card" once threw a ReferenceError and did nothing at all, with no
+  // message, so this drives the dialog all the way to the newNote call.
+  console.log("make a card:");
+  {
+    async function openFromSelection() {
+      const p = await ctx.newPage();
+      await p.route("**/*", (r) => r.fulfill({ status: 200, contentType: "text/html", body: SITES[0].html }));
+      await p.goto(SITES[0].url, { waitUntil: "domcontentloaded" });
+      await p.waitForSelector("#mnx-resources", { timeout: 15000 });
+      await p.evaluate(() => {
+        const para = document.querySelector("#question-explanation p");
+        const r = document.createRange();
+        r.setStart(para.firstChild, 0); r.setEnd(para.firstChild, 22);        // "Explanation body text."
+        getSelection().removeAllRanges(); getSelection().addRange(r);
+        para.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+      });
+      await p.locator("#mnx-selchip").click({ timeout: 6000 });
+      await p.waitForSelector("#mnx-md-overlay textarea", { timeout: 6000 });
+      await p.waitForTimeout(500);                                          // the deck list
+      return p;
+    }
+    const made = () => mock.calls().filter((c) => c.op === "newNote");
+
+    let p = await openFromSelection();
+    const prefill = await p.locator("#mnx-md-overlay textarea").first().inputValue();
+    await p.evaluate(() => { const ta = document.querySelector("#mnx-md-overlay textarea"); ta.focus(); ta.setSelectionRange(12, 16); });
+    await p.locator("#mnx-md-overlay button", { hasText: "Make cloze" }).click({ timeout: 6000 });
+    const before = made().length;
+    await p.locator("#mnx-md-overlay .mnx-md-ok").last().click({ timeout: 6000 });
+    await p.waitForTimeout(900);
+    const call = made().slice(-1)[0];
+    const toastText = (await p.locator(".mnx-toast").last().textContent().catch(() => "")) || "";
+    check("make card", "the selection pre-fills the card", prefill === "Explanation body text.", prefill);
+    check("make card", "Create card reaches Anki as a cloze into the chosen deck",
+      made().length === before + 1 && call.args.kind === "cloze" &&
+      /\{\{c1::body\}\}/.test(call.args.text || "") && !!call.args.deck,
+      call ? JSON.stringify({ kind: call.args.kind, deck: call.args.deck, text: call.args.text }) : "no newNote call");
+    check("make card", "it says so, and the dialog closes",
+      /created a cloze card/i.test(toastText) && !(await p.locator("#mnx-md-overlay").count()), toastText);
+    await p.close();
+
+    // a deck typed by hand goes where it was typed
+    p = await openFromSelection();
+    await p.locator("#mnx-md-overlay select").selectOption("➕ New deck…");
+    await p.locator("#mnx-md-overlay input[type=text]").fill("Missed Qs::Made by hand");
+    await p.locator("#mnx-md-overlay .mnx-seg button", { hasText: "Basic" }).click();
+    await p.locator("#mnx-md-overlay .mnx-md-ok").last().click({ timeout: 6000 });
+    await p.waitForTimeout(900);
+    const call2 = made().slice(-1)[0];
+    check("make card", "a new deck typed by hand is where the card goes",
+      call2 && call2 !== call && call2.args.deck === "Missed Qs::Made by hand" && call2.args.kind === "basic",
+      call2 ? JSON.stringify({ kind: call2.args.kind, deck: call2.args.deck }) : "no newNote call");
+    await p.close();
   }
   console.log("");
 

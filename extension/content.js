@@ -1405,6 +1405,7 @@
   function emptyFiles() { const o = {}; for (const k in IMG_SOURCES) o[k] = []; return o; }
   function emptyUris() { const o = {}; for (const k in IMG_SOURCES) o[k] = null; return o; }
   let lastQid = null;
+  let buildingQid = null;
   let currentFiles = emptyFiles();
   let cachedUris = emptyUris();
   let currentNotes = [];          // AnKing notes matched to the current QID (for preview / save)
@@ -3196,11 +3197,11 @@
     }
     sel.addEventListener("change", () => {
       newWrap.style.display = sel.value === NEW_OPT ? "block" : "none";
-      refreshDest();
     });
+    function targetDeck() { return sel.value === NEW_OPT ? newInput.value.trim() : sel.value; }
     if (deckCache) fillDecks(deckCache);
     else {
-      const o = document.createElement("option"); o.textContent = "Loading decks…"; sel.appendChild(o);
+      const o = document.createElement("option"); o.value = ""; o.textContent = "Loading decks…"; sel.appendChild(o);
       bridge("listDecks").then(d => { deckCache = d || []; fillDecks(deckCache); })
         .catch(e => { sel.replaceChildren(); const oo = document.createElement("option"); oo.value = NEW_OPT; oo.textContent = NEW_OPT; sel.appendChild(oo); newWrap.style.display = "block"; toast("Couldn't list decks (" + e + ")"); });
     }
@@ -3517,7 +3518,15 @@
     const qid = answered ? findQid() : null;
     const ready = qid && answered;
     if (ready) {
-      if (qid !== lastQid) { lastQid = qid; buildTable(qid); }
+      // The qbank can re-render the explanation under us (Coursology does when
+      // its question rail is toggled), taking the panel with it while the id
+      // stays the same -- so a missing panel is a reason to rebuild too.
+      const gone = !document.getElementById(PANEL_ID) && buildingQid !== qid;
+      if (qid !== lastQid || gone) {
+        lastQid = qid;
+        buildingQid = qid;
+        buildTable(qid).finally(() => { if (buildingQid === qid) buildingQid = null; });
+      }
     } else {
       lastQid = null;
       currentFiles = emptyFiles();
