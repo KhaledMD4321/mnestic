@@ -7,9 +7,10 @@
 
 Everything Mnestic does, in the order you'll meet it.
 
-**New here?** [▶️ Watch the 2-minute walkthrough](https://github.com/KhaledMD4321/mnestic/releases/download/v1.3.1/mnestic-tutorial.mp4)
-first — it's faster than reading, and every click is highlighted so you can see
-exactly what's being pressed. Then do [Setup](#1-setup) and
+**New here?** [▶️ Watch the 7-minute walkthrough](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-real-walkthrough.mp4)
+first — it's faster than reading, it's recorded on a real qbank, and every click
+and key is highlighted so you can see exactly what's being pressed. Each section
+below also has its own short clip. Then do [Setup](#1-setup) and
 [Check your ids match](#2-check-your-ids-match), which takes 30 seconds and
 tells you whether this will work for your deck at all.
 
@@ -155,7 +156,9 @@ will never spoil an unanswered question.
 
 ### The resource panel
 
-![The resource panel](media/panel-closeup.png)
+![The Mnestic panel under the explanation: the matched cards, every resource, and the chapters they cover](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/01-mnestic-panel.gif)
+
+<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/01-mnestic-panel.mp4)</sub>
 
 The resources your AnKing card links to — Sketchy, Boards & Beyond, First Aid,
 Physeo, OME, Picmonic and others — appear beside the explanation, **collapsed to
@@ -179,11 +182,20 @@ resource's row — and its images appear **over the question**:
 | **E** | Extra |
 | **A** | Additional Resources |
 
-![Pressing F puts the First Aid images over the question](media/overlay.gif)
+![Press F: the question's First Aid pages open over the question and flip with the arrow keys](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/02a-first-aid-images.gif)
 
 Multi-page resources page with **← →**, show *2 / 5*, and carry a filmstrip of
-every page. Images are fetched while you read, so the first keypress is instant.
-**Esc** closes.
+every page — click a thumbnail to jump to it. The arrows only move the pages,
+never the question behind. Images are fetched while you read, so the first
+keypress is instant. **Esc** closes.
+
+Every key badge is also a button, so the images are one click away without the
+keyboard. **E** and **A** show the images in your cards' *Extra* and *Additional
+Resources* fields — often the explanation's own figures:
+
+![Click the S badge for Sketchy, jump by thumbnail, then E for Extra and A for Additional Resources](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/02b-sketchy-extra-additional.gif)
+
+<sub>▶ MP4: [First Aid](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/02a-first-aid-images.mp4) · [Sketchy, Extra, Additional](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/02b-sketchy-extra-additional.mp4)</sub>
 
 ### The readiness strip
 
@@ -195,6 +207,12 @@ A line under the buttons says how the matching cards actually stand —
 Once you've answered, a small **Anki** button appears beside the question id and
 opens that question's cards in Anki's Browser. (Shortcut: **D**.) It stays hidden
 while a question is unanswered — those cards are the answer.
+
+Preview, Unsuspend and Open in Anki, on a real question:
+
+![Preview a card, unsuspend the question's cards, then open them in Anki's Browse window](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/03-cards-preview-unsuspend.gif)
+
+<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/03-cards-preview-unsuspend.mp4)</sub>
 
 ---
 
@@ -209,6 +227,10 @@ choices, explanation) — ready to paste into ChatGPT, Claude or Gemini.
 
 Edit the prompt in the popup. Four presets: **Explain**, **Differentiate**,
 **One-liner**, **Simplify**. Leave it empty to copy the raw question.
+
+![Copy for AI, pasted: your prompt, then the question id, link and full question](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/06-copy-for-ai.gif)
+
+<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/06-copy-for-ai.mp4)</sub>
 
 ### 📝 Copy explanation
 
@@ -246,7 +268,9 @@ arriving.
 
 ### Chapter subdecks
 
-![The save dialog, with chapter chips read from the card's tags](media/save-dialog.png)
+![Save a question to its chapter subdeck with a note, then take it back out](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/04-save-to-missed-with-note-and-undo.gif)
+
+<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/04-save-to-missed-with-note-and-undo.mp4) — the whole flow: card, chapter, note, save, and undo</sub>
 
 The dialog offers chapters read from the card's **own AnKing tags** — organ
 systems on Step 1, rotations on Step 2 — so your missed pile stays studiable by
@@ -285,7 +309,7 @@ Three ways to attach:
 
 ### Undoing a save
 
-![Saving a question, then removing it again](media/save-and-undo.gif)
+![The dialog on a saved question: Already in Missed Qs, with Remove from Missed Qs on offer](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/still-undo.png)
 
 Reopen the dialog on a saved question. It says **"Already in Missed Qs"** and
 offers **Remove from Missed Qs**, which undoes whichever save actually happened:
@@ -317,11 +341,20 @@ studying them costs nothing permanent.
 Select any text in the explanation and a floating **✚ Make card** chip appears.
 
 - **Cloze** or **Basic**
+- For a cloze, highlight the word to hide and click **Make cloze** — it becomes
+  `{{c1::…}}`
 - Picks a matching note type from your own collection
 - Created with the question id + link as the source
 - Paste screenshots into it too
 
 For the fact a question taught you that no existing card covers.
+
+> **Known issue:** in the current store version (**1.3.1**), *Create card* does
+> nothing. It's fixed and ships with the next update, **1.3.2**.
+
+![Select explanation text, click Make card, make a cloze, and attach the question as its source](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/05-make-a-card.gif)
+
+<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/05-make-a-card.mp4)</sub>
 
 ---
 
@@ -348,12 +381,17 @@ them.
 
 ### Weak-area breakdown
 
-![The block breakdown, weakest system first](media/weak-areas.gif)
-
 Per **System / Subject / Topic** accuracy for the block, **weakest first**, with:
 
 - **Open N missed** — sends just that group to Anki
 - **Drill weakest 3** — sends the three worst groups at once
+
+A block that's all one system shows a single bar under *System* — switch to
+*Subject* or *Topic* to see where the points actually went:
+
+![The results toolbar, the weak-area breakdown by subject, and Open 6 missed opening exactly those cards in Anki](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/07-results-and-weak-areas.gif)
+
+<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/07-results-and-weak-areas.mp4)</sub>
 
 ---
 
@@ -363,7 +401,9 @@ Click the Mnestic icon.
 
 ### Study tracker
 
-![The popup's study tracker](media/popup.png)
+![The popup: study tracker, pace and settings](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/08a-popup-tracker-and-settings.gif)
+
+<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/08a-popup-tracker-and-settings.mp4)</sub>
 
 - **Today** and **this week** against your targets
 - 🔥 **Daily streak**
@@ -389,6 +429,13 @@ qbank resets.
 | **Easy mode** | Results buttons unsuspend instead of just opening |
 | **High-yield only** | Results buttons open only high-yield cards |
 | **Keyboard shortcuts** | Turn them off |
+
+Further down: the Missed Qs deck, the switches, and your missed questions by
+chapter, each with **Copy ids**:
+
+![The popup: Missed Qs deck, switches and the missed questions by chapter](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/08b-popup-missed-list-and-switches.gif)
+
+<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/08b-popup-missed-list-and-switches.mp4)</sub>
 
 ### Find a topic in Anki
 
@@ -433,6 +480,10 @@ click away on each row's key badge.
 | **D** | Open this question in Anki |
 | **?** | Shortcut cheatsheet |
 | **Esc** | Close the overlay or dialog |
+
+![Press ? for every shortcut](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/09-keyboard-shortcuts.gif)
+
+<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/09-keyboard-shortcuts.mp4)</sub>
 
 ---
 
@@ -516,13 +567,21 @@ file-picker attach still work.
 
 ---
 
-## About the images in this guide
+## About the images in this guide — content & copyright
 
-Every screenshot and GIF here was recorded by driving the real extension in a
-real browser (`scripts/demo-capture.js`) — none of it is a mock-up. The question,
-the card and the diagrams are written for the demo and labelled SAMPLE; they are
-not pages from First Aid, Sketchy, Physeo or any other resource. Resource *names*
-appear because those come from the tags on your own deck.
+The clips and screenshots here were recorded on a **real qbank**, with the real
+extension and a real Anki — none of it is a mock-up. All of them, plus a full
+walkthrough video, are on the
+[tutorial media release](https://github.com/KhaledMD4321/mnestic/releases/tag/tutorial-media).
+
+**Mnestic does not include, host or own any qbank question or study resource.**
+It only links the sources *you* already have — your qbank subscription and your
+own AnKing deck — so you can use them together, on your own computer. The
+recordings were made the same way, on the author's own subscription and deck. The
+question text, images and resource names in them belong to their respective
+owners and appear only to show how the extension works; Mnestic is not affiliated
+with any of them. If you own content shown here and want it removed,
+[open an issue](https://github.com/KhaledMD4321/mnestic/issues).
 
 ---
 

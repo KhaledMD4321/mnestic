@@ -21,3 +21,7 @@ dist/e2e/
 *.webm
 dist/audit/
 dist/tutorial/
+
+# real-qbank tutorial recordings: they show qbank and resource content, so they
+# are never committed -- share them directly instead
+dist/gifs/

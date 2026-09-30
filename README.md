@@ -12,7 +12,7 @@
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-7c4dff?style=flat-square)](LICENSE)
 [![Buy me a coffee](https://img.shields.io/badge/%E2%98%95-Buy%20me%20a%20coffee-d5891c?style=flat-square)](https://buymeacoffee.com/bnkhaled)
 
-[**▶️ Watch the 2-minute walkthrough**](https://github.com/KhaledMD4321/mnestic/releases/download/v1.3.1/mnestic-tutorial.mp4) · [**📖 Extension guide**](docs/guide.md) · [**🔌 Add-on guide**](docs/addon-guide.md) · [**Install**](#install) · [**Features**](#what-it-does) · [**Privacy**](PRIVACY.md)
+[**▶️ Watch the full walkthrough (7 min)**](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-real-walkthrough.mp4) · [**🎞️ Feature tour**](#feature-tour) · [**📖 Extension guide**](docs/guide.md) · [**🔌 Add-on guide**](docs/addon-guide.md) · [**Install**](#install) · [**Privacy**](PRIVACY.md)
 
 </div>
 
@@ -27,10 +27,11 @@ your study pace.
 Everything runs on your own computer, through a small local link to your own Anki.
 **No server, no account, no telemetry.**
 
-![Mnestic on a question: the resource panel, then First Aid images overlaid with the pager](docs/media/overlay.gif)
+![Pressing F opens the question's First Aid pages right over the question, paged with the arrow keys](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/02a-first-aid-images.gif)
 
-<div align="center"><sub>Recorded from the extension itself. The question, card and
-diagrams are written for the demo — see <a href="scripts/demo-fixtures.js">scripts/demo-fixtures.js</a>.</sub></div>
+<div align="center"><sub>Recorded on a real qbank, with the real extension and a real Anki — no
+mock-ups. Every feature has its own clip in the <a href="#feature-tour">feature tour</a>.
+See <a href="#content--copyright">Content &amp; copyright</a>.</sub></div>
 
 ---
 
@@ -96,37 +97,178 @@ Claude or Gemini.
 
 ---
 
-## See it work
+## Feature tour
 
-### Keep a missed question — and take it back out
+Nine short clips, in the order you'll meet each feature. They were recorded on a
+real qbank, with the real extension and a real Anki. Each one is also available
+as a sharper **MP4**, and all of them together as one
+[**7-minute walkthrough**](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-real-walkthrough.mp4) —
+see the [tutorial media release](https://github.com/KhaledMD4321/mnestic/releases/tag/tutorial-media).
 
-Saving puts the card in a chapter subdeck with your note. Reopening the dialog
-offers **Remove from Missed Qs**, which untags it, moves it home, and keeps
-everything you typed.
+| | Feature | Where |
+|:---:|---|---|
+| 1 | [The Mnestic panel](#1-the-mnestic-panel) | Under the explanation of every answered question |
+| 2 | [Resource images — F S P O E A](#2-resource-images-over-the-question--f-s-p-o-e-a) | Over the question |
+| 3 | [Your AnKing cards](#3-your-anking-cards--preview-unsuspend-open-in-anki) | Preview, unsuspend, open in Anki |
+| 4 | [Save to Missed Qs](#4-save-to-missed-qs--with-your-own-note-and-undo) | With your note, into a chapter subdeck — and undo |
+| 5 | [Make a card](#5-make-a-card-from-the-explanation) | From any explanation text |
+| 6 | [Copy for AI](#6-copy-for-ai) | The whole question, ready for your AI assistant |
+| 7 | [After a block](#7-after-a-block--anki-buttons-and-weak-areas) | Anki buttons and Weak areas |
+| 8 | [The popup](#8-the-popup--your-pace-your-settings-your-missed-list) | Tracker, pace, settings, missed list |
+| 9 | [Keyboard shortcuts](#9-keyboard-shortcuts) | Everything from the keyboard |
 
-![Saving a question to a chapter subdeck, then removing it again](docs/media/save-and-undo.gif)
+### 1. The Mnestic panel
 
-### Break down a finished block
+**On every question you've answered.** Mnestic reads the **Question Id** off the
+page and, right under the explanation, shows:
 
-![The weak-area breakdown, weakest system first](docs/media/weak-areas.gif)
+- **The AnKing cards tagged with this question** — how many, and how they stand
+  (new, young, mature, suspended).
+- **Every resource those cards point to** — First Aid, Sketchy, B&B, OME, Bootcamp,
+  Physeo, Pixorize… one line each, with its image count and its key. **Click a
+  row** to see the exact chapters your cards tag; the most-tagged come first.
+- **How did that go?** — *Knew it*, *Guessed* or *No idea*. A right answer you only
+  guessed still counts as weak.
 
-### The panel, and the popup
+Nothing appears until you've answered, so it can never spoil a question.
 
-| On the question | In the popup |
+![The Mnestic panel under the explanation: the matched cards, every resource, and the chapters they cover](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/01-mnestic-panel.gif)
+
+<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/01-mnestic-panel.mp4)</sub>
+
+### 2. Resource images over the question — F S P O E A
+
+Press a resource's key — or **click its key badge** — and its images open **on
+top of the question**. No new tab, no flipping through the book.
+
+| Key | Opens |
+|:---:|---|
+| **F** | First Aid |
+| **S** | Sketchy |
+| **P** | Physeo |
+| **O** | OME |
+| **E** | Extra — the images in your cards' Extra field |
+| **A** | Additional Resources |
+
+**← →** flip pages (the qbank question behind never moves), click a thumbnail to
+jump, **Esc** closes. The keys only work after you answer.
+
+![Press F: the question's First Aid pages open over the question and flip with the arrow keys](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/02a-first-aid-images.gif)
+
+![Click the S badge for Sketchy, jump by thumbnail, then E for Extra and A for Additional Resources](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/02b-sketchy-extra-additional.gif)
+
+<sub>▶ MP4: [First Aid](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/02a-first-aid-images.mp4) · [Sketchy, Extra, Additional](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/02b-sketchy-extra-additional.mp4)</sub>
+
+### 3. Your AnKing cards — preview, unsuspend, open in Anki
+
+- **👁 Preview** — the card exactly as Anki shows it, answer revealed, with its
+  Extra notes. **Next** shows the other cards for the question.
+- **Unsuspend N** — one click and this question's suspended cards are in your
+  Anki reviews.
+- **Anki** (next to the Question Id), or press **D** — Anki's Browse window opens
+  on exactly this question's cards.
+
+![Preview a card, unsuspend the question's cards, then open them in Anki's Browse window](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/03-cards-preview-unsuspend.gif)
+
+<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/03-cards-preview-unsuspend.mp4)</sub>
+
+### 4. Save to Missed Qs — with your own note, and undo
+
+1. Click **★ Save to Missed Qs** (or press **V**) and pick the card with the fact
+   you missed.
+2. The **chapter chips** come from the card's own AnKing tags — it saves into that
+   chapter's subdeck (`Missed Qs::Respiratory`), reusing a subdeck you already have.
+3. **Type your note.** It's *added* to the card's *Missed Questions* field — never
+   overwritten — and protected so an AnkiHub update can't wipe it.
+4. **Move it** — the real card moves, keeping its review history. (Prefer *Tag only*
+   or *Make a copy*? Choose in the popup.)
+
+Changed your mind? Open the dialog again and click **Remove from Missed Qs** —
+the card goes back to its deck, and your note stays.
+
+![Save a question to its chapter subdeck with a note, then take it back out](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/04-save-to-missed-with-note-and-undo.gif)
+
+<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/04-save-to-missed-with-note-and-undo.mp4)</sub>
+
+### 5. Make a card from the explanation
+
+For the fact a question taught you that no card covers:
+
+1. **Select any text** in the explanation — a **✚ Make card** button appears
+   (or press **G**).
+2. Keep **Cloze**, or switch to **Basic** for a front / back card.
+3. Highlight a word and click **Make cloze** — it becomes `{{c1::…}}`.
+4. **Create card.** The question's id and link go on the card as its source.
+
+> **Known issue:** in the current store version (**1.3.1**), *Create card* does
+> nothing. It's fixed and ships with the next update, **1.3.2**.
+
+![Select explanation text, click Make card, make a cloze, and attach the question as its source](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/05-make-a-card.gif)
+
+<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/05-make-a-card.mp4)</sub>
+
+### 6. Copy for AI
+
+**🤖 Copy for AI** (or **Q**) copies your saved prompt, the question id and link,
+and the whole question — paste it into ChatGPT, Claude or Gemini. **📝 Copy
+explanation** copies just the explanation, for your own notes. Set the prompt once
+in the popup (four presets, or write your own).
+
+![Copy for AI, pasted: your prompt, then the question id, link and full question](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/06-copy-for-ai.gif)
+
+<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/06-copy-for-ai.mp4)</sub>
+
+### 7. After a block — Anki buttons and Weak areas
+
+On your test's results page, Mnestic adds a toolbar:
+
+- **Anki: Missed / All / Marked / High-Yield** — open those questions' cards in Anki.
+- **📊 Weak areas** — the block's accuracy by **System**, **Subject** or **Topic**,
+  weakest first. **Open N missed** sends just that group's cards to Anki;
+  **Drill weakest 3** opens the missed questions from your three weakest groups.
+
+![The results toolbar, the weak-area breakdown by subject, and Open 6 missed opening exactly those cards in Anki](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/07-results-and-weak-areas.gif)
+
+<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/07-results-and-weak-areas.mp4)</sub>
+
+### 8. The popup — your pace, your settings, your missed list
+
+Click the **M** in Chrome's toolbar (pin it so it's always one click away):
+
+- **Study tracker** — today, this week, your streak, and a 16-week heatmap.
+- **Your pace** — questions left in your bank, and a finish date at the pace you
+  actually study.
+- **Settings** — daily / weekly targets, Step, panel theme, how saving works, your
+  Missed Qs deck, and switches for Expected score, Easy mode, High-yield only and
+  all keyboard shortcuts.
+- **Missed questions by chapter** — **Copy ids** to retest them in your qbank's
+  test builder, or **Study them in Anki**.
+
+| Tracker, pace and settings | Missed list and switches |
 |:---:|:---:|
-| ![The resource panel: buttons, card readiness, and collapsed resource rows](docs/media/panel-closeup.png) | ![The popup: streak, heatmap, targets, projected finish](docs/media/popup.png) |
-| Five resources collapsed to a line each, with their overlay keys — plus how the matching cards stand, and one-click Unsuspend. | Streak, 16-week heatmap, pace and projected finish, and every setting. |
+| ![The popup: study tracker, pace and settings](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/08a-popup-tracker-and-settings.gif) | ![The popup: Missed Qs deck, switches and the missed questions by chapter](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/08b-popup-missed-list-and-switches.gif) |
 
-<details><summary>More stills</summary><br>
+<sub>▶ MP4: [tracker and settings](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/08a-popup-tracker-and-settings.mp4) · [missed list and switches](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/08b-popup-missed-list-and-switches.mp4)</sub>
 
-| | |
-|:---:|:---:|
-| ![The save dialog with chapter chips](docs/media/save-dialog.png) | ![The dialog offering Remove from Missed Qs](docs/media/undo-offered.png) |
-| The save dialog: chapter chips read from the card's own AnKing tags. | Already saved, so undo is on offer. |
-| ![A First Aid overlay over the question](docs/media/overlay-firstaid.png) | ![The block breakdown, weakest first](docs/media/weak-areas.png) |
-| An overlay with its pager and filmstrip. | Per-system accuracy with *Open N missed*. |
+### 9. Keyboard shortcuts
 
-</details>
+Press **?** on any answered question for the full list. They never fire on an
+unanswered question, stay quiet while you type, and switch off in the popup.
+
+| Key | Action |
+|:---:|---|
+| **F S P O E A** | Resource images |
+| **← →** | Flip pages in an image overlay |
+| **G** | Make a card from your selection |
+| **Q** | Copy for AI |
+| **V** | Save to Missed Qs |
+| **D** | Open this question's cards in Anki |
+| **?** | Show the shortcuts |
+| **Esc** | Close an overlay or dialog |
+
+![Press ? for every shortcut](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/09-keyboard-shortcuts.gif)
+
+<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/09-keyboard-shortcuts.mp4)</sub>
 
 <details><summary>🌙 Dark mode</summary><br>
 
@@ -306,6 +448,26 @@ stay that way. If it saved you time, you can
 nothing is locked behind it.
 
 Something broken? [Open an issue](https://github.com/KhaledMD4321/mnestic/issues).
+
+---
+
+## Content & copyright
+
+**Mnestic does not include, host or own any qbank question or study resource.**
+It is a tool that links the sources *you* already have — your qbank subscription
+and your own AnKing deck in your own Anki — so you can use them together. Every
+question, image and resource it shows comes from those, on your own computer.
+
+The recordings in this README and in the [guide](docs/guide.md) were made the same
+way: on the author's own qbank subscription and own AnKing deck. The question
+text, images and resource names in them belong to their respective owners —
+UWorld, Coursology, MedPark, First Aid, Sketchy, Physeo, OME, Boards & Beyond,
+Bootcamp, Pixorize, AnKing and others — and appear only to show how the
+extension works. Mnestic is not affiliated with, or endorsed by, any of them.
+
+If you own content shown here and want it removed, please
+[open an issue](https://github.com/KhaledMD4321/mnestic/issues) and it will be
+taken down.
 
 ---
 
