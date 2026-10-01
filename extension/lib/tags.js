@@ -131,12 +131,57 @@
     const x = normDeck(a), y = normDeck(b);
     if (!x || !y) return false;
     if (x === y) return true;
+    const ra = rotationKey(a);
+    if (ra && ra === rotationKey(b)) return true;           // "Medicine" / "Internal Medicine" / "IM"
     const short = x.length < y.length ? x : y;
     if (short.length >= 4 && (x.indexOf(y) === 0 || y.indexOf(x) === 0)) return true;
     const tx = systemTokens(a).filter((w) => SYSTEM_WORDS.has(w));
     const ty = new Set(systemTokens(b).filter((w) => SYSTEM_WORDS.has(w)));
     return tx.length > 0 && tx.length === ty.size && tx.every((w) => ty.has(w));
   }
+  // The clinical rotation a name means, if it is one (Step 2/3 subjects, the
+  // #Resources_by_rotation and !Shelf chapters, Bootcamp's "Medicine").
+  const ROTATION_KEYS = {
+    "internal medicine": "im", medicine: "im", im: "im",
+    pediatrics: "peds", peds: "peds",
+    surgery: "surgery", "general surgery": "surgery",
+    obgyn: "obgyn", "ob gyn": "obgyn", "obstetrics gynecology": "obgyn", "obstetrics and gynecology": "obgyn",
+    "family medicine": "fm", fm: "fm", "ambulatory medicine": "fm",
+    "emergency medicine": "em", em: "em"
+  };
+  function rotationKey(name) {
+    const k = cleanSeg(name).toLowerCase().replace(/[^a-z]+/g, " ").trim();
+    return ROTATION_KEYS[k] || null;
+  }
+  // What kind of chapter a name is: an organ system ("Respiratory"), a
+  // discipline ("Pharmacology") or a rotation ("Internal Medicine"); null when
+  // it is none of those ("Week 3", "Hard ones").
+  const ORGAN_WORDS = new Set(["respiratory", "renal", "gastrointestinal", "hematology", "neurology",
+    "cardiovascular", "endocrine", "psychiatry", "skin", "musculoskeletal", "reproductive"]);
+  const DISCIPLINE_WORDS = new Set(["microbiology", "immunology", "biochemistry", "pharmacology", "genetics",
+    "pathology", "physiology", "anatomy", "histology", "embryology", "biostatistics", "biostats",
+    "epidemiology", "ethics"]);
+  function chapterKind(name) {
+    if (rotationKey(name)) return "rotation";
+    const t = systemTokens(cleanSeg(name));
+    if (t.some((w) => ORGAN_WORDS.has(w))) return "system";
+    if (t.some((w) => DISCIPLINE_WORDS.has(w))) return "discipline";
+    return null;
+  }
+  // Is `name` a sensible subdeck INSIDE the chapter deck `chapter`? A chapter
+  // is already a chapter: another chapter of the same kind is a sibling, not a
+  // subtopic ("Cardio" inside "Respiratory", "Surgery" inside "Internal
+  // Medicine"). What fits is the other axis -- the question's subject:
+  // Pharmacology inside Respiratory on Step 1, Medicine or Surgery inside
+  // Endocrine on Step 2/3, Cardiovascular inside Internal Medicine.
+  function fitsInside(chapter, name) {
+    if (!name || sameChapter(chapter, name)) return false;
+    const a = chapterKind(chapter), b = chapterKind(name);
+    if (!a || !b) return true;               // your own kind of deck, or a name we can't place
+    if (a === "rotation") return b !== "rotation";
+    return b !== "system";
+  }
+
   // Is this deck tree organised by organ system (Cardiovascular, GI, Repro…)
   // rather than by rotation (Internal Medicine, Pediatrics…)?
   function systemStyle(names) {
@@ -201,12 +246,12 @@
     });
     out.sort((a, b) => (b.system - a.system) || (b.mine - a.mine) || (a.rank - b.rank) || (b.n - a.n) ||
       (b.pref - a.pref) || a.name.localeCompare(b.name));
-    const seen = new Set();
-    return out.filter((c) => {
-      const k = c.name.toLowerCase();
-      if (seen.has(k)) return false;
-      seen.add(k); return true;
-    }).slice(0, 4);
+    // One chip per chapter: "Respiratory" (First Aid), "Pulm" (B&B) and
+    // "Pulmonology" (Bootcamp) are the same chapter, and all would land in the
+    // same subdeck. The best-ranked name stands for it.
+    const kept = [];
+    out.forEach((c) => { if (!kept.some((k) => sameChapter(k.name, c.name))) kept.push(c); });
+    return kept.slice(0, opts.limit || 4);
   }
 
   function deckLeaf(name) { const p = String(name || "").split("::"); return p[p.length - 1]; }
@@ -255,7 +300,7 @@
   function isChapterDeck(deck, knownBase) { return !!missedRoot(deck, knownBase); }
 
   const api = { cleanSeg, isNoiseSeg, isEditionSeg, tagPaths, chapterNoise, chapterCandidates, matchesSystem,
-                sameChapter, systemStyle, isSystemName, deckLeaf, normDeck, childDecks, existingChapterDeck,
+                sameChapter, systemStyle, isSystemName, rotationKey, chapterKind, fitsInside, deckLeaf, normDeck, childDecks, existingChapterDeck,
                 missedRoot, isChapterDeck, ROTATION_NAMES, CHAPTER_ROOTS };
   if (typeof module === "object" && module.exports) module.exports = api;
   else (root.Mnx = root.Mnx || {}).tags = api;

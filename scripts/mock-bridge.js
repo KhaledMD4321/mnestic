@@ -52,7 +52,8 @@ const NOTE = {
       order: 6
     },
     "Missed Questions": { value: "", order: 7 },
-    Lecture_Notes: { value: "", order: 8 },
+    // looks filled, shows nothing: must count as empty everywhere
+    Lecture_Notes: { value: "&nbsp;<br><div> </div><img>​<style>p{}</style>", order: 8 },
     ankihub_id: { value: "ah-note-1", order: 9 }
   }
 };

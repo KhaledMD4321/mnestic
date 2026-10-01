@@ -1210,9 +1210,22 @@ function listenFree(server, from) {
       await p.waitForSelector("#mnx-md-overlay .mnx-fullcard", { timeout: 6000 });
       const closedFirst = await p.evaluate(() => !document.querySelector("#mnx-md-overlay .mnx-fullcard").open &&
         !document.querySelector("#mnx-md-overlay .mnx-fullcard .mnx-field"));
+      // each matched card readable at a glance: its Text with the answer in
+      // bold, what Extra says, how many images -- with nothing fetched
+      const glance = await p.evaluate(() => {
+        const row = document.querySelector("#mnx-md-overlay .mnx-pick label .mnx-glance");
+        return row && { ans: (row.querySelector(".mnx-glance-ans") || {}).textContent, text: row.innerText.replace(/\s+/g, " "),
+                        imgsLoaded: document.querySelectorAll("#mnx-md-overlay .mnx-pick img").length };
+      });
+      check("1.4", "Save's card rows show the card at a glance (answer in bold, Extra, image count)",
+        !!glance && glance.ans === "cochlea" && /The cochlea transduces sound/.test(glance.text) && /Extra Extra note text/i.test(glance.text) &&
+        /6 images/.test(glance.text) && glance.imgsLoaded === 0, JSON.stringify(glance));
       await p.locator("#mnx-md-overlay .mnx-fullcard > summary").click();
       await p.waitForTimeout(500);
       const one = await p.evaluate(() => document.querySelector("#mnx-md-overlay .mnx-fullcard-body").innerText);
+      const names = await p.evaluate(() => Array.from(document.querySelectorAll("#mnx-md-overlay .mnx-fullcard-body .mnx-field > summary b")).map((b) => b.textContent));
+      check("1.4", "a field holding only spaces, <br>s, empty boxes or a src-less image is not shown",
+        names.indexOf("Lecture_Notes") < 0 && names.indexOf("Missed Questions") < 0 && names.indexOf("Text") >= 0, names.join(", "));
       await p.locator("#mnx-md-overlay .mnx-pick input[type=radio]").nth(1).check();
       await p.waitForTimeout(500);
       const two = await p.evaluate(() => document.querySelector("#mnx-md-overlay .mnx-fullcard-body").innerText);
@@ -1241,13 +1254,12 @@ function listenFree(server, from) {
       const chip = await p.evaluate(() => (document.querySelector("#mnx-md-overlay .mnx-chapchip.on") || {}).innerText || "");
       check("1.4", "picking a chapter deck saves straight into it, nothing appended",
         direct === "Missed Questions::03_Respiratory" && /Just 03_Respiratory/.test(chip), direct + " | " + chip.replace(/\s+/g, " "));
-      // the chip whose own name is exactly "Cardio" (B&B), not "Cardio marked leech"
-      const cardio = await p.evaluate(() => Array.from(document.querySelectorAll("#mnx-md-overlay .mnx-chapchip"))
-        .findIndex((c) => (c.querySelector("span") || {}).textContent === "Cardio"));
-      await p.locator("#mnx-md-overlay .mnx-chapchip").nth(cardio).click();
-      await p.waitForTimeout(300);
-      const beside = await dest();
-      check("1.4", "another chapter picked from there goes beside it, under the root", beside === "Missed Questions::Cardio", beside);
+      // A chapter is already a chapter: another organ system ("Cardio", from
+      // the card's B&B tag) is a sibling, never offered as a subdeck inside it.
+      const inside = await p.evaluate(() => Array.from(document.querySelectorAll("#mnx-md-overlay .mnx-chapchip"))
+        .map((c) => (c.querySelector("span") || {}).textContent));
+      check("1.4", "inside a chapter deck, other chapters are not suggested as subdecks",
+        inside.indexOf("Cardio") < 0 && inside.length >= 1, inside.join(" | "));
       await p.locator("#mnx-md-overlay .mnx-chapchip", { hasText: "Just 03_Respiratory" }).first().click();
       await p.locator("#mnx-md-overlay .mnx-md-ok").last().click();
       await p.waitForTimeout(1500);
@@ -1265,6 +1277,79 @@ function listenFree(server, from) {
         stored.akMissedDeck === "Missed Questions" && stored.akMissedDeckByStep["1"] === "Missed Questions", JSON.stringify(stored));
       await p.close();
       await setCfg({ akMissedDeck: "", akMissedDeckByStep: {} });
+    }
+
+    // The question's Subject is offered as a subdeck inside a chapter deck, and
+    // the chapter tag follows the deck path.
+    {
+      mock.reset();
+      await setCfg({ mnxMissedMode: "move", akMissedDeck: "Missed Questions", akMissedDeckByStep: {},
+        akTrackerV2: { v: 3, answered: { "usmle1 4211": { ts: null, slug: "usmle1", qid: "4211", sys: "Pulmonary & Critical Care", subj: "Pharmacology" } },
+                       totals: {}, daily: {}, undated: {}, snaps: {}, targets: { weekly: 0, daily: 0 } } });
+      const p = await openAt(reviewHtml("4211"));
+      await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 12000 });
+      await p.locator("#mnx-resources button", { hasText: "Save to Missed Qs" }).click();
+      await p.waitForSelector("#mnx-md-overlay select option[value='Missed Questions::03_Respiratory']", { state: "attached", timeout: 8000 });
+      await p.waitForTimeout(800);
+      await p.locator("#mnx-md-overlay select").selectOption("Missed Questions::03_Respiratory");
+      await p.waitForTimeout(400);
+      const chips = await p.evaluate(() => Array.from(document.querySelectorAll("#mnx-md-overlay .mnx-chapchip")).map((c) => (c.classList.contains("on") ? "*" : "") + c.innerText.replace(/\s+/g, " ")));
+      check("1.4", "inside a chapter deck the deck itself stays the default, and the question's Subject is offered as a subdeck",
+        /^\*Just 03_Respiratory/.test(chips[chips.length - 1]) && /^Pharmacology this question's subject/.test(chips[0]), chips.join(" | "));
+      await p.locator("#mnx-md-overlay .mnx-chapchip").first().click();
+      await p.locator("#mnx-md-overlay .mnx-md-ok").last().click();
+      await p.waitForTimeout(1500);
+      const moved = mock.calls().filter((c) => c.op === "setDeck").slice(-1)[0];
+      const tagged = mock.calls().filter((c) => c.op === "updateNote").slice(-1)[0];
+      check("1.4", "…and saving there files it at chapter::subject, tagged the same way",
+        !!moved && moved.args.deck === "Missed Questions::03_Respiratory::Pharmacology" &&
+        !!tagged && (tagged.args.addTags || []).indexOf("Mnestic::Missed::Respiratory::Pharmacology") >= 0,
+        (moved && moved.args.deck) + " | " + JSON.stringify(tagged && tagged.args.addTags));
+      await p.close();
+      await setCfg({ akMissedDeck: "", akMissedDeckByStep: {}, akTrackerV2: null });
+    }
+
+    // A figure the explanation keeps behind a button can be attached: Mnestic
+    // presses the site's own button, takes the image, and closes the site's viewer.
+    {
+      mock.reset();
+      const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVQI12P8z8Dwn4EIwDiqkL4KAV/hA/2kFkSzAAAAAElFTkSuQmCC";
+      await ctx.route("https://cdn.coursology-qbank.com/**", (r) => r.fulfill({ status: 200, contentType: "image/png", body: Buffer.from(PNG, "base64") }));
+      const html = reviewHtml("4211", `<p>Seen in <button id="exhibit-abc123" class="font-bold rounded-full">dead space</button>.</p>
+        <script>
+          document.getElementById("exhibit-abc123").addEventListener("click", () => {
+            window.__pressed = (window.__pressed || 0) + 1;
+            const w = document.createElement("div"); w.id = "site-viewer";
+            w.style.cssText = "position:fixed;top:40px;left:40px;z-index:99999;background:#fff;padding:8px";
+            w.innerHTML = '<div>Dead Space <button class="w-5 h-5 rounded-full bg-lime-500">+</button><button class="w-5 h-5 rounded-full bg-red-500">x</button></div>' +
+                          '<img src="https://cdn.coursology-qbank.com/media/fig1.png" width="300" height="200">';
+            w.querySelector(".bg-red-500").addEventListener("click", () => w.remove());
+            setTimeout(() => document.body.appendChild(w), 150);
+          });
+        </script>`);
+      const p = await openAt(html);
+      await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 12000 });
+      await p.locator("#mnx-resources button", { hasText: "Save to Missed Qs" }).click();
+      let chip = false;
+      try { await p.waitForSelector("#mnx-md-overlay .mnx-figchip", { timeout: 6000 }); chip = true; } catch (e) {}
+      if (chip) await p.locator("#mnx-md-overlay .mnx-figchip").first().click();
+      await p.waitForTimeout(3000);
+      const st = await p.evaluate(() => ({
+        pressed: window.__pressed || 0,
+        viewerClosed: !document.getElementById("site-viewer"),
+        added: !!document.querySelector("#mnx-md-overlay .mnx-figchip.added"),
+        thumbs: document.querySelectorAll("#mnx-md-overlay .mnx-img-thumb").length,
+        toast: (Array.from(document.querySelectorAll(".mnx-toast")).pop() || {}).textContent || ""
+      }));
+      check("1.4", "a figure behind an explanation button is offered and attached, and the site's viewer is closed again",
+        chip && st.pressed === 1 && st.viewerClosed && st.added && st.thumbs === 1, JSON.stringify(st));
+      // page script can't use the chip to press the site's buttons
+      const before = await p.evaluate(() => window.__pressed);
+      await p.evaluate(() => { const b = document.querySelector("#mnx-md-overlay .mnx-figchip"); b.classList.remove("added"); delete b.dataset.added; b.click(); });
+      await p.waitForTimeout(1000);
+      check("1.4", "…and page script clicking the chip presses nothing", (await p.evaluate(() => window.__pressed)) === before);
+      await p.close();
+      await ctx.unroute("https://cdn.coursology-qbank.com/**");
     }
 
     // Upgrading from 1.3: its log keyed days by local-midnight milliseconds.

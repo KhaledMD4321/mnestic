@@ -181,9 +181,11 @@ jump, **Esc** closes. The keys only work after you answer.
 ### 4. Save to Missed Qs — with your own note, and undo
 
 1. Click **★ Save to Missed Qs** (or press **V**) and pick the card with the fact
-   you missed.
+   you missed — each one shows its text, answers in bold, and what its Extra says.
 2. The **chapter chips** come from the card's own AnKing tags — it saves into that
    chapter's subdeck (`Missed Qs::Respiratory`), reusing a subdeck you already have.
+   Pick a chapter deck itself and it saves straight there, with the question's
+   subject (Pharmacology, Medicine…) offered as an optional subdeck inside it.
 3. **Type your note.** It's *added* to the card's *Missed Questions* field — never
    overwritten — and protected so an AnkiHub update can't wipe it.
 4. **Move it** — the real card moves, keeping its review history. (Prefer *Tag only*

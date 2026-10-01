@@ -259,11 +259,60 @@
       return slug === "default" ? "unknown" : "uworld";
     },
     inTest() { return /\/qbanks\//i.test(location.pathname); },
+    // Figures behind a pill in the explanation ("transient tachypnea of the
+    // newborn"): the site fetches each with its own logged-in request when the
+    // pill is pressed. Mnestic presses the site's own button when you ask for
+    // the figure, takes the image it shows, and closes the site's viewer again
+    // -- it never reads or reuses the site's login.
+    exhibits() {
+      const ex = document.querySelector("#question-explanation");
+      if (!ex) return [];
+      return Array.from(ex.querySelectorAll("button[id^='exhibit-']"))
+        .map(b => ({ label: (b.innerText || "").replace(/\s+/g, " ").trim(), open: () => openSiteExhibit(b) }))
+        .filter(x => x.label);
+    },
     isResultsPage() { return /\/results\b/i.test(location.pathname); },
     isDashboard() { return /welcome|dashboard|performance|home/i.test(location.pathname); },
     expandsResults: true,            // its results table paginates at 10
     usesGenericQuestionList: true    // its "Question List" modal carries the legend
   };
+
+  // Press a qbank's own figure button and return the image it opens (see
+  // COURSO.exhibits). Waits up to 6 s for an image from the qbank's own host
+  // that wasn't on the page before; then closes the viewer the site opened.
+  const QBANK_IMG = /^https:\/\/([a-z0-9-]+\.)*coursology-qbank\.com\//i;
+  async function openSiteExhibit(btn) {
+    const srcOf = im => im.currentSrc || im.src || "";
+    const before = new Set(Array.from(document.querySelectorAll("img")).map(srcOf));
+    const label = (btn.innerText || "").trim().toLowerCase();
+    btn.click();
+    let img = null;
+    for (let i = 0; i < 60 && !img; i++) {
+      await new Promise(r => setTimeout(r, 100));
+      img = Array.from(document.querySelectorAll("img")).find(im =>
+        QBANK_IMG.test(srcOf(im)) && !before.has(srcOf(im)) && !im.closest("[id^='mnx-']"));
+    }
+    // Already open before we pressed it: the viewer titled with this figure.
+    if (!img) {
+      img = Array.from(document.querySelectorAll("img")).find(im => {
+        if (!QBANK_IMG.test(srcOf(im)) || im.closest("[id^='mnx-']") || !im.getClientRects().length) return false;
+        const win = fixedAncestor(im);
+        return !!win && (win.innerText || "").trim().toLowerCase().indexOf(label) === 0;
+      }) || null;
+    }
+    if (!img) throw new Error("the figure didn't open");
+    const src = srcOf(img);
+    const win = fixedAncestor(img);
+    const close = win && Array.from(win.querySelectorAll("button")).find(b => /(^|\s)bg-red-\d/.test(String(b.className)));
+    if (close) close.click();
+    return src;
+  }
+  function fixedAncestor(el) {
+    for (let n = el, k = 0; n && k < 14; n = n.parentElement, k++) {
+      if (getComputedStyle(n).position === "fixed") return n;
+    }
+    return null;
+  }
 
   // ============================================================
   // UWORLD ADAPTER
@@ -550,6 +599,8 @@
   //                              correct/incorrect/marked/omitted for ids" pass
   //   canAttachImages            set false when the qbank's figures are served
   //                              from a host we won't add to the allowlist
+  //   exhibits()                 optional: figures behind buttons in the
+  //                              explanation, [{label, open() -> image URL}]
   //
   // docs/adding-a-qbank.md walks through it.
   // ============================================================
@@ -976,7 +1027,14 @@
     #mnx-md-overlay .mnx-md-body select,#mnx-md-overlay .mnx-md-body textarea,#mnx-md-overlay .mnx-md-body input[type=text]{width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--mnx-border);border-radius:var(--mnx-r-sm);font-size:13px;font-family:var(--mnx-font);color:var(--mnx-text);background:var(--mnx-surface-2);outline:none;transition:border-color .14s,box-shadow .14s}
     #mnx-md-overlay .mnx-md-body select:focus,#mnx-md-overlay .mnx-md-body textarea:focus,#mnx-md-overlay .mnx-md-body input[type=text]:focus{border-color:var(--mnx-accent);box-shadow:0 0 0 3px var(--mnx-accent-ring)}
     #mnx-md-overlay .mnx-md-body textarea{min-height:84px;resize:vertical;line-height:1.5}
-    #mnx-md-overlay .mnx-pick{border:1px solid var(--mnx-border);border-radius:var(--mnx-r-sm);max-height:150px;overflow:auto;background:var(--mnx-surface-2)}
+    #mnx-md-overlay .mnx-pick{border:1px solid var(--mnx-border);border-radius:var(--mnx-r-sm);max-height:min(320px,42vh);overflow:auto;background:var(--mnx-surface-2)}
+    #mnx-md-overlay .mnx-pick input[type=radio]{margin-top:3px;flex:none}
+    #mnx-md-overlay .mnx-glance{display:flex;flex-direction:column;gap:3px;min-width:0}
+    #mnx-md-overlay .mnx-glance-text{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;line-height:1.45;color:var(--mnx-text)}
+    #mnx-md-overlay .mnx-glance-ans{color:var(--mnx-accent);font-weight:700}
+    #mnx-md-overlay .mnx-glance-sub{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:11.5px;line-height:1.4;color:var(--mnx-muted)}
+    #mnx-md-overlay .mnx-glance-sub b{font-weight:700;color:var(--mnx-text);opacity:.75;text-transform:uppercase;font-size:10px;letter-spacing:.04em}
+    #mnx-md-overlay .mnx-glance-meta{font-size:11px;color:var(--mnx-muted)}
     #mnx-md-overlay .mnx-pick label{display:flex;gap:8px;align-items:flex-start;padding:9px 11px;border-bottom:1px solid var(--mnx-border);font-size:12.5px;cursor:pointer;transition:background .12s}
     #mnx-md-overlay .mnx-pick label:hover{background:var(--mnx-surface)}
     #mnx-md-overlay .mnx-pick label:last-child{border-bottom:none}
@@ -1008,6 +1066,15 @@
     #mnx-md-overlay .mnx-qthumb img{width:100%;height:100%;object-fit:cover;display:block}
     #mnx-md-overlay .mnx-qthumb::after{content:"＋";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.34);color:#fff;font-size:18px;font-weight:700;opacity:0;transition:opacity .14s}
     #mnx-md-overlay .mnx-qthumb:hover::after{opacity:1}
+    #mnx-md-overlay .mnx-figchips{display:flex;flex-wrap:wrap;gap:6px}
+    #mnx-md-overlay .mnx-figchip{font:600 12px var(--mnx-font);cursor:pointer;padding:5px 11px;border-radius:var(--mnx-r-pill);border:1px solid var(--mnx-border);background:var(--mnx-surface);color:var(--mnx-accent);transition:background .14s}
+    #mnx-md-overlay .mnx-figchip::before{content:"＋ "}
+    #mnx-md-overlay .mnx-figchip:hover{background:var(--mnx-accent-soft)}
+    #mnx-md-overlay .mnx-figchip.loading{opacity:.6;cursor:progress}
+    #mnx-md-overlay .mnx-figchip.loading::before{content:"… "}
+    #mnx-md-overlay .mnx-figchip.added{border-color:var(--mnx-good);color:var(--mnx-good-txt)}
+    #mnx-md-overlay .mnx-figchip.added::before{content:"✓ "}
+    #mnx-md-overlay .mnx-figchip:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
     #mnx-md-overlay .mnx-qthumb.loading::after{content:"…";opacity:1}
     #mnx-md-overlay .mnx-qthumb.added::after{content:"✓";opacity:1;background:rgba(31,157,87,.66)}
     #mnx-md-overlay .mnx-seg{display:inline-flex;background:var(--mnx-surface-2);border:1px solid var(--mnx-border);border-radius:var(--mnx-r-sm);padding:3px;gap:2px}
@@ -2653,15 +2720,79 @@
   }
   function setSafeHtml(el, html) { el.replaceChildren(); return sanitizeInto(el, html); }
   // Plain text out of card HTML, without ever touching the live DOM.
+  // The visible text of some card HTML. Line breaks and block ends become
+  // spaces ("Text<br>more" is two words, not "Textmore"); style and script
+  // bodies, non-breaking and zero-width spaces don't count as text.
   function htmlToText(html) {
-    const doc = new DOMParser().parseFromString("<body>" + (html || "") + "</body>", "text/html");
-    return (doc.body.textContent || "").replace(/\s+/g, " ").trim();
+    const src = String(html || "").replace(/<(br|\/div|\/p|\/li|\/td|\/th|\/tr|\/h[1-6])\b[^>]*>/gi, " $&");
+    const doc = new DOMParser().parseFromString("<body>" + src + "</body>", "text/html");
+    doc.body.querySelectorAll("style,script,template,noscript").forEach(e => e.remove());
+    return (doc.body.textContent || "").replace(/[​-‍⁠﻿]/g, "").replace(/\s+/g, " ").trim();
+  }
+  // Images that would actually show: a media file, an inline image, or a
+  // remote one (shown as a "not loaded" note). <img> with no usable src is not.
+  function imageCount(html) {
+    const h = String(html || "");
+    if (!/<img\b/i.test(h)) return 0;
+    const doc = new DOMParser().parseFromString("<body>" + h + "</body>", "text/html");
+    return Array.from(doc.body.querySelectorAll("img")).filter(im => {
+      const v = im.getAttribute("src");
+      return !!(safeMediaSrc(v) || isRemoteSrc(v));
+    }).length;
   }
   function noteField(note, name) { const f = getField(note, name); return (f && f.value) || ""; }
   function noteSnippet(note) {
     let t = htmlToText(revealCloze(noteField(note, "Text")));
     if (!t) t = htmlToText(noteField(note, "Extra"));
     return t.length > 90 ? t.slice(0, 88) + "…" : (t || ("note " + note.noteId));
+  }
+  // A card at a glance, for choosing between matched cards in Save: its whole
+  // Text with the answers in bold (three lines, the rest on hover), what Extra
+  // and Additional Resources say, and how many images it carries. Text only --
+  // nothing is fetched -- so the dialog opens as fast as before.
+  const CLOZE_OPEN = "", CLOZE_CLOSE = "";
+  function clozeGlance(html, into) {
+    const marked = String(html || "").replace(/\{\{c\d+::(.*?)(?:::.*?)?\}\}/gis, CLOZE_OPEN + "$1" + CLOZE_CLOSE);
+    const text = htmlToText(marked);
+    text.split(CLOZE_OPEN).forEach((part, i) => {
+      const j = i ? part.indexOf(CLOZE_CLOSE) : -1;
+      if (j >= 0) {
+        const b = document.createElement("b"); b.className = "mnx-glance-ans";
+        b.textContent = part.slice(0, j); into.appendChild(b);
+        part = part.slice(j + 1);
+      }
+      part = part.split(CLOZE_CLOSE).join("");
+      if (part) into.appendChild(document.createTextNode(part));
+    });
+    return text.split(CLOZE_OPEN).join("").split(CLOZE_CLOSE).join("");
+  }
+  function noteGlance(note, extra) {
+    const box = document.createElement("span"); box.className = "mnx-glance";
+    const main = document.createElement("span"); main.className = "mnx-glance-text";
+    box.appendChild(main);
+    const front = noteField(note, "Text") || noteField(note, "Front");
+    let shown = clozeGlance(front, main);
+    const subs = [["Extra", ["Extra", "Back Extra"]], ["Additional", ["Additional Resources"]]];
+    subs.forEach(([label, names]) => {
+      const v = names.map(n => htmlToText(noteField(note, n))).filter(Boolean).join(" ");
+      if (!v) return;
+      if (!shown) { main.textContent = v; main.title = v; shown = v; return; }   // no Text: Extra leads
+      const line = document.createElement("span"); line.className = "mnx-glance-sub";
+      const b = document.createElement("b"); b.textContent = label + " ";
+      line.append(b, document.createTextNode(v)); line.title = v;
+      box.appendChild(line);
+    });
+    if (!shown) main.textContent = "note " + note.noteId;
+    else if (!main.title) main.title = shown;
+    const imgs = orderedFields(note).reduce((n, f) => n + imageCount(f.value), 0);
+    const meta = [];
+    if (imgs) meta.push(imgs + (imgs === 1 ? " image" : " images"));
+    if (extra) meta.push(extra);
+    if (meta.length) {
+      const m = document.createElement("span"); m.className = "mnx-glance-meta"; m.textContent = meta.join(" · ");
+      box.appendChild(m);
+    }
+    return box;
   }
   // Read an element's visible text while temporarily hiding our own injected UI
   // (resource panel, modals, the QID button). innerText skips display:none, so
@@ -2881,6 +3012,35 @@
       });
       wrap.appendChild(qlbl); wrap.appendChild(strip);
     }
+    // Figures the explanation keeps behind a button: one chip each, fetched
+    // only when you click it.
+    const figures = (SITE.canAttachImages === false || !SITE.exhibits) ? [] : (() => { try { return SITE.exhibits(); } catch (e) { return []; } })();
+    if (figures.length) {
+      const flbl = document.createElement("div"); flbl.className = "mnx-md-hint"; flbl.style.margin = "9px 0 4px";
+      flbl.textContent = "Figures in the explanation — click to add:";
+      const row = document.createElement("div"); row.className = "mnx-figchips";
+      figures.forEach(fig => {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "mnx-figchip"; b.textContent = fig.label;
+        b.title = "Add the “" + fig.label + "” figure";
+        b.addEventListener("click", onUserClick(async () => {
+          if (b.dataset.added || b.classList.contains("loading")) return;
+          b.classList.add("loading");
+          try {
+            const src = await fig.open();
+            const dataUrl = await fetchImageViaBg(src);
+            const rec = { dataUrl, mime: (String(dataUrl).match(/^data:([^;]+)/) || [])[1] || "image/png" };
+            images.push(rec); renderThumb(rec);
+            b.classList.add("added"); b.dataset.added = "1";
+          } catch (e) {
+            toast("Couldn't get that figure (" + ((e && e.message) || e) + "). Open it on the page, then try again.");
+          }
+          b.classList.remove("loading");
+        }));
+        row.appendChild(b);
+      });
+      wrap.appendChild(flbl); wrap.appendChild(row);
+    }
     async function upload(prefix) {
       const tags = [];
       for (const rec of images) {
@@ -2930,12 +3090,14 @@
   // card can carry dozens of them.
   const HIDDEN_FIELDS = /^(ankihub_id|guid|id|note id)$/i;
   const OPEN_FIELDS = /^(text|front|back|extra|back extra|additional resources|missed questions)$/i;
+  // A field counts only if it shows something: text, or an image with a usable
+  // source. Spaces, <br>s, empty boxes and src-less images are empty, and an
+  // empty field is never shown -- in the panel, the preview or Save.
   function fieldHasContent(html) {
-    const h = String(html || "");
-    return /<img\b/i.test(h) || htmlToText(h).replace(/\u00a0/g, " ").trim().length > 0;
+    return htmlToText(html).length > 0 || imageCount(html) > 0;
   }
   function fieldSummary(html) {
-    const imgs = (String(html || "").match(/<img\b/gi) || []).length;
+    const imgs = imageCount(html);
     const t = htmlToText(html);
     const bits = [];
     if (t) bits.push(t.length > 70 ? t.slice(0, 68) + "…" : t);
@@ -3163,10 +3325,14 @@
   function extraLabel(imgTags) {
     return imgTags.length ? (" + " + imgTags.length + " image" + (imgTags.length === 1 ? "" : "s")) : "";
   }
-  // The qbank's System for a question, if a results page has told us.
+  // The qbank's System / Subject for a question, if a results page has told us.
   function questionSystem(qid) {
     const e = trackerLog.answered[currentQbankSlug() + " " + qid];
     return (e && (e.sys || e.subj)) || "";
+  }
+  function questionSubject(qid) {
+    const e = trackerLog.answered[currentQbankSlug() + " " + qid];
+    return (e && e.subj) || "";
   }
   // Chapters you've picked before, to break ties the same way next time.
   let chapterPicks = {};
@@ -3198,13 +3364,8 @@
         const row = document.createElement("label");
         const r = document.createElement("input"); r.type = "radio"; r.name = "mnx-note"; r.checked = i === 0;
         r.addEventListener("change", () => { chosenNote = note; refreshDeckGuess(); refreshFullCard(); });
-        const span = document.createElement("span"); span.textContent = noteSnippet(note);
         const ids = Mt.rankInfo(note).ids;
-        if (ids > 1) {
-          const hint = document.createElement("i"); hint.className = "mnx-pick-hint";
-          hint.textContent = " · tagged on " + ids + " questions";
-          span.appendChild(hint);
-        }
+        const span = noteGlance(note, ids > 1 ? "tagged on " + ids + " questions" : "");
         row.appendChild(r); row.appendChild(span); pick.appendChild(row);
       });
       m.body.appendChild(pick);
@@ -3255,9 +3416,39 @@
     const system = questionSystem(qid);
     let chapters = [];
     let chapter = null, customChapter = "", chapterTouched = false;
+    // Two kinds of suggestion:
+    //   a base deck selected ("Missed Qs")      -> the chapter to file it under
+    //   a chapter deck selected ("Missed Qs::GI") -> it IS the chapter; the
+    //     suggestions become optional subdecks INSIDE it: the question's
+    //     Subject (Pharmacology on Step 1, Medicine/Surgery on Step 2/3), the
+    //     subdecks you already have there, then topics from the card's tags
+    //     that fit inside it -- never another chapter. "Just GI" stays the default.
+    const subject = questionSubject(qid);
     function computeChapters() {
+      if (chapterDeckSelected()) {
+        const raw = rawDeck(), leaf = deckLeaf(raw);
+        const kids = Tg.childDecks(deckCache || [], raw).map(deckLeaf);
+        const list = [];
+        const add = (name, from, extra) => {
+          if (!name || Tg.sameChapter(name, leaf) || list.some(c => Tg.sameChapter(c.name, name))) return;
+          list.push(Object.assign({ name, from, n: 1, mine: kids.some(k => Tg.sameChapter(k, name)) }, extra || {}));
+        };
+        if (subject) add(subject, "subject", { subject: true });
+        kids.forEach(k => add(k, "your subdeck", { mine: true }));
+        // From the card's tags, only what fits inside this chapter -- never a
+        // sibling chapter ("Cardio" inside "Respiratory"); see Tg.fitsInside.
+        Tg.chapterCandidates(notes, step, { system, preferred: chapterPicks, existing: kids, limit: 12 })
+          .filter(c => Tg.fitsInside(leaf, c.name))
+          .forEach(c => add(c.name, c.from, { n: c.n, system: c.system }));
+        chapters = list.slice(0, 6);
+        return;
+      }
       const existing = Tg.childDecks(deckCache || [], rootDeck()).map(deckLeaf);
       chapters = Tg.chapterCandidates(notes, step, { system, preferred: chapterPicks, existing });
+      if (subject && !chapters.some(c => Tg.sameChapter(c.name, subject))) {
+        chapters.push({ name: subject, from: "subject", n: 1, subject: true,
+                        mine: existing.some(k => Tg.sameChapter(k, subject)) });
+      }
     }
     function defaultChapter() {
       // A chapter deck is already the chapter: save straight into it.
@@ -3281,11 +3472,12 @@
     function drawChips() {
       const inChapter = chapterDeckSelected();
       subLbl.textContent = inChapter
-        ? "Chapter subdeck — “" + deckLeaf(rawDeck()) + "” is already a chapter"
+        ? "“" + deckLeaf(rawDeck()) + "” is already a chapter — add a subdeck inside it? (optional)"
         : chapters.length ? "Chapter subdeck" : "Chapter subdeck (none found in this card's tags)";
       chips.replaceChildren();
       const opts = chapters.map(c => ({ key: c.name, label: c.name,
-        hint: c.from + (c.n > 1 ? " · ×" + c.n : "") + (c.system ? " · this question's system" : "") + (c.mine ? " · your subdeck" : "") }));
+        hint: (c.subject ? "this question's subject" : c.from) + (c.n > 1 ? " · ×" + c.n : "") +
+              (c.system ? " · this question's system" : "") + (c.mine && c.from !== "your subdeck" ? " · your subdeck" : "") }));
       opts.push({ key: "__custom", label: "Custom…", hint: "" });
       opts.push(inChapter ? { key: null, label: "Just " + deckLeaf(rawDeck()), hint: "the deck you picked" }
                           : { key: null, label: "No subdeck", hint: "" });
@@ -3335,13 +3527,17 @@
       return path;
     }
     // The deck the card goes to. A subdeck you already have is reused
-    // ("03_Respiratory", "GI") rather than a parallel one created beside it; a
-    // chapter deck you picked is used as it is; another chapter picked while a
-    // chapter deck is selected goes beside it under the same root, never inside it.
+    // ("03_Respiratory", "GI") rather than a parallel one created beside it. A
+    // chapter deck you picked is used as it is -- or, if you pick a suggestion
+    // too, that suggestion becomes a subdeck INSIDE it ("Missed Qs::GI::Pharm").
     function targetDeck() {
       const raw = rawDeck();
       if (!raw) return "";
-      if (!chapter) return chapterDeckSelected() ? raw : stripKnownChapter(raw);
+      if (chapterDeckSelected()) {
+        if (!chapter) return raw;
+        return Tg.existingChapterDeck(deckCache, raw, chapter) || (raw + "::" + chapter);
+      }
+      if (!chapter) return stripKnownChapter(raw);
       const base = rootDeck();
       return Tg.existingChapterDeck(deckCache, base, chapter) || (base + "::" + chapter);
     }
@@ -3445,12 +3641,13 @@
         // tags we don't control — cleanSeg turns "_" into " ", so a segment
         // like "Cardio_marked_leech" would fan out into three tags and write
         // "marked" and "leech" onto the note. Collapse it back to one tag.
-        // Saving straight into a chapter deck: that deck's name is the chapter
-        // (so the note is still tagged Mnestic::Missed::<chapter>).
-        const tagChapter = chapter || (chapterDeckSelected() ? Tg.cleanSeg(deckLeaf(rawDeck())) : null);
-        const chapTag = tagChapter
-          ? MISSED_TAG + "::" + String(tagChapter).split("::").join("_").replace(/\s+/g, "_")
-          : MISSED_TAG;
+        // The chapter tag follows the deck: Mnestic::Missed::<chapter>, and
+        // inside a chapter deck Mnestic::Missed::<chapter>::<subdeck>.
+        const inChapterDeck = chapterDeckSelected();
+        const tagChapter = inChapterDeck ? Tg.cleanSeg(deckLeaf(rawDeck())) : chapter;
+        const tagPath = [tagChapter, inChapterDeck ? chapter : null].filter(Boolean)
+          .map(seg => String(seg).split("::").join("_").replace(/\s+/g, "_"));
+        const chapTag = tagPath.length ? MISSED_TAG + "::" + tagPath.join("::") : MISSED_TAG;
         // Mnestic::QID::<id> records WHICH question this was missed on, so the
         // missed list and undo work per question rather than per note.
         const tags = [MISSED_TAG, chapTag, Mt.qidTag(qid)];
@@ -3518,7 +3715,7 @@
           }
         }
 
-        rememberChapterPick(tagChapter);
+        rememberChapterPick(inChapterDeck ? chapter : tagChapter);
         // The ROOT of the tree, per Step (see fillDecks).
         const root = rootDeck();
         chrome.storage.local.get({ akMissedDeckByStep: {} }, c => {

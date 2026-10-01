@@ -125,3 +125,55 @@ test("a chapter you already have a subdeck for comes first", () => {
   assert.equal(c[0].name, "Respiratory");
   assert.equal(c[0].mine, true);
 });
+
+// Inside a chapter deck ("Missed Qs::Respiratory") the deck IS the chapter:
+// only the other axis -- the question's subject -- makes a subdeck.
+test("the same rotation under different names is one chapter", () => {
+  assert.ok(T.sameChapter("Medicine", "Internal Medicine"));
+  assert.ok(T.sameChapter("IM", "Internal Medicine"));
+  assert.ok(T.sameChapter("OB/GYN", "ObGyn"));
+  assert.ok(!T.sameChapter("Medicine", "Surgery"));
+  assert.ok(!T.sameChapter("Family Medicine", "Internal Medicine"));
+});
+
+test("chapter kinds: organ system, discipline, rotation", () => {
+  assert.equal(T.chapterKind("03_Respiratory"), "system");
+  assert.equal(T.chapterKind("Pulmonary & Critical Care"), "system");
+  assert.equal(T.chapterKind("Pharmacology"), "discipline");
+  assert.equal(T.chapterKind("Pathology"), "discipline");
+  assert.equal(T.chapterKind("Internal Medicine"), "rotation");
+  assert.equal(T.chapterKind("Medicine"), "rotation");
+  assert.equal(T.chapterKind("Week 3"), null);
+});
+
+test("inside a chapter deck: a sibling chapter never fits, the subject does", () => {
+  // Step 1: Respiratory -> Pharmacology / Pathology, not Cardio
+  assert.ok(T.fitsInside("Respiratory", "Pharmacology"));
+  assert.ok(T.fitsInside("03_Respiratory", "Pathology"));
+  assert.ok(!T.fitsInside("Respiratory", "Cardio"));
+  assert.ok(!T.fitsInside("Immunology", "MSK"));
+  assert.ok(!T.fitsInside("Respiratory", "Pulm"), "itself under another name");
+  // Step 2/3: Endocrine -> Medicine / Surgery; Internal Medicine -> Cardiovascular
+  assert.ok(T.fitsInside("Endocrine", "Medicine"));
+  assert.ok(T.fitsInside("Immunology", "Internal Medicine"));
+  assert.ok(T.fitsInside("Internal Medicine", "Cardiovascular"));
+  assert.ok(!T.fitsInside("Internal Medicine", "Surgery"));
+  assert.ok(!T.fitsInside("Internal Medicine", "Medicine"));
+  // your own kind of deck: anything goes
+  assert.ok(T.fitsInside("Week 3", "Cardio"));
+});
+
+test("the live Step 2 case inside Missed Qs::Immunology offers the rotation, not MSK", () => {
+  const inside = T.chapterCandidates(step2Card, 2, { limit: 12 }).filter((c) => T.fitsInside("Immunology", c.name)).map((c) => c.name);
+  assert.deepEqual(inside, ["Internal Medicine"]);
+});
+
+test("one suggestion per chapter, whatever each resource calls it", () => {
+  const card = [{ tags: [
+    "#AK_Step1_v12::#FirstAid::FA2024::13_Respiratory::Pulmonary_Edema",
+    "#AK_Step1_v12::#B&B::Pulm::Edema",
+    "#AK_Step1_v12::#Bootcamp::Pulmonology::Edema",
+    "#AK_Step1_v12::#FirstAid::FA2024::08_Cardiovascular::Heart_Failure"] }];
+  const names = T.chapterCandidates(card, 1, { system: "Pulmonary & Critical Care" }).map((c) => c.name);
+  assert.deepEqual(names, ["Respiratory", "Cardiovascular"]);
+});
