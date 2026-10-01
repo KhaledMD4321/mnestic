@@ -92,7 +92,7 @@
       .map((x) => x.n);
   }
 
-  const api = { ANKING_VER, safeQid, safeQidOrNull, qidQuery, qidQueryLoose, qidTag, uworldIds, yieldOf, rankInfo, rankNotes };
+  const api = { safeQid, safeQidOrNull, qidQuery, qidQueryLoose, qidTag, uworldIds, yieldOf, rankInfo, rankNotes };
   if (typeof module === "object" && module.exports) module.exports = api;
   else (root.Mnx = root.Mnx || {}).match = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

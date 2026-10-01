@@ -81,7 +81,6 @@ const OPS = {
   },
   noteInfo: () => [NOTE],
   countNotes: (a) => (a.queries || []).map(() => 9272),
-  listTags: () => NOTE.tags,
   listDecks: () => DECKS.slice(),
   readMedia: (a) => media[a.filename] || null,
   writeMedia: (a) => a.filename,

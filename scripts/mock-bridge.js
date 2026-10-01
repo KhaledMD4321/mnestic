@@ -218,7 +218,6 @@ const OPS = {
   readMedia: () => PNG_B64,
   writeMedia: (a) => a.filename,
   openBrowser: () => true,
-  listTags: () => NOTE.tags,
   // a numbered chapter subdeck, like a real user's
   listDecks: () => ["Default", "AnKing Step 1", "Missed Questions", "Missed Questions::03_Respiratory"],
   // Per query, one row per card of the matching notes, with its real suspension.

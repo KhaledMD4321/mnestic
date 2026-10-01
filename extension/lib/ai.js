@@ -235,7 +235,7 @@
       .join("\n").replace(/\n{3,}/g, "\n\n").trim();
   }
 
-  const api = { PRESETS, CUSTOM, FEELING, preset, defaultPreset, hasOwnPrompt, compose, questionBlock, stripFurniture, situation };
+  const api = { PRESETS, CUSTOM, preset, defaultPreset, hasOwnPrompt, compose, stripFurniture };
   if (typeof module === "object" && module.exports) module.exports = api;
   else (root.Mnx = root.Mnx || {}).ai = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

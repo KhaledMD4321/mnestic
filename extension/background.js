@@ -25,12 +25,12 @@ const DEFAULT_PORT = 8790;
 // build filtered decks, create decks, or read the missed list. The popup is an
 // extension page and needs its own, different handful.
 const CONTENT_OPS = new Set([
-  "ping", "auth", "searchNotes", "noteInfo", "readMedia", "writeMedia", "openBrowser",
+  "searchNotes", "noteInfo", "readMedia", "writeMedia", "openBrowser",
   "listDecks", "cardStats", "cardMaturity", "unsuspend", "suspend", "copyNote",
   "updateNote", "newNote", "setDeck", "removeTags", "deleteNotes"
 ]);
 const PAGE_OPS = new Set([
-  "ping", "auth", "status", "listDecks", "createDeck", "missedIds", "filteredDeck",
+  "ping", "auth", "listDecks", "createDeck", "missedIds", "filteredDeck",
   "openBrowser", "countNotes", "searchNotes"
 ]);
 const MAX_ARGS = 1024 * 1024;             // plenty for every op but one

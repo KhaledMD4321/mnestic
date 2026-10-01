@@ -67,7 +67,7 @@
     return (solid.length ? solid : withMisses).slice(0, n == null ? 3 : n);
   }
 
-  const api = { K, MIN_N, aggregate, weakest };
+  const api = { MIN_N, aggregate, weakest };
   if (typeof module === "object" && module.exports) module.exports = api;
   else (root.Mnx = root.Mnx || {}).weak = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

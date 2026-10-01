@@ -180,7 +180,7 @@
     return { daysLeft, finish: D.addDays(today, daysLeft) };
   }
 
-  const api = { VERSION, normalizeLog, liveBetween, creditCounter, recordSnapshot, dayCounts, undatedTotal, pace, projection };
+  const api = { VERSION, normalizeLog, creditCounter, recordSnapshot, dayCounts, undatedTotal, pace, projection };
   if (typeof module === "object" && module.exports) module.exports = api;
   else (root.Mnx = root.Mnx || {}).tracker = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

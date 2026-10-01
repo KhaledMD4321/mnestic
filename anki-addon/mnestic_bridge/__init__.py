@@ -478,10 +478,6 @@ def op_open_browser(args):
     return True
 
 
-def op_list_tags(args):
-    return list(_col().tags.all())
-
-
 def op_list_decks(args):
     col = _col()
     try:
@@ -1100,8 +1096,9 @@ def op_count_notes(args):
     return [len(col.find_notes(q)) for q in queries if isinstance(q, str)]
 
 
-def op_status(args):
-    """Everything the extension needs to tell a user what is and isn't set up."""
+def _status_info():
+    """What Tools > Mnestic Bridge > Status shows: what is and isn't set up.
+    (No extension asks for this over the network, so it isn't an op.)"""
     col = _col()
     steps = {}
     for step in (1, 2, 3):
@@ -1208,7 +1205,6 @@ _OPS = {
     "readMedia": op_read_media,
     "writeMedia": op_write_media,
     "openBrowser": op_open_browser,
-    "listTags": op_list_tags,
     "listDecks": op_list_decks,
     "cardStats": op_card_stats,
     "cardMaturity": op_card_maturity,
@@ -1222,7 +1218,6 @@ _OPS = {
     "createDeck": op_create_deck,
     "filteredDeck": op_filtered_deck,
     "missedIds": op_missed_ids,
-    "status": op_status,
     "removeTags": op_remove_tags,
     "deleteNotes": op_delete_notes,
 }
@@ -1431,7 +1426,7 @@ def rotate_pairing_code():
 
 def show_status():
     try:
-        st = op_status({})
+        st = _status_info()
     except Exception as exc:
         showText("%s: couldn't read the collection (%s)" % (ADDON_NAME, exc), title=ADDON_NAME)
         return

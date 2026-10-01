@@ -299,9 +299,9 @@
   }
   function isChapterDeck(deck, knownBase) { return !!missedRoot(deck, knownBase); }
 
-  const api = { cleanSeg, isNoiseSeg, isEditionSeg, tagPaths, chapterNoise, chapterCandidates, matchesSystem,
-                sameChapter, systemStyle, isSystemName, rotationKey, chapterKind, fitsInside, deckLeaf, normDeck, childDecks, existingChapterDeck,
-                missedRoot, isChapterDeck, ROTATION_NAMES, CHAPTER_ROOTS };
+  const api = { cleanSeg, isEditionSeg, tagPaths, chapterCandidates, matchesSystem,
+                sameChapter, systemStyle, chapterKind, fitsInside, deckLeaf, normDeck, childDecks,
+                existingChapterDeck, missedRoot, isChapterDeck };
   if (typeof module === "object" && module.exports) module.exports = api;
   else (root.Mnx = root.Mnx || {}).tags = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

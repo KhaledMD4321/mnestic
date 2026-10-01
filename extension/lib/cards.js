@@ -71,7 +71,7 @@
     return out.join(" … ");
   }
 
-  const api = { nextClozeNum, protectClozeBody, wrapCloze, clozeOrdinals, clozeSide, clozeAnswer };
+  const api = { nextClozeNum, wrapCloze, clozeOrdinals, clozeSide, clozeAnswer };
   if (typeof module === "object" && module.exports) module.exports = api;
   else (root.Mnx = root.Mnx || {}).cards = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

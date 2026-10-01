@@ -905,13 +905,10 @@
     #${PANEL_ID} .mnx-tone-bad{--tone:var(--mnx-bad);--tone-txt:var(--mnx-bad-txt)}
     #${PANEL_ID} .mnx-recall-btn.on{background:color-mix(in srgb,var(--tone) 10%,var(--mnx-surface));color:var(--tone-txt);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--tone) 45%,transparent)}
 
-
     #${PANEL_ID} .mnx-recall-next{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;margin:0 14px 12px;padding:9px 10px 9px 12px;border-radius:var(--mnx-r-sm);
       background:color-mix(in srgb,var(--tone,var(--mnx-muted)) 6%,var(--mnx-surface));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--tone,var(--mnx-muted)) 20%,transparent);
       font-size:12px;line-height:1.5;color:var(--mnx-text)}
     #${PANEL_ID} .mnx-recall-next::before{content:"";flex:none;width:6px;height:6px;border-radius:var(--mnx-r-pill);background:var(--tone,var(--mnx-muted))}
-
-
 
     #${PANEL_ID} .mnx-recall-next-txt{flex:1 1 220px;min-width:0}
     #${PANEL_ID} .mnx-recall-act{flex:none;font:inherit;font-size:11.5px;font-weight:600;cursor:pointer;padding:4px 10px;border-radius:var(--mnx-r-pill);border:none;background:var(--mnx-surface);color:var(--mnx-accent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--mnx-accent) 26%,transparent),0 1px 2px rgba(24,20,70,.05);transition:background .25s var(--mnx-ease),transform .25s var(--mnx-ease)}
@@ -1014,7 +1011,7 @@
     #${SUMMARY_ID} .mnx-conf{display:inline-block;font-size:12px;font-weight:700;padding:4px 12px;border-radius:var(--mnx-r-pill);margin:0 0 11px}
     #${SUMMARY_ID} .mnx-conf-high{background:color-mix(in srgb,var(--mnx-good) 16%,var(--mnx-surface));color:var(--mnx-good-600)}
     #${SUMMARY_ID} .mnx-conf-medium{background:var(--mnx-accent-soft);color:var(--mnx-accent-700)}
-    #${SUMMARY_ID} .mnx-conf-low{background:color-mix(in srgb,var(--mnx-warn) 18%,var(--mnx-surface));color:var(--mnx-warn)}
+    #${SUMMARY_ID} .mnx-conf-low{background:color-mix(in srgb,var(--mnx-warn) 14%,var(--mnx-surface));color:var(--mnx-warn-txt)}
     #${SUMMARY_ID} .mnx-conf-insufficient{background:var(--mnx-surface-2);color:var(--mnx-muted)}
     #${SUMMARY_ID} .mnx-x{border:none;background:transparent;font-size:26px;line-height:1;cursor:pointer;color:var(--mnx-muted);padding:0 4px;border-radius:var(--mnx-r-xs);transition:background .12s,color .12s}
     #${SUMMARY_ID} .mnx-x:hover{color:var(--mnx-text);background:var(--mnx-surface-2)}
@@ -1118,7 +1115,6 @@
     #mnx-md-overlay .mnx-saved-x{flex:none;border:none;background:none;color:var(--mnx-bad-txt);font:600 12px var(--mnx-font);cursor:pointer;padding:2px 4px;border-radius:var(--mnx-r-xs)}
     #mnx-md-overlay .mnx-saved-x:hover{text-decoration:underline}
     #mnx-md-overlay .mnx-saved-x:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
-    #mnx-md-overlay .mnx-pick-hint{font-style:normal;color:var(--mnx-muted);font-size:11.5px}
     #mnx-md-overlay .mnx-dup{color:var(--mnx-warn-txt);font-weight:600}
     #mnx-md-overlay .mnx-md-btn{border:none;border-radius:var(--mnx-r-pill);padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--mnx-font);transition:transform .3s var(--mnx-ease),background .25s var(--mnx-ease),box-shadow .25s var(--mnx-ease),filter .2s var(--mnx-ease)}
     #mnx-md-overlay .mnx-md-btn:active{transform:scale(.97)}
@@ -1200,7 +1196,6 @@
     #mnx-md-overlay .mnx-qthumb img{width:100%;height:100%;object-fit:cover;display:block}
     #mnx-md-overlay .mnx-qthumb::after{content:"＋";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.34);color:#fff;font-size:14px;font-weight:700;opacity:0;transition:opacity .14s}
     #mnx-md-overlay .mnx-qthumb:hover::after{opacity:1}
-    #mnx-md-overlay .mnx-figchips{display:flex;flex-wrap:wrap;gap:6px}
     #mnx-md-overlay .mnx-figchip{font:600 12px var(--mnx-font);cursor:pointer;padding:0 10px;height:30px;box-sizing:border-box;border-radius:var(--mnx-r-pill);border:1px solid var(--mnx-border);background:var(--mnx-surface);color:var(--mnx-accent);transition:background .14s}
     #mnx-md-overlay .mnx-figchip::before{content:"＋ "}
     #mnx-md-overlay .mnx-figchip:hover{background:var(--mnx-accent-soft)}
@@ -4723,7 +4718,6 @@
     return true;
   }
 
-
   async function addCardStatus(s) {
     const panel = document.getElementById(PANEL_ID); if (!panel) return;
     // Your cards for this question and what to do with them. The buttons are
@@ -4977,7 +4971,7 @@
     setTimeout(() => (kind === "cloze" ? clozeTa : frontTa).focus(), 30);
   }
 
-  // floating "✚ Make card" chip that appears when you select text on the page
+  // the floating "Make card" chip that appears when you select text on the page
   let selChipEl = null;
   function ensureSelChip() {
     if (selChipEl && document.body.contains(selChipEl)) return selChipEl;
