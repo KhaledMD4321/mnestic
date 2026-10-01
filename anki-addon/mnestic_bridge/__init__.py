@@ -59,8 +59,54 @@ _COPY_TAG = "Mnestic::Copy"
 _OWN_TAG_ROOT = "mnestic::"
 _UW_ID_RE = re.compile(r"^#AK_Step(\d)_v[^:]*::#UWorld::(?:Step::)?(\d+)$", re.I)
 
+# Written next to Mnestic::Missed when a question is saved, so the missed list
+# can name the question you actually got wrong rather than every question id
+# AnKing happens to tag on that note (one note can carry dozens).
+_QID_TAG_RE = re.compile(r"^Mnestic::QID::(\d{1,12})$", re.I)
+
+# ---------------------------------------------------------------------------
+# What a valid pairing code is allowed to do.
+#
+# The code proves a request comes from Mnestic, but anything that learns it
+# (malware, a leaked screenshot, clipboard history) could send the same
+# requests. So every write is held to exactly the shape the extension needs:
+# the tags it writes, the one field it appends to, question-id searches, and
+# small batches. Before 1.4 updateNote accepted any tag and any field, which
+# let two requests delete an arbitrary note: tag it Mnestic::Copy, blank its
+# ankihub_id, then call deleteNotes.
+# ---------------------------------------------------------------------------
+_TAG_OK_RE = re.compile(
+    r"^(?:Mnestic::(?:Missed(?:::[^\s\"]{1,200})?|Made|QID::\d{1,12})"
+    r"|AnkiHub_Protect::Missed_Questions)$",
+    re.I,
+)
+_APPEND_FIELDS = ("missed questions",)
+MAX_BODY = 32 * 1024 * 1024           # a pasted screenshot, base64'd, fits easily
+MAX_MEDIA = 24 * 1024 * 1024          # one media file, decoded
+MAX_FIELD = 256 * 1024                # one field's worth of HTML
+MAX_NOTES_PER_WRITE = 50              # a question matches a handful of notes
+MAX_CARDS_PER_UNSUSPEND = 3000        # a 100-question block, with room to spare
+MAX_QUERY_TERMS = 400
+MAX_QUERY_LEN = 100000
+_MEDIA_EXT = ("png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "svg")
+
+# A write op's search may only SELECT cards the way Mnestic does: by question-id
+# tag, by Mnestic's own tags, or by explicit note/card ids. No negations and no
+# collection-wide terms, so no request can reach "every card" (deck:*, or an
+# empty/negated search).
+_SELECTOR_RES = (
+    re.compile(r"^tag:#AK_Step[1-3]_v\*::#UWorld::(?:Step::|\*::)?\d{1,12}$", re.I),
+    re.compile(r"^tag:Mnestic::(?:QID::\d{1,12}|Missed(?:::[^\s\"()]{1,200})?|Made)$", re.I),
+    re.compile(r"^(?:nid|cid):\d{1,20}(?:,\d{1,20}){0,999}$", re.I),
+)
+# filteredDeck may also narrow with these. They never widen a search.
+_MODIFIER_RES = (
+    re.compile(r"^-is:suspended$", re.I),
+    re.compile(r"^-tag:Mnestic::Copy$", re.I),
+)
+
 ADDON_NAME = "Mnestic Bridge"
-ADDON_VERSION = "1.3.0"
+ADDON_VERSION = "1.4.0"
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8790
 
@@ -136,6 +182,132 @@ def _col():
     return mw.col
 
 
+# ------------------------------ validation ------------------------------
+def _ids(value, what, limit):
+    """A list of positive integer ids, at most `limit` of them."""
+    if value is None:
+        return []
+    if not isinstance(value, (list, tuple)):
+        raise Exception("%s must be a list of ids" % what)
+    if len(value) > limit:
+        raise Exception("%s takes at most %d at a time" % (what, limit))
+    out = []
+    for v in value:
+        try:
+            n = int(v)
+        except Exception:
+            raise Exception("%s must be numbers" % what)
+        if n <= 0:
+            raise Exception("%s must be positive" % what)
+        out.append(n)
+    return out
+
+
+def _one_id(value, what):
+    if value is None or value == "":
+        raise Exception("%s is required" % what)
+    return _ids([value], what, 1)[0]
+
+
+def _deck_name(value, what="deck"):
+    name = (value if isinstance(value, str) else "").strip()
+    if not name:
+        raise Exception("%s is required" % what)
+    if len(name) > 300 or any(ord(c) < 32 for c in name):
+        raise Exception("%s name is not valid" % what)
+    if any(not part.strip() for part in name.split("::")):
+        raise Exception("%s name has an empty level" % what)
+    return name
+
+
+def _tags(value):
+    """Only the tags Mnestic itself writes. Mnestic::Copy is NOT one of them:
+    copyNote adds it to the copies it makes, and nothing else may, because it
+    is what makes a note deletable."""
+    if value is None:
+        return []
+    if not isinstance(value, (list, tuple)) or len(value) > 20:
+        raise Exception("addTags must be a short list")
+    out = []
+    for t in value:
+        t = t.strip() if isinstance(t, str) else ""
+        if not t:
+            continue
+        if not _TAG_OK_RE.match(t):
+            raise Exception("Mnestic can only add its own tags, not %r" % t[:80])
+        out.append(t)
+    return out
+
+
+def _appends(value):
+    """Appends to the Missed Questions field -- the only field Mnestic writes
+    into on an existing note."""
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise Exception("fieldAppends must be an object")
+    out = {}
+    for name, val in value.items():
+        if not isinstance(name, str) or name.strip().lower() not in _APPEND_FIELDS:
+            raise Exception("Mnestic only appends to the Missed Questions field, not %r" % str(name)[:60])
+        if not isinstance(val, str) or len(val) > MAX_FIELD:
+            raise Exception("the note to append is too long")
+        out[name] = val
+    return out
+
+
+def _no_field_sets(args):
+    # Overwriting a field is how a note could be emptied or stripped of its
+    # ankihub_id. The extension has never needed it.
+    if args.get("fieldSets"):
+        raise Exception("fieldSets is not supported: Mnestic never overwrites a field")
+
+
+def _text(value, what):
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise Exception("%s must be text" % what)
+    if len(value) > MAX_FIELD:
+        raise Exception("%s is too long" % what)
+    return value
+
+
+def _scoped_query(query, allow_modifiers=False):
+    """Refuse any search a write op should not run: only question-id tags,
+    Mnestic's own tags and explicit ids, joined with OR and parentheses."""
+    if not isinstance(query, str) or not query.strip():
+        raise Exception("a search is required")
+    if len(query) > MAX_QUERY_LEN:
+        raise Exception("the search is too long")
+    tokens = query.replace("(", " ( ").replace(")", " ) ").split()
+    depth, selectors = 0, 0
+    for tok in tokens:
+        if tok == "(":
+            depth += 1
+            continue
+        if tok == ")":
+            depth -= 1
+            if depth < 0:
+                raise Exception("unbalanced parentheses in the search")
+            continue
+        if tok.upper() == "OR":
+            continue
+        if any(r.match(tok) for r in _SELECTOR_RES):
+            selectors += 1
+            continue
+        if allow_modifiers and any(r.match(tok) for r in _MODIFIER_RES):
+            continue
+        raise Exception("this search is outside what Mnestic may change: %r" % tok[:60])
+    if depth != 0:
+        raise Exception("unbalanced parentheses in the search")
+    if not selectors:
+        raise Exception("the search does not select any question")
+    if selectors > MAX_QUERY_TERMS:
+        raise Exception("the search names too many questions at once")
+    return query
+
+
 # ------------------------------- read ops -------------------------------
 def op_search_notes(args):
     query = args.get("query")
@@ -147,10 +319,11 @@ def op_search_notes(args):
 def op_note_info(args):
     ids = args.get("notes")
     if args.get("query"):
-        ids = op_search_notes({"query": args["query"]})
+        ids = op_search_notes({"query": args["query"]})[:500]
+    ids = _ids(ids, "notes", 500)
     col = _col()
     out = []
-    for nid in ids or []:
+    for nid in ids:
         try:
             note = col.get_note(int(nid))
         except Exception:
@@ -171,11 +344,16 @@ def op_note_info(args):
 
 def op_read_media(args):
     filename = args.get("filename")
-    if not filename:
+    if not filename or not isinstance(filename, str):
         return False
-    filename = unicodedata.normalize("NFC", os.path.basename(filename))
+    # basename: a request can only ever name a file IN the media folder.
+    filename = unicodedata.normalize("NFC", os.path.basename(filename.replace("\\", "/")))
+    if not filename or filename in (".", ".."):
+        return False
     path = os.path.join(_col().media.dir(), filename)
-    if os.path.exists(path):
+    if os.path.isfile(path):
+        if os.path.getsize(path) > MAX_MEDIA:
+            raise Exception("that media file is too large to show")
         with open(path, "rb") as fh:
             return base64.b64encode(fh.read()).decode("ascii")
     return False
@@ -183,10 +361,18 @@ def op_read_media(args):
 
 def op_write_media(args):
     filename, data = args.get("filename"), args.get("data")
-    if not filename or not data:
+    if not filename or not data or not isinstance(filename, str) or not isinstance(data, str):
         raise Exception("filename and data are required")
-    raw = base64.b64decode(data)
-    name = os.path.basename(filename)
+    name = os.path.basename(filename.replace("\\", "/")).strip()
+    ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+    if not name or name.startswith((".", "_")) or ext not in _MEDIA_EXT or len(name) > 200:
+        raise Exception("Mnestic only stores images in your media folder")
+    if len(data) > MAX_MEDIA * 4 // 3 + 8:
+        raise Exception("that image is too large (the limit is %d MB)" % (MAX_MEDIA // (1024 * 1024)))
+    try:
+        raw = base64.b64decode(data, validate=True)
+    except Exception:
+        raise Exception("the image data is not valid")
     col = _col()
     try:
         return col.media.write_data(name, raw)
@@ -199,7 +385,11 @@ def op_write_media(args):
 
 
 def op_open_browser(args):
+    # Read-only: it fills Anki's own search box. The popup's topic search sends
+    # free text here, so this is capped rather than scoped.
     query = args.get("query")
+    if query is not None and (not isinstance(query, str) or len(query) > MAX_QUERY_LEN):
+        raise Exception("the search is too long")
     browser = aqt.dialogs.open("Browser", mw)
     browser.activateWindow()
     if query:
@@ -302,11 +492,18 @@ def op_card_maturity(args):
 
 
 def op_unsuspend(args):
-    """Per query, unsuspend matching cards (optionally only at given yield levels)."""
+    """Per query, unsuspend matching cards (optionally only at given yield levels).
+
+    Each result lists the cards it actually unlocked, so undoing a save can put
+    back exactly those and nothing that was already in your reviews."""
     col = _col()
     want = set(args.get("yields") or []) or None
-    out = []
-    for q in args.get("queries") or []:
+    queries = args.get("queries") or []
+    if not isinstance(queries, (list, tuple)) or len(queries) > 50:
+        raise Exception("queries must be a short list")
+    queries = [_scoped_query(q) for q in queries]
+    plan, total = [], 0
+    for q in queries:
         matched, locked = 0, []
         for cid in _find_cards(col, q):
             c = _get_card(col, cid)
@@ -317,13 +514,50 @@ def op_unsuspend(args):
             matched += 1
             if c.queue == -1:
                 locked.append(cid)
+        total += len(locked)
+        plan.append((matched, locked))
+    # Checked before anything changes, so an oversized request does nothing.
+    if total > MAX_CARDS_PER_UNSUSPEND:
+        raise Exception("that would unsuspend %d cards at once; the limit is %d" % (total, MAX_CARDS_PER_UNSUSPEND))
+    out = []
+    for matched, locked in plan:
         if locked:
             try:
                 col.sched.unsuspend_cards(locked)
             except AttributeError:
                 col.sched.unsuspendCards(locked)
-        out.append({"matched": matched, "unlocked": len(locked)})
+        out.append({"matched": matched, "unlocked": len(locked), "cids": locked})
     return out
+
+
+def op_suspend(args):
+    """Suspend cards again -- the undo for the unsuspend a save does.
+
+    Only cards whose note is still tagged Mnestic::Missed qualify, and the undo
+    runs this BEFORE it removes that tag. So it can put back what a save
+    unlocked, and cannot be used to hide the rest of a collection."""
+    col = _col()
+    cids = _ids(args.get("cards"), "cards", 500)
+    ok, refused = [], []
+    for cid in cids:
+        c = _get_card(col, cid)
+        if c is None:
+            continue
+        try:
+            tags = [t.lower() for t in c.note().tags]
+        except Exception:
+            tags = []
+        if not any(t == "mnestic::missed" or t.startswith("mnestic::missed::") for t in tags):
+            refused.append(cid)
+            continue
+        if c.queue != -1:
+            ok.append(cid)
+    if ok:
+        try:
+            col.sched.suspend_cards(ok)
+        except AttributeError:
+            col.sched.suspendCards(ok)
+    return {"suspended": len(ok), "refused": refused}
 
 
 def _find_cards(col, query):
@@ -348,22 +582,19 @@ def _yield_safe(card):
 
 
 # ------------------------------- write ops -------------------------------
-def _apply_fields(note, sets, appends):
-    keys = set(note.keys())
-    for name, val in (sets or {}).items():
-        if name in keys and val is not None:
-            note[name] = val
+def _apply_appends(note, appends):
+    """Append to a field, never replace it: what someone already wrote stays."""
+    by_lower = {k.lower(): k for k in note.keys()}
     for name, val in (appends or {}).items():
-        if name in keys and val:
-            cur = note[name] or ""
-            note[name] = cur + ("<br><br>" if cur.strip() else "") + val
+        key = by_lower.get(name.strip().lower())
+        if key and val:
+            cur = note[key] or ""
+            note[key] = cur + ("<br><br>" if cur.strip() else "") + val
 
 
 def op_create_deck(args):
     """Create a deck (and its parents), optionally taking another deck's options."""
-    deck = (args.get("deck") or "").strip()
-    if not deck:
-        raise Exception("deck is required")
+    deck = _deck_name(args.get("deck"))
     col = _col()
     existed = True
     try:
@@ -371,7 +602,8 @@ def op_create_deck(args):
     except Exception:
         existed = False
     did = col.decks.id(deck)
-    src = (args.get("optionsFrom") or "").strip()
+    src = (args.get("optionsFrom") or "") if isinstance(args.get("optionsFrom"), str) else ""
+    src = src.strip()
     if src:
         try:
             sd = col.decks.by_name(src)
@@ -385,18 +617,20 @@ def op_create_deck(args):
 def op_copy_note(args):
     """Duplicate a note into `deck` (created if missing), append to fields / add
     tags, and unsuspend the copy. The original note is never modified."""
-    note_id, deck = args.get("noteId"), args.get("deck")
-    if not note_id or not deck:
-        raise Exception("noteId and deck are required")
+    _no_field_sets(args)
+    note_id = _one_id(args.get("noteId"), "noteId")
+    deck = _deck_name(args.get("deck"))
+    appends = _appends(args.get("fieldAppends"))
+    add_tags = _tags(args.get("addTags"))
     col = _col()
-    src = col.get_note(int(note_id))
+    src = col.get_note(note_id)
     new = col.new_note(src.note_type())
     for name in src.keys():
         try:
             new[name] = src[name]
         except Exception:
             pass
-    _apply_fields(new, args.get("fieldSets"), args.get("fieldAppends"))
+    _apply_appends(new, appends)
     # A copy is a local note, not the AnkiHub one: carrying the original's
     # ankihub_id would leave two notes claiming the same AnkiHub identity.
     for key in list(new.keys()):
@@ -408,10 +642,10 @@ def op_copy_note(args):
     new.tags = list(src.tags)
     if _COPY_TAG not in new.tags:
         new.tags.append(_COPY_TAG)
-    for t in args.get("addTags") or []:
-        if t and t not in new.tags:
+    for t in add_tags:
+        if t not in new.tags:
             new.tags.append(t)
-    did = col.decks.id(deck)
+    did = _normal_deck_id(col, deck)
     col.add_note(new, did)
     cids = [c.id for c in new.cards()]
     if args.get("unsuspend", True) and cids:
@@ -426,17 +660,32 @@ def op_copy_note(args):
 
 
 def op_update_note(args):
-    note_id = args.get("noteId")
-    if not note_id:
-        raise Exception("noteId is required")
+    """Append your note to Missed Questions and add Mnestic's tags -- the only
+    two changes Mnestic makes to a note it did not create."""
+    _no_field_sets(args)
+    note_id = _one_id(args.get("noteId"), "noteId")
+    appends = _appends(args.get("fieldAppends"))
+    add_tags = _tags(args.get("addTags"))
     col = _col()
-    note = col.get_note(int(note_id))
-    _apply_fields(note, args.get("fieldSets"), args.get("fieldAppends"))
-    for t in args.get("addTags") or []:
-        if t and t not in note.tags:
+    note = col.get_note(note_id)
+    _apply_appends(note, appends)
+    for t in add_tags:
+        if t not in note.tags:
             note.tags.append(t)
     col.update_note(note)
     return {"noteId": note.id}
+
+
+def _normal_deck_id(col, deck):
+    """The id of `deck`, created if missing -- but never a filtered deck, which
+    only borrows cards and would hand them back somewhere unexpected."""
+    try:
+        existing = col.decks.by_name(deck)
+    except Exception:
+        existing = None
+    if existing and existing.get("dyn"):
+        raise Exception("%r is a filtered deck; pick a normal deck" % deck)
+    return col.decks.id(deck)
 
 
 def _set_field(note, name, val):
@@ -466,21 +715,38 @@ def _pick_model(col, required, prefer, cloze):
     return cands[0]
 
 
+def _is_duplicate(note):
+    """Anki's own first-field duplicate check. None when this Anki can't say."""
+    try:
+        from anki.notes import NoteFieldsCheckResult
+        return note.fields_check() == NoteFieldsCheckResult.DUPLICATE
+    except Exception:
+        pass
+    try:
+        return note.dupeOrEmpty() == 2                   # older Anki
+    except Exception:
+        return None
+
+
 def op_new_note(args):
-    """Create a brand-new Basic or Cloze note (not a copy of an existing card)."""
-    deck = args.get("deck")
-    if not deck:
-        raise Exception("deck is required")
-    col = _col()
+    """Create a brand-new Basic or Cloze note (not a copy of an existing card).
+
+    With checkDuplicate, a note whose first field already exists is NOT added;
+    the caller is told, and can ask again with allowDuplicate."""
+    deck = _deck_name(args.get("deck"))
     kind = args.get("kind", "basic")
+    if kind not in ("basic", "cloze"):
+        raise Exception("kind must be basic or cloze")
+    tags = _tags(args.get("addTags") or args.get("tags"))
+    col = _col()
     if kind == "cloze":
-        text = args.get("text", "")
-        if "{{c" not in (text or ""):
+        text = _text(args.get("text"), "text")
+        if "{{c" not in text:
             raise Exception("cloze text needs at least one {{c1::...}} deletion")
         m = _pick_model(col, ["Text"], "cloze", True)
         note = col.new_note(m)
         _set_field(note, "Text", text)
-        extra = args.get("extra", "")
+        extra = _text(args.get("extra"), "extra")
         if extra:
             for cand in ("Back Extra", "Extra", "Back"):
                 if _set_field(note, cand, extra):
@@ -488,10 +754,12 @@ def op_new_note(args):
     else:
         m = _pick_model(col, ["Front", "Back"], "basic", False)
         note = col.new_note(m)
-        _set_field(note, "Front", args.get("front", ""))
-        _set_field(note, "Back", args.get("back", ""))
-    note.tags = [t for t in (args.get("addTags") or args.get("tags") or []) if t]
-    did = col.decks.id(deck)
+        _set_field(note, "Front", _text(args.get("front"), "front"))
+        _set_field(note, "Back", _text(args.get("back"), "back"))
+    note.tags = tags
+    if args.get("checkDuplicate") and not args.get("allowDuplicate") and _is_duplicate(note):
+        return {"duplicate": True, "model": m["name"], "deck": deck}
+    did = _normal_deck_id(col, deck)
     col.add_note(note, did)
     return {"noteId": note.id, "cards": [c.id for c in note.cards()], "model": m["name"], "deck": deck}
 
@@ -518,17 +786,24 @@ def op_set_deck(args):
     A freshly created deck would otherwise land on the Default options preset
     and quietly change your daily limits, so it inherits the preset of the deck
     the first card came from.
+
+    Capped per request: saving moves one note, and undoing one question moves
+    back the few it saved. Nothing Mnestic does moves a whole deck.
     """
-    deck = (args.get("deck") or "").strip()
-    if not deck:
-        raise Exception("deck is required")
+    deck = _deck_name(args.get("deck"))
+    ids = _ids(args.get("notes"), "notes", MAX_NOTES_PER_WRITE)
     col = _col()
-    ids = args.get("notes") or []
+    try:
+        target = col.decks.by_name(deck)
+    except Exception:
+        target = None
+    if target and target.get("dyn"):
+        raise Exception("%r is a filtered deck; pick a normal deck" % deck)
     cids = []
     src_did = None
     for nid in ids:
         try:
-            note = col.get_note(int(nid))
+            note = col.get_note(nid)
         except Exception:
             continue
         for card in note.cards():
@@ -603,11 +878,17 @@ def op_filtered_deck(args):
     A filtered deck gathers cards for a session and returns them to their home
     deck afterwards, so studying a chapter costs nothing permanent.
     """
-    name = (args.get("name") or "Mnestic — Missed").strip()
-    search = (args.get("search") or "").strip()
-    if not search:
-        raise Exception("search is required")
-    limit = int(args.get("limit") or 100)
+    name = _deck_name(args.get("name") or "Mnestic — Missed", "filtered deck")
+    # Only Mnestic's own filtered decks: rebuilding one empties it first, and a
+    # request must not be able to rebuild (and so empty) one of yours.
+    if not name.lower().startswith("mnestic"):
+        raise Exception("Mnestic only builds filtered decks whose name starts with Mnestic")
+    search = _scoped_query((args.get("search") or "").strip(), allow_modifiers=True)
+    try:
+        limit = int(args.get("limit") or 100)
+    except Exception:
+        limit = 100
+    limit = max(1, min(limit, 1000))
     col = _col()
 
     # Ask first. Anki raises when a filtered deck would gather nothing, and the
@@ -671,16 +952,26 @@ def op_filtered_deck(args):
 def op_missed_ids(args):
     """Question ids of everything tagged missed, newest first, with chapters.
 
-    This is what makes "retest exactly what you got wrong" possible: the ids
-    live in the AnKing tags already, so the qbank's own test builder can take
-    them straight back.
+    This is what makes "retest exactly what you got wrong" possible: the qbank's
+    own test builder can take the ids straight back.
+
+    Since 1.4 a save also tags the question itself (Mnestic::QID::<id>), and
+    those are the ids returned, marked exact. A note saved before that carries
+    no such tag; for it the list falls back to every UWorld id AnKing tagged on
+    the note -- which can include questions you never saw, so those rows are
+    marked exact=False and the popup says so.
     """
     col = _col()
-    tag = (args.get("tag") or "Mnestic::Missed").strip()
-    step = args.get("step")
-    chapter = (args.get("chapter") or "").strip()
-    search = 'tag:%s::*' % tag if chapter == "" else 'tag:%s::%s' % (tag, chapter.replace(" ", "_"))
-    search = '(tag:%s OR %s)' % (tag, search) if chapter == "" else search
+    tag = "Mnestic::Missed"
+    try:
+        step = int(args.get("step") or 0)
+    except Exception:
+        step = 0
+    chapter = args.get("chapter") if isinstance(args.get("chapter"), str) else ""
+    chapter = chapter.strip().replace(" ", "_")
+    if chapter and not re.match(r'^[^\s"()]{1,200}$', chapter):
+        raise Exception("chapter is not valid")
+    search = '(tag:%s OR tag:%s::*)' % (tag, tag) if not chapter else 'tag:%s::%s' % (tag, chapter)
     out = []
     seen = set()
     for nid in col.find_notes(search):
@@ -693,17 +984,26 @@ def op_missed_ids(args):
             if t.lower().startswith((tag + "::").lower()):
                 chap = t[len(tag) + 2:]
                 break
+        uw = {}                                          # qid -> steps AnKing tags it in
         for t in note.tags:
             m = _UW_ID_RE.match(t)
-            if not m:
-                continue
-            if step and int(m.group(1)) != int(step):
-                continue
-            qid = m.group(2)
+            if m:
+                uw.setdefault(m.group(2), set()).add(int(m.group(1)))
+        exact = []
+        for t in note.tags:
+            m = _QID_TAG_RE.match(t)
+            if m:
+                exact.append(str(int(m.group(1))))
+        if exact:
+            rows = [(q, True) for q in exact
+                    if not step or q not in uw or step in uw[q]]
+        else:
+            rows = [(q, False) for q, steps in uw.items() if not step or step in steps]
+        for qid, is_exact in rows:
             if qid in seen:
                 continue
             seen.add(qid)
-            out.append({"qid": qid, "chapter": chap, "mod": note.mod})
+            out.append({"qid": qid, "chapter": chap, "mod": note.mod, "exact": is_exact})
     out.sort(key=lambda r: -r["mod"])
     return out
 
@@ -715,8 +1015,11 @@ def op_count_notes(args):
     every matching note id: roughly 26,000 integers for a full AnKing deck, to
     display three counts. This returns the counts.
     """
+    queries = args.get("queries") or []
+    if not isinstance(queries, (list, tuple)) or len(queries) > 10:
+        raise Exception("countNotes takes a few queries at a time")
     col = _col()
-    return [len(col.find_notes(q)) for q in (args.get("queries") or [])]
+    return [len(col.find_notes(q)) for q in queries if isinstance(q, str)]
 
 
 def op_status(args):
@@ -748,9 +1051,9 @@ def op_remove_tags(args):
     never cost someone their notes.
     """
     col = _col()
-    ids = args.get("notes") or []
+    ids = _ids(args.get("notes"), "notes", 500)
     if args.get("query"):
-        ids = list(col.find_notes(args["query"]))
+        ids = list(col.find_notes(_scoped_query(args["query"])))
     wanted = [str(t).strip().lower() for t in (args.get("tags") or []) if str(t).strip()]
     if not wanted:
         raise Exception("tags is required")
@@ -788,16 +1091,14 @@ def op_delete_notes(args):
     today: a note must carry the marker copyNote writes, and must not be
     AnkiHub-managed. Anything else is reported back as refused, not deleted.
     """
-    col = _col()
-    ids = args.get("notes") or []
     # Undoing one question touches one or two notes. A request for hundreds is a
     # bug or an abuse, and either way is not something to carry out.
-    if len(ids) > 100:
-        raise Exception("deleteNotes takes at most 100 notes at a time")
+    ids = _ids(args.get("notes"), "deleteNotes", 100)
+    col = _col()
     ok_ids, refused = [], []
     for nid in ids:
         try:
-            note = col.get_note(int(nid))
+            note = col.get_note(nid)
         except Exception:
             continue
         if _COPY_TAG.lower() not in [t.lower() for t in note.tags]:
@@ -835,6 +1136,7 @@ _OPS = {
     "cardStats": op_card_stats,
     "cardMaturity": op_card_maturity,
     "unsuspend": op_unsuspend,
+    "suspend": op_suspend,
     "copyNote": op_copy_note,
     "updateNote": op_update_note,
     "newNote": op_new_note,
@@ -859,6 +1161,9 @@ def dispatch(op, args):
 # ------------------------------- HTTP layer -------------------------------
 class _Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+    # A client that opens a connection and then goes quiet would otherwise hold
+    # a thread forever. StreamRequestHandler applies this to the socket.
+    timeout = 30
 
     def log_message(self, *a):
         pass
@@ -888,7 +1193,7 @@ class _Handler(BaseHTTPRequestHandler):
             name = host.rsplit(":", 1)[0] if ":" in host else host
         return name in ("127.0.0.1", "localhost", "[::1]", "::1")
 
-    def _send(self, code, payload=None, origin="*"):
+    def _send(self, code, payload=None, origin="*", close=False):
         body = json.dumps(payload).encode("utf-8") if payload is not None else b""
         self.send_response(code)
         self.send_header("Access-Control-Allow-Origin", origin or "*")
@@ -896,6 +1201,11 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
+        if close:
+            # The request body was never read, so this connection cannot carry
+            # another request: its next bytes would be parsed as one.
+            self.send_header("Connection", "close")
+            self.close_connection = True
         self.end_headers()
         if body:
             self.wfile.write(body)
@@ -922,25 +1232,45 @@ class _Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         origin = self.headers.get("Origin")
         echo = origin if origin else "*"
-        length = int(self.headers.get("Content-Length", 0) or 0)
-        raw = self.rfile.read(length) if length else b""
 
+        # Decide on the headers alone, BEFORE reading a byte of the body. Reading
+        # first meant a request from a refused origin could still make Anki
+        # buffer whatever size it claimed -- or wait forever for bytes that were
+        # never coming.
         if not self._host_ok():
-            self._send(403, {"ok": False, "error": "bad Host header"}, echo)
+            self._send(403, {"ok": False, "error": "bad Host header"}, echo, close=True)
             return
         if not self._origin_ok(origin):
-            self._send(403, {"ok": False, "error": "origin not allowed"}, echo)
+            self._send(403, {"ok": False, "error": "origin not allowed"}, echo, close=True)
+            return
+        try:
+            length = int(self.headers.get("Content-Length", ""))
+        except (TypeError, ValueError):
+            length = -1
+        if length < 0:
+            self._send(411, {"ok": False, "error": "Content-Length is required"}, echo, close=True)
+            return
+        if length > MAX_BODY:
+            self._send(413, {"ok": False, "error": "request too large"}, echo, close=True)
+            return
+        raw = self.rfile.read(length) if length else b""
+        if len(raw) != length:
+            self._send(400, {"ok": False, "error": "incomplete request"}, echo, close=True)
             return
         try:
             req = json.loads(raw.decode("utf-8")) if raw else {}
-        except Exception as exc:
-            self._send(200, {"ok": False, "error": "bad JSON: %s" % exc}, echo)
+        except Exception:
+            self._send(200, {"ok": False, "error": "bad JSON"}, echo)
+            return
+        if not isinstance(req, dict) or not isinstance(req.get("args") or {}, dict):
+            self._send(200, {"ok": False, "error": "bad request"}, echo)
             return
 
         op = req.get("op", "")
         # Health check: no collection access, no token — a fast "are you there?".
+        # It names the add-on and nothing more; the version is for paired callers.
         if op == "ping":
-            self._send(200, {"ok": True, "data": {"name": ADDON_NAME, "version": ADDON_VERSION}}, echo)
+            self._send(200, {"ok": True, "data": {"name": ADDON_NAME}}, echo)
             return
 
         token = self.headers.get("X-Mnestic-Token") or req.get("token")
@@ -951,7 +1281,7 @@ class _Handler(BaseHTTPRequestHandler):
         # Pairing check: the token is valid — say so without touching the
         # collection, so the extension can show a green "Ready".
         if op == "auth":
-            self._send(200, {"ok": True, "data": {"paired": True}}, echo)
+            self._send(200, {"ok": True, "data": {"paired": True, "version": ADDON_VERSION}}, echo)
             return
 
         try:
@@ -998,8 +1328,9 @@ def show_pairing_code():
         "Open the Mnestic extension, paste this into the “Pairing code” box, and "
         "click Save. It links the extension to this Anki — nothing else on your "
         "computer can use the bridge without it.\n\n"
-        "Keep it private. To rotate it, clear \"token\" in the add-on config and "
-        "restart Anki." % (copied, tok),
+        "Keep it private. If it may have been seen (a screenshot, a shared "
+        "screen), replace it: Tools → Mnestic Bridge → Issue a new pairing code…"
+        % (copied, tok),
         title="Mnestic Bridge",
     )
 
