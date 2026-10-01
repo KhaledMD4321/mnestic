@@ -307,6 +307,17 @@ function listenFree(server, from) {
     await p.waitForTimeout(600);
     check(site.id, "Unsuspend reaches the bridge",
       mock.calls().filter((c) => c.op === "unsuspend").length > before);
+    // changed your mind: Suspend again puts back exactly what it unlocked
+    const unlocked = [].concat(...((mock.calls().filter((c) => c.op === "unsuspend").slice(-1)[0] || {}).result || []).map((r) => r.cids || []));
+    let resus = false;
+    try { await p.waitForSelector("#mnx-resources .mnx-resus", { timeout: 4000 }); resus = true; } catch (e) {}
+    const sBefore = mock.calls().filter((c) => c.op === "suspend").length;
+    if (resus) { await p.locator("#mnx-resources .mnx-resus").click(); await p.waitForTimeout(700); }
+    const susCall = mock.calls().filter((c) => c.op === "suspend").slice(sBefore)[0];
+    check(site.id, "…and Suspend again re-suspends the cards it unlocked, nothing else",
+      resus && !!susCall && (susCall.args.cards || []).length > 0 &&
+      (!unlocked.length || JSON.stringify([...susCall.args.cards].sort()) === JSON.stringify([...unlocked].sort())),
+      JSON.stringify(susCall && susCall.args) + " vs " + JSON.stringify(unlocked));
 
     // 7c. chapters carried by more cards rank first and show their weight
     const sketchy = await p.evaluate(() => {
@@ -1547,6 +1558,15 @@ function listenFree(server, from) {
       check("1.5", "…and unsuspends exactly the card you missed (cloze 1), not its sibling",
         !!un && JSON.stringify(un.args.queries) === JSON.stringify(["cid:11111111111110"]) && cards[0] === false && cards[1] === true,
         JSON.stringify(un && un.args) + " " + JSON.stringify(cards));
+      // changed your mind: the same place offers to put it back
+      await p.locator("#mnx-test .mnx-test-act", { hasText: "Suspend them again" }).click({ timeout: 3000 });
+      await p.waitForTimeout(600);
+      const sus = mock.calls().filter((c) => c.op === "suspend").slice(-1)[0];
+      const backAgain = mock.note(1111111111111).cards.map((c) => c.suspended);
+      const swapped = await p.evaluate(() => Array.from(document.querySelectorAll("#mnx-test .mnx-test-act")).map((b) => b.textContent));
+      check("1.5", "…and Suspend them again puts back exactly that card",
+        !!sus && JSON.stringify(sus.args.cards) === JSON.stringify([11111111111110]) && backAgain[0] === true && backAgain[1] === true &&
+        swapped[0] === "Unsuspend the 1 you missed", JSON.stringify(sus && sus.args) + " " + JSON.stringify(backAgain) + " " + swapped.join("|"));
       await p.close();
     }
 

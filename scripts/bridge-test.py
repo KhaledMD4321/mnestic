@@ -438,15 +438,19 @@ def main():
     check("...and unlocks none of them when it refuses", all(c.queue == -1 for n in big.notes.values() for c in n.cards()))
     M._col = lambda: col
 
-    # ---- suspend: only cards of notes still tagged missed ----
-    for c in col.notes[1].cards():
-        c.queue = 0
-    for c in col.notes[2].cards():
-        c.queue = 0
-    out = D("suspend", {"cards": [c.id for c in col.notes[1].cards()] + [c.id for c in col.notes[2].cards()]})
+    # ---- suspend: only cards Mnestic could have unsuspended ----
+    # a saved note, a note linked to a question, and an AnKing note linked to none
+    col.add(5, ["#AK_Step1_v12::#FirstAid::03_Respiratory::Asthma"], {"Text": "Unlinked"}, ncards=1, did=2)
+    for n in (1, 2, 5):
+        for c in col.notes[n].cards():
+            c.queue = 0
+    out = D("suspend", {"cards": [c.id for n in (1, 2, 5) for c in col.notes[n].cards()]})
     check("suspend re-suspends a saved note's cards", all(c.queue == -1 for c in col.notes[1].cards()), out)
-    check("suspend refuses cards of a note that isn't saved",
-          out["refused"] == [c.id for c in col.notes[2].cards()] and col.notes[2].cards()[0].queue == 0, out)
+    check("suspend re-suspends a question's cards (Suspend again after Unsuspend)",
+          all(c.queue == -1 for c in col.notes[2].cards()), out)
+    check("suspend refuses a card linked to no question, and leaves it alone",
+          out["refused"] == [c.id for c in col.notes[5].cards()] and col.notes[5].cards()[0].queue == 0, out)
+    del col.notes[5]
     refuses("suspend refuses an oversized batch", lambda: D("suspend", {"cards": list(range(1, 600))}))
 
     # ---- setDeck ----

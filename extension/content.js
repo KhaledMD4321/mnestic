@@ -804,7 +804,7 @@
     .mnx-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:rgba(20,20,27,.94);color:#fff;padding:11px 18px;border-radius:var(--mnx-r-pill);font:500 13.5px/1.4 var(--mnx-font);z-index:2147483647;box-shadow:0 0 0 1px rgba(255,255,255,.07),var(--mnx-shadow);max-width:80vw;text-align:center;backdrop-filter:blur(12px) saturate(1.3);-webkit-backdrop-filter:blur(12px) saturate(1.3);animation:mnx-toast-in .5s var(--mnx-ease)}
 
     /* confirm dialog */
-    #mnx-confirm{position:fixed;inset:0;background:rgba(10,14,30,.5);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);z-index:2147483647;display:flex;align-items:center;justify-content:center;font-family:var(--mnx-font)}
+    #mnx-confirm{position:fixed;inset:0;background:rgba(10,14,30,.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:2147483647;display:flex;align-items:center;justify-content:center;font-family:var(--mnx-font)}
     #mnx-confirm .mnx-cf-box{background:var(--mnx-surface);color:var(--mnx-text);width:min(380px,90vw);border-radius:var(--mnx-r);padding:20px 20px 16px;box-shadow:var(--mnx-shadow);border:1px solid var(--mnx-border);animation:mnx-pop .22s cubic-bezier(.2,.8,.3,1) both}
     #mnx-confirm .mnx-cf-title{font-size:15.5px;font-weight:700;letter-spacing:-.01em;color:var(--mnx-ink);margin-bottom:8px}
     #mnx-confirm .mnx-cf-body{font-size:13px;color:var(--mnx-muted);line-height:1.55;margin-bottom:18px}
@@ -937,6 +937,8 @@
     #${PANEL_ID} .mnx-unsus{flex:none;font:inherit;font-size:11.5px;font-weight:600;cursor:pointer;
       border:none;background:transparent;color:var(--mnx-accent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--mnx-accent) 28%,transparent);
       border-radius:var(--mnx-r-pill);padding:3px 10px;transition:background .25s var(--mnx-ease),transform .25s var(--mnx-ease)}
+    #${PANEL_ID} .mnx-unsus.mnx-resus{color:var(--mnx-muted);box-shadow:inset 0 0 0 1px var(--mnx-hair-2)}
+    #${PANEL_ID} .mnx-unsus.mnx-resus:hover{color:var(--mnx-ink);background:var(--mnx-surface)}
     #${PANEL_ID} .mnx-unsus:hover{background:var(--mnx-accent-soft)}
     #${PANEL_ID} .mnx-unsus:active{transform:scale(.97)}
     #${PANEL_ID} .mnx-unsus:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
@@ -949,7 +951,7 @@
     }
 
     /* fullscreen image overlay */
-    #${OVERLAY_ID}{display:none;position:fixed;inset:0;background:rgba(10,14,30,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:2147483646;align-items:flex-start;justify-content:center;padding:4vh 0}
+    #${OVERLAY_ID}{display:none;position:fixed;inset:0;background:rgba(10,14,30,.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:2147483646;align-items:flex-start;justify-content:center;padding:4vh 0}
     #${OVERLAY_ID} .mnx-dialog{background:var(--mnx-surface);color:var(--mnx-text);width:90vw;max-height:92vh;overflow:auto;border-radius:var(--mnx-r);padding:16px 18px 20px;box-shadow:var(--mnx-shadow);border:1px solid var(--mnx-border);font-family:var(--mnx-font);animation:mnx-pop .22s cubic-bezier(.2,.8,.3,1) both}
     #${OVERLAY_ID} .mnx-ovl-head{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--mnx-border);padding-bottom:10px;margin-bottom:14px}
     #${OVERLAY_ID} .mnx-ovl-head b{font-size:16px;font-weight:700;letter-spacing:-.01em;color:var(--mnx-ink)}
@@ -989,7 +991,7 @@
     #${PANEL_ID} .mnx-expected.warn{border-left-color:var(--mnx-warn);background:color-mix(in srgb,var(--mnx-warn) 12%,var(--mnx-surface))}
 
     /* readiness summary */
-    #${SUMMARY_ID}{display:none;position:fixed;inset:0;background:rgba(10,14,30,.5);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);z-index:2147483646;align-items:flex-start;justify-content:center;padding:6vh 0;font-family:var(--mnx-font)}
+    #${SUMMARY_ID}{display:none;position:fixed;inset:0;background:rgba(10,14,30,.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:2147483646;align-items:flex-start;justify-content:center;padding:6vh 0;font-family:var(--mnx-font)}
     #${SUMMARY_ID} .mnx-sum-dialog{background:var(--mnx-surface);color:var(--mnx-text);width:min(560px,92vw);max-height:86vh;overflow:auto;border-radius:var(--mnx-r);padding:18px 20px 22px;box-shadow:var(--mnx-shadow);border:1px solid var(--mnx-border);animation:mnx-pop .22s cubic-bezier(.2,.8,.3,1) both}
     #${SUMMARY_ID} .mnx-sum-head{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--mnx-border);padding-bottom:10px;margin-bottom:14px}
     #${SUMMARY_ID} .mnx-sum-head span{font-weight:700;font-size:16px;letter-spacing:-.01em;color:var(--mnx-ink)}
@@ -1101,7 +1103,7 @@
     #${PANEL_ID} .mnx-pbtn.mnx-save:hover{background:var(--mnx-save-bg);filter:brightness(1.07);transform:translateZ(0) translateY(-1px);box-shadow:var(--mnx-save-shadow),inset 0 1px 0 rgba(255,255,255,.14)}
 
     /* modal system (preview / save / make card / breakdown) */
-    #mnx-md-overlay{position:fixed;inset:0;background:rgba(16,14,36,.36);backdrop-filter:blur(10px) saturate(1.2);-webkit-backdrop-filter:blur(10px) saturate(1.2);z-index:2147483647;display:flex;align-items:flex-start;justify-content:center;padding:6vh 0;font-family:var(--mnx-font)}
+    #mnx-md-overlay{position:fixed;inset:0;background:rgba(16,14,36,.3);backdrop-filter:blur(4px) saturate(1.1);-webkit-backdrop-filter:blur(4px) saturate(1.1);z-index:2147483647;display:flex;align-items:flex-start;justify-content:center;padding:6vh 0;font-family:var(--mnx-font)}
     #mnx-md-overlay .mnx-md{background:var(--mnx-surface);color:var(--mnx-text);width:min(560px,92vw);max-height:84vh;overflow:hidden;display:flex;flex-direction:column;border-radius:18px;border:none;box-shadow:0 0 0 1px var(--mnx-hair),0 0 0 7px color-mix(in srgb,var(--mnx-surface) 40%,transparent),0 0 0 8px var(--mnx-hair),var(--mnx-shadow);animation:mnx-pop .5s var(--mnx-ease) both}
     /* header and footer stay put; only the body scrolls, so the main button is
        never below the fold of a laptop screen */
@@ -4305,7 +4307,9 @@
       const n = e.key === "ArrowDown" ? (i + 1) % items.length : (i <= 0 ? items.length - 1 : i - 1);
       items[n].focus();
     };
-    const onMove = () => closeAiMenu();
+    // The page scrolling or resizing closes the menu; the menu scrolling its
+    // own list (on a short window) must not, or it closed itself on opening.
+    const onMove = e => { if (e && e.target && e.target.nodeType === 1 && menu.contains(e.target)) return; closeAiMenu(); };
     document.addEventListener("mousedown", onDoc, true);
     document.addEventListener("keydown", onKey, true);
     window.addEventListener("scroll", onMove, true);
@@ -4317,7 +4321,7 @@
       window.removeEventListener("resize", onMove);
     };
     const first = menu.querySelector(".mnx-aim-row.is-default .mnx-aim-item") || items[0];
-    if (first) first.focus();
+    if (first) first.focus({ preventScroll: true });
   }
   function addPanelHeader(s) {
     const panel = document.getElementById(PANEL_ID); if (!panel) return;
@@ -4629,15 +4633,20 @@
         }
         const missedNotes = Array.from(new Set(missed.map(r => r.item.note.noteId)));
         if (exact && suspended.length) {
-          actions.appendChild(testAction("Unsuspend the " + suspended.length + " you missed", async (b) => {
+          const unsus = testAction("Unsuspend the " + suspended.length + " you missed", async (b) => {
             await bridge("unsuspend", { queries: suspended.map(c => "cid:" + c) });
+            rememberUnsuspended(s.qid, suspended);
             toast("Unsuspended " + suspended.length + (suspended.length === 1 ? " card" : " cards") + " — Anki will schedule " + (suspended.length === 1 ? "it" : "them") + ".");
-            b.remove();
-          }));
+            // changed your mind? the same button takes them back
+            const back = testAction("Suspend them again", async (b2) => { if (await suspendAgain(s.qid, suspended)) b2.replaceWith(unsus); });
+            b.replaceWith(back);
+          });
+          actions.appendChild(unsus);
         } else if (!exact && stats) {
           // An add-on before 1.5 can't say which card is which cloze: offer the notes.
           actions.appendChild(testAction("Unsuspend these notes' cards", async (b) => {
-            await bridge("unsuspend", { queries: missedNotes.map(n => "nid:" + n) });
+            const res = await bridge("unsuspend", { queries: missedNotes.map(n => "nid:" + n) });
+            rememberUnsuspended(s.qid, [].concat(...(res || []).map(r => (r && r.cids) || [])));
             toast("Unsuspended the cards of " + missedNotes.length + (missedNotes.length === 1 ? " note" : " notes") + ".");
             b.remove();
           }, "Update the Mnestic Bridge add-on to unsuspend only the exact cards you missed"));
@@ -4677,6 +4686,44 @@
   // How ready are you for THIS question? The panel already knows which cards
   // match it; showing their state turns "here are your resources" into "here's
   // where you actually stand", and surfaces suspended cards you'd never see.
+  // What Mnestic unsuspended for a question -- the cards strip's Unsuspend and
+  // Test me's -- remembered card by card, so "Suspend again" puts back exactly
+  // those and nothing that was already in your reviews. Kept in this browser;
+  // entries older than 60 days are dropped.
+  let unsusJournal = {};
+  chrome.storage.local.get({ mnxUnsus: {} }, c => { unsusJournal = c.mnxUnsus || {}; });
+  chrome.storage.onChanged.addListener((ch, area) => { if (area === "local" && ch.mnxUnsus) unsusJournal = ch.mnxUnsus.newValue || {}; });
+  const unsusKey = qid => currentQbankSlug() + " " + qid;
+  function unsuspendedBy(qid) { const e = unsusJournal[unsusKey(qid)]; return (e && e.cids) || []; }
+  function rememberUnsuspended(qid, cids) {
+    if (!cids || !cids.length) return;
+    const now = Date.now(), k = unsusKey(qid);
+    unsusJournal[k] = { cids: Array.from(new Set(unsuspendedBy(qid).concat(cids))).slice(0, 500), at: now };
+    Object.keys(unsusJournal).forEach(key => { const e = unsusJournal[key]; if (!e || now - e.at > 60 * 864e5) delete unsusJournal[key]; });
+    const keys = Object.keys(unsusJournal);
+    if (keys.length > 300) keys.sort((a, b) => unsusJournal[a].at - unsusJournal[b].at).slice(0, keys.length - 300).forEach(key => { delete unsusJournal[key]; });
+    chrome.storage.local.set({ mnxUnsus: unsusJournal });
+  }
+  function forgetUnsuspended(qid, cids) {
+    const k = unsusKey(qid), left = unsuspendedBy(qid).filter(c => cids.indexOf(c) < 0);
+    if (left.length) unsusJournal[k] = { cids: left, at: Date.now() }; else delete unsusJournal[k];
+    chrome.storage.local.set({ mnxUnsus: unsusJournal });
+  }
+  // Put them back. An add-on before 1.5 only re-suspends saved cards, and
+  // says so by refusing the rest.
+  async function suspendAgain(qid, cids) {
+    const r = await bridge("suspend", { cards: cids });
+    const refused = (r && r.refused) || [];
+    if (refused.length && refused.length === cids.length) {
+      toast("Your Mnestic Bridge add-on is too old to suspend these again — update it, or suspend them in Anki.");
+      return false;
+    }
+    forgetUnsuspended(qid, cids);
+    toast("Suspended " + cids.length + (cids.length === 1 ? " card" : " cards") + " again.");
+    return true;
+  }
+
+
   async function addCardStatus(s) {
     const panel = document.getElementById(PANEL_ID); if (!panel) return;
     // Your cards for this question and what to do with them. The buttons are
@@ -4743,7 +4790,8 @@
       btn.addEventListener("click", onUserClick(async () => {
         btn.disabled = true; btn.textContent = "Unsuspending…";
         try {
-          await bridge("unsuspend", { queries: [query] });
+          const res = await bridge("unsuspend", { queries: [query] });
+          rememberUnsuspended(s.qid, [].concat(...(res || []).map(r => (r && r.cids) || [])));
           toast("Unsuspended " + m.suspended + (m.suspended === 1 ? " card" : " cards") + ".");
           btn.remove();
           const again = document.querySelector("#" + PANEL_ID + " .mnx-cards");
@@ -4754,6 +4802,27 @@
         }
       }));
       info.appendChild(btn);
+    }
+    // Changed your mind? What Mnestic unsuspended here can go back.
+    const mine = unsuspendedBy(s.qid);
+    if (mine.length) {
+      const again = document.createElement("button");
+      again.type = "button"; again.className = "mnx-unsus mnx-resus";
+      again.textContent = "Suspend again";
+      again.title = "Suspend the " + mine.length + (mine.length === 1 ? " card" : " cards") +
+        " Mnestic unsuspended for this question — nothing else";
+      again.addEventListener("click", onUserClick(async () => {
+        again.disabled = true; again.textContent = "Suspending…";
+        try {
+          if (await suspendAgain(s.qid, mine)) {
+            const strip2 = document.querySelector("#" + PANEL_ID + " .mnx-cards");
+            if (strip2 && isLive(s)) { strip2.remove(); addCardStatus(s); }
+            return;
+          }
+        } catch (e) { toast("Couldn't suspend: " + bridgeFailure(e)); }
+        again.disabled = false; again.textContent = "Suspend again";
+      }));
+      info.appendChild(again);
     }
   }
 

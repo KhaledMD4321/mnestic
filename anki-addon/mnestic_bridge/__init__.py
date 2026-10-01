@@ -63,6 +63,9 @@ _UW_ID_RE = re.compile(r"^#AK_Step(\d)_v[^:]*::#UWorld::(?:Step::)?(\d+)$", re.I
 # can name the question you actually got wrong rather than every question id
 # AnKing happens to tag on that note (one note can carry dozens).
 _QID_TAG_RE = re.compile(r"^Mnestic::QID::(\d{1,12})$", re.I)
+# An AnKing card's link to a question: #AK_Step1_v12::#UWorld::Step::2128
+# (older decks drop the "Step::").
+_UW_QID_TAG_RE = re.compile(r"^#AK_Step[1-3]_v[^:\s]{0,12}::#UWorld::(?:Step::)?\d{1,12}$", re.I)
 
 # ---------------------------------------------------------------------------
 # What a valid pairing code is allowed to do.
@@ -600,11 +603,16 @@ def op_unsuspend(args):
 
 
 def op_suspend(args):
-    """Suspend cards again -- the undo for the unsuspend a save does.
+    """Suspend cards again -- the way back from an unsuspend Mnestic did.
 
-    Only cards whose note is still tagged Mnestic::Missed qualify, and the undo
-    runs this BEFORE it removes that tag. So it can put back what a save
-    unlocked, and cannot be used to hide the rest of a collection."""
+    Two cases qualify, and nothing else:
+      * undoing a save: the note is still tagged Mnestic::Missed (the undo runs
+        this BEFORE it removes that tag);
+      * "Suspend again" after unsuspending a question's cards: the note carries
+        a question-id tag (AnKing's #UWorld tag, or Mnestic::QID on a card
+        Mnestic made) -- the cards Mnestic unsuspends for a question.
+    So it can put back what Mnestic unlocked, and cannot hide the rest of a
+    collection: an AnKing card linked to no question is refused."""
     col = _col()
     cids = _ids(args.get("cards"), "cards", 500)
     ok, refused = [], []
@@ -616,7 +624,8 @@ def op_suspend(args):
             tags = [t.lower() for t in c.note().tags]
         except Exception:
             tags = []
-        if not any(t == "mnestic::missed" or t.startswith("mnestic::missed::") for t in tags):
+        if not any(t == "mnestic::missed" or t.startswith("mnestic::missed::")
+                   or _UW_QID_TAG_RE.match(t) or _QID_TAG_RE.match(t) for t in tags):
             refused.append(cid)
             continue
         if c.queue != -1:

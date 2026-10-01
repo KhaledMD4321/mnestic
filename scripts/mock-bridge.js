@@ -252,7 +252,11 @@ const OPS = {
       for (const note of notes.values()) {
         const c = note.cards.find((x) => x.cid === cid);
         if (!c) continue;
-        if (!note.tags.some((t) => /^mnestic::missed(::|$)/i.test(t))) { refused.push(cid); return; }
+        // the add-on's rule: a saved note, or one linked to a question (1.5);
+        // an add-on before 1.5 only took saved notes
+        const ok = note.tags.some((t) => /^mnestic::missed(::|$)/i.test(t)) ||
+          (!state.oldAddon && note.tags.some((t) => /^#AK_Step[1-3]_v[^:\s]*::#UWorld::(Step::)?\d+$/i.test(t) || /^Mnestic::QID::\d+$/i.test(t)));
+        if (!ok) { refused.push(cid); return; }
         if (!c.suspended) { c.suspended = true; n++; }
       }
     });
