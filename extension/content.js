@@ -1054,20 +1054,30 @@
     #mnx-md-overlay .mnx-remote-img{display:inline-block;font-size:11.5px;color:var(--mnx-muted);border:1px dashed var(--mnx-border);border-radius:var(--mnx-r-xs);padding:2px 7px;margin:4px 0}
     #mnx-md-overlay .mnx-prev-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
     #mnx-md-overlay .mnx-prev-count{font-size:12.5px;font-weight:700;color:var(--mnx-ink);font-variant-numeric:tabular-nums}
-    #mnx-md-overlay .mnx-img-drop{border:1.5px dashed var(--mnx-border);border-radius:var(--mnx-r-sm);padding:14px;text-align:center;font-size:12px;color:var(--mnx-muted);cursor:pointer;background:var(--mnx-surface-2);transition:border-color .14s,color .14s,background .14s}
-    #mnx-md-overlay .mnx-img-drop:hover,#mnx-md-overlay .mnx-img-drop.mnx-img-over{border-color:var(--mnx-accent);color:var(--mnx-accent);background:var(--mnx-accent-soft)}
-    #mnx-md-overlay .mnx-img-thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-    #mnx-md-overlay .mnx-img-thumb{position:relative;width:64px;height:64px;border:1px solid var(--mnx-border);border-radius:var(--mnx-r-xs);overflow:hidden;background:var(--mnx-surface)}
+    #mnx-md-overlay .mnx-imgfield{display:flex;align-items:center;gap:8px;min-height:38px;box-sizing:border-box;padding:5px 6px 5px 11px;border:1px solid var(--mnx-border);border-radius:var(--mnx-r-sm);background:var(--mnx-surface-2);cursor:pointer;outline:none;transition:border-color .14s,box-shadow .14s,background .14s}
+    #mnx-md-overlay .mnx-imgfield:hover{border-color:var(--mnx-accent)}
+    #mnx-md-overlay .mnx-imgfield:focus-visible{border-color:var(--mnx-accent);box-shadow:0 0 0 3px var(--mnx-accent-ring)}
+    #mnx-md-overlay .mnx-imgfield.mnx-img-over{border-color:var(--mnx-accent);border-style:dashed;background:var(--mnx-accent-soft)}
+    #mnx-md-overlay .mnx-imgfield.has-imgs{padding-left:6px}
+    #mnx-md-overlay .mnx-imgfield-ph{flex:1 1 auto;min-width:0;font-size:12.5px;color:var(--mnx-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #mnx-md-overlay .mnx-imgfield-add{flex:none;width:26px;height:26px;box-sizing:border-box;border-radius:var(--mnx-r-xs);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;line-height:1;color:var(--mnx-accent);background:var(--mnx-surface);border:1px solid var(--mnx-border);transition:background .14s,transform .14s}
+    #mnx-md-overlay .mnx-imgfield:hover .mnx-imgfield-add{background:var(--mnx-accent-soft)}
+    #mnx-md-overlay .mnx-imgfield:active .mnx-imgfield-add{transform:scale(.94)}
+    #mnx-md-overlay .mnx-img-thumbs{display:flex;flex-wrap:wrap;gap:6px}
+    #mnx-md-overlay .mnx-img-thumbs:empty{display:none}
+    #mnx-md-overlay .mnx-img-thumb{position:relative;flex:none;width:44px;height:44px;border:1px solid var(--mnx-border);border-radius:var(--mnx-r-xs);overflow:hidden;background:var(--mnx-surface);cursor:default}
+    #mnx-md-overlay .mnx-img-from{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:7px}
     #mnx-md-overlay .mnx-img-thumb img{width:100%;height:100%;object-fit:cover;display:block}
-    #mnx-md-overlay .mnx-img-x{position:absolute;top:2px;right:2px;width:18px;height:18px;border:none;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:13px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
+    #mnx-md-overlay .mnx-img-x{position:absolute;top:1px;right:1px;width:16px;height:16px;border:none;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:13px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
     #mnx-md-overlay .mnx-img-x:hover{background:rgba(0,0,0,.85)}
-    #mnx-md-overlay .mnx-qthumb{position:relative;width:54px;height:54px;border:1px solid var(--mnx-border);border-radius:var(--mnx-r-xs);overflow:hidden;background:var(--mnx-surface);cursor:pointer;transition:transform .14s,border-color .14s}
+    #mnx-md-overlay .mnx-qthumb{position:relative;flex:none;width:36px;height:36px;padding:0;border:1px solid var(--mnx-border);border-radius:var(--mnx-r-xs);overflow:hidden;background:var(--mnx-surface);cursor:pointer;transition:transform .14s,border-color .14s}
+    #mnx-md-overlay .mnx-qthumb:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
     #mnx-md-overlay .mnx-qthumb:hover{transform:translateY(-2px);border-color:var(--mnx-accent)}
     #mnx-md-overlay .mnx-qthumb img{width:100%;height:100%;object-fit:cover;display:block}
-    #mnx-md-overlay .mnx-qthumb::after{content:"＋";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.34);color:#fff;font-size:18px;font-weight:700;opacity:0;transition:opacity .14s}
+    #mnx-md-overlay .mnx-qthumb::after{content:"＋";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.34);color:#fff;font-size:14px;font-weight:700;opacity:0;transition:opacity .14s}
     #mnx-md-overlay .mnx-qthumb:hover::after{opacity:1}
     #mnx-md-overlay .mnx-figchips{display:flex;flex-wrap:wrap;gap:6px}
-    #mnx-md-overlay .mnx-figchip{font:600 12px var(--mnx-font);cursor:pointer;padding:5px 11px;border-radius:var(--mnx-r-pill);border:1px solid var(--mnx-border);background:var(--mnx-surface);color:var(--mnx-accent);transition:background .14s}
+    #mnx-md-overlay .mnx-figchip{font:600 12px var(--mnx-font);cursor:pointer;padding:0 10px;height:30px;box-sizing:border-box;border-radius:var(--mnx-r-pill);border:1px solid var(--mnx-border);background:var(--mnx-surface);color:var(--mnx-accent);transition:background .14s}
     #mnx-md-overlay .mnx-figchip::before{content:"＋ "}
     #mnx-md-overlay .mnx-figchip:hover{background:var(--mnx-accent-soft)}
     #mnx-md-overlay .mnx-figchip.loading{opacity:.6;cursor:progress}
@@ -2942,25 +2952,48 @@
     const images = [];                                   // { dataUrl, mime }
     const wrap = document.createElement("div");
     const lbl = document.createElement("label"); lbl.className = "mnx-md-lbl";
-    lbl.textContent = labelText || "Images (paste a screenshot, or click to add)";
-    const drop = document.createElement("div"); drop.className = "mnx-img-drop"; drop.tabIndex = 0;
-    drop.textContent = "Press Ctrl/⌘+V to paste a screenshot — or click to choose files";
+    lbl.textContent = labelText || "Images (optional)";
+    // One field that looks like the text boxes around it: added images sit
+    // inside it as small thumbnails, so it stays one line tall until you add one.
+    const drop = document.createElement("div"); drop.className = "mnx-imgfield"; drop.tabIndex = 0;
+    drop.setAttribute("role", "button");
+    drop.setAttribute("aria-label", "Add images: paste a screenshot, drop files, or press Enter to choose files");
+    const thumbs = document.createElement("div"); thumbs.className = "mnx-img-thumbs";
+    const ph = document.createElement("span"); ph.className = "mnx-imgfield-ph";
+    const kbd = /Mac|iPhone|iPad/.test(navigator.platform || "") ? "⌘V" : "Ctrl+V";
+    const EMPTY_PH = "Paste a screenshot (" + kbd + "), drop, or click to add";
+    ph.textContent = EMPTY_PH;
+    const add = document.createElement("span"); add.className = "mnx-imgfield-add"; add.textContent = "+"; add.setAttribute("aria-hidden", "true");
+    drop.append(thumbs, ph, add);
     const fileInput = document.createElement("input");
     fileInput.type = "file"; fileInput.accept = "image/*"; fileInput.multiple = true; fileInput.style.display = "none";
-    const thumbs = document.createElement("div"); thumbs.className = "mnx-img-thumbs";
-    wrap.appendChild(lbl); wrap.appendChild(drop); wrap.appendChild(fileInput); wrap.appendChild(thumbs);
+    wrap.appendChild(lbl); wrap.appendChild(drop); wrap.appendChild(fileInput);
+    function refreshField() {
+      drop.classList.toggle("has-imgs", images.length > 0);
+      ph.textContent = images.length ? (images.length + (images.length === 1 ? " image" : " images") + " — paste or drop more")
+                                     : EMPTY_PH;
+    }
     function addImageFile(file) {
       if (!file || !/^image\//.test(file.type || "")) return;
       const reader = new FileReader();
       reader.onload = () => { const rec = { dataUrl: reader.result, mime: file.type }; images.push(rec); renderThumb(rec); };
+      reader.onerror = () => toast("Couldn't read that image.");
       reader.readAsDataURL(file);
     }
     function renderThumb(rec) {
       const t = document.createElement("div"); t.className = "mnx-img-thumb";
       const img = document.createElement("img"); img.src = rec.dataUrl;
+      img.alt = "attached image " + (images.indexOf(rec) + 1);
       const x = document.createElement("button"); x.type = "button"; x.className = "mnx-img-x"; x.textContent = "×";
-      x.addEventListener("click", onUserClick(() => { const i = images.indexOf(rec); if (i >= 0) images.splice(i, 1); t.remove(); }));
+      x.setAttribute("aria-label", "Remove this image");
+      x.addEventListener("click", onUserClick((e) => {
+        e.stopPropagation();                               // don't also open the file chooser
+        const i = images.indexOf(rec); if (i >= 0) images.splice(i, 1); t.remove(); refreshField();
+        if (rec.onRemove) rec.onRemove();
+      }));
+      t.addEventListener("click", e => e.stopPropagation());
       t.appendChild(img); t.appendChild(x); thumbs.appendChild(t);
+      refreshField();
     }
     function handlePaste(e) {
       if (!e.isTrusted) return;                          // page script can forge a paste
@@ -2972,6 +3005,9 @@
     // Page script can build a DataTransfer of its own files and dispatch a drop
     // or change event with it, so every way in requires a real user event.
     drop.addEventListener("click", onUserClick(() => fileInput.click()));
+    drop.addEventListener("keydown", e => {
+      if ((e.key === "Enter" || e.key === " ") && e.isTrusted && e.target === drop) { e.preventDefault(); fileInput.click(); }
+    });
     drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("mnx-img-over"); });
     drop.addEventListener("dragleave", () => drop.classList.remove("mnx-img-over"));
     drop.addEventListener("drop", e => {
@@ -2988,13 +3024,20 @@
     // images; showing thumbnails that can only ever error is worse than not
     // showing them (MedPark serves figures from a third-party storage domain).
     const qImgs = SITE.canAttachImages === false ? [] : collectQuestionImages();
+    // Figures the explanation keeps behind a button (fetched only on click).
+    const figures = (SITE.canAttachImages === false || !SITE.exhibits) ? [] : (() => { try { return SITE.exhibits(); } catch (e) { return []; } })();
+    let fromRow = null;
+    if (qImgs.length || figures.length) {
+      fromRow = document.createElement("div"); fromRow.className = "mnx-img-from";
+      const flbl = document.createElement("span"); flbl.className = "mnx-md-hint"; flbl.textContent = "From this question:";
+      fromRow.appendChild(flbl);
+      wrap.appendChild(fromRow);
+    }
     if (qImgs.length) {
-      const qlbl = document.createElement("div"); qlbl.className = "mnx-md-hint"; qlbl.style.margin = "9px 0 4px";
-      qlbl.textContent = "From this question — click to add:";
-      const strip = document.createElement("div"); strip.className = "mnx-img-thumbs";
+      const strip = fromRow;
       qImgs.forEach(qi => {
-        const t = document.createElement("div"); t.className = "mnx-qthumb";
-        t.title = qi.inExpl ? "explanation figure" : "question image";
+        const t = document.createElement("button"); t.type = "button"; t.className = "mnx-qthumb";
+        t.title = "Add this " + (qi.inExpl ? "explanation figure" : "question image");
         const im = document.createElement("img"); im.src = qi.src; im.referrerPolicy = "no-referrer";
         t.appendChild(im);
         t.addEventListener("click", onUserClick(async () => {
@@ -3003,6 +3046,7 @@
           try {
             const dataUrl = await fetchImageViaBg(qi.src);
             const rec = { dataUrl, mime: (String(dataUrl).match(/^data:([^;]+)/) || [])[1] || "image/png" };
+            rec.onRemove = () => { t.classList.remove("added"); delete t.dataset.added; };
             images.push(rec); renderThumb(rec);
             t.classList.add("added"); t.dataset.added = "1";
           } catch (e) { toast("Couldn't fetch that image (" + e + ")"); }
@@ -3010,15 +3054,9 @@
         }));
         strip.appendChild(t);
       });
-      wrap.appendChild(qlbl); wrap.appendChild(strip);
     }
-    // Figures the explanation keeps behind a button: one chip each, fetched
-    // only when you click it.
-    const figures = (SITE.canAttachImages === false || !SITE.exhibits) ? [] : (() => { try { return SITE.exhibits(); } catch (e) { return []; } })();
     if (figures.length) {
-      const flbl = document.createElement("div"); flbl.className = "mnx-md-hint"; flbl.style.margin = "9px 0 4px";
-      flbl.textContent = "Figures in the explanation — click to add:";
-      const row = document.createElement("div"); row.className = "mnx-figchips";
+      const row = fromRow;
       figures.forEach(fig => {
         const b = document.createElement("button");
         b.type = "button"; b.className = "mnx-figchip"; b.textContent = fig.label;
@@ -3030,6 +3068,7 @@
             const src = await fig.open();
             const dataUrl = await fetchImageViaBg(src);
             const rec = { dataUrl, mime: (String(dataUrl).match(/^data:([^;]+)/) || [])[1] || "image/png" };
+            rec.onRemove = () => { b.classList.remove("added"); delete b.dataset.added; };
             images.push(rec); renderThumb(rec);
             b.classList.add("added"); b.dataset.added = "1";
           } catch (e) {
@@ -3039,7 +3078,6 @@
         }));
         row.appendChild(b);
       });
-      wrap.appendChild(flbl); wrap.appendChild(row);
     }
     async function upload(prefix) {
       const tags = [];
@@ -3599,7 +3637,7 @@
     ta.placeholder = "What you want to remember from this question…"; m.body.appendChild(ta);
 
     // 3b) images — paste a screenshot straight into the note, or add files
-    const pics = makeImagePicker("Images (paste a screenshot, or click to add)");
+    const pics = makeImagePicker("Images");
     m.body.appendChild(pics.el);
     document.addEventListener("paste", pics.handlePaste);   // removed on close (see buildModal onClose)
 
@@ -4010,7 +4048,7 @@
         .catch(e => { sel.replaceChildren(); const oo = document.createElement("option"); oo.value = NEW_OPT; oo.textContent = NEW_OPT; sel.appendChild(oo); newWrap.style.display = "block"; toast("Couldn't list decks: " + bridgeFailure(e)); });
     }
 
-    const pics = makeImagePicker("Images (optional — paste a screenshot or add files)");
+    const pics = makeImagePicker("Images (optional)");
     m.body.appendChild(pics.el);
     document.addEventListener("paste", pics.handlePaste);   // removed on close (buildModal onClose)
 

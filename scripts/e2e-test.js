@@ -1332,6 +1332,7 @@ function listenFree(server, from) {
       await p.locator("#mnx-resources button", { hasText: "Save to Missed Qs" }).click();
       let chip = false;
       try { await p.waitForSelector("#mnx-md-overlay .mnx-figchip", { timeout: 6000 }); chip = true; } catch (e) {}
+      const emptyH = await p.evaluate(() => Math.round(document.querySelector("#mnx-md-overlay .mnx-imgfield").getBoundingClientRect().height));
       if (chip) await p.locator("#mnx-md-overlay .mnx-figchip").first().click();
       await p.waitForTimeout(3000);
       const st = await p.evaluate(() => ({
@@ -1343,6 +1344,24 @@ function listenFree(server, from) {
       }));
       check("1.4", "a figure behind an explanation button is offered and attached, and the site's viewer is closed again",
         chip && st.pressed === 1 && st.viewerClosed && st.added && st.thumbs === 1, JSON.stringify(st));
+      // The image box is one input-sized line; an added image sits inside it,
+      // and removing it frees the figure to be added again.
+      const box = await p.evaluate(() => {
+        const f = document.querySelector("#mnx-md-overlay .mnx-imgfield");
+        return { h: Math.round(f.getBoundingClientRect().height), inside: f.querySelectorAll(".mnx-img-thumb").length,
+                 ph: f.querySelector(".mnx-imgfield-ph").textContent };
+      });
+      await p.locator("#mnx-md-overlay .mnx-imgfield .mnx-img-x").first().click();
+      await p.waitForTimeout(200);
+      const gone = await p.evaluate(() => ({
+        inside: document.querySelectorAll("#mnx-md-overlay .mnx-imgfield .mnx-img-thumb").length,
+        ph: document.querySelector("#mnx-md-overlay .mnx-imgfield-ph").textContent,
+        chipFree: !document.querySelector("#mnx-md-overlay .mnx-figchip.added")
+      }));
+      check("1.4", "the image box is one input-sized line, with added images inside it until removed",
+        emptyH <= 44 && box.inside === 1 && box.h <= 60 && /1 image/.test(box.ph) &&
+        gone.inside === 0 && /Paste a screenshot/.test(gone.ph) && gone.chipFree,
+        "empty " + emptyH + "px; with one " + JSON.stringify(box) + "; removed " + JSON.stringify(gone));
       // page script can't use the chip to press the site's buttons
       const before = await p.evaluate(() => window.__pressed);
       await p.evaluate(() => { const b = document.querySelector("#mnx-md-overlay .mnx-figchip"); b.classList.remove("added"); delete b.dataset.added; b.click(); });
