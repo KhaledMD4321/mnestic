@@ -1,0 +1,21 @@
+{
+  "name": "mnestic-dev",
+  "private": true,
+  "description": "Development tooling for Mnestic. The extension and the Anki add-on themselves have no dependencies; this only pins what the tests use.",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "test": "npm run test:unit && npm run test:addon && npm run test:listing",
+    "test:unit": "node --test \"test/unit/*.test.js\"",
+    "test:addon": "python scripts/check-addon.py && python scripts/guard-test.py && python scripts/bridge-test.py",
+    "test:listing": "python scripts/check-listing.py",
+    "test:adapters": "node scripts/adapter-test.js",
+    "test:e2e": "node scripts/e2e-test.js",
+    "test:all": "npm test && npm run test:adapters && npm run test:e2e"
+  },
+  "devDependencies": {
+    "playwright-core": "1.60.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

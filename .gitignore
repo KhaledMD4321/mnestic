@@ -13,7 +13,6 @@ dist/*.zip
 .vscode/
 .idea/
 node_modules/
-package-lock.json
 dist/e2e/
 
 # demo recordings: the GIFs and stills in docs/media/ are committed, the raw

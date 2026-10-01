@@ -1,0 +1,44 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: unit, add-on, listing, adapters
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: npm ci --ignore-scripts
+      - name: unit tests, add-on guards and bridge security, store listing limits
+        run: npm test
+      - name: site adapters (headless Chromium)
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:adapters
+
+  e2e:
+    # Loads the unpacked extension into a real (headed) Chromium against the
+    # mock bridge, so it needs a display: xvfb provides one.
+    name: end-to-end (real extension, mock bridge)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - run: xvfb-run --auto-servernum npm run test:e2e
