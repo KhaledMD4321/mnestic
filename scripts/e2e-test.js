@@ -1429,7 +1429,7 @@ function listenFree(server, from) {
       const hy = (await p.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, "\n");
       const closed = await p.evaluate(() => !document.getElementById("mnx-ai-menu"));
       check("1.5", "▾ offers the five prompts, and one copies with its own brief",
-        items.join("|") === "Full review|Why I got it wrong|Compare the choices|High-yield points|Quiz me" &&
+        items.join("|") === "Full review|Why I got it wrong|Compare the choices|High-yield points|Quiz me|Copy the explanation only" &&
         /^Arrange the high-yield points/.test(hy) && closed, items.join("|"));
       await p.locator("#mnx-resources .mnx-split-caret").click();
       await p.waitForSelector("#mnx-ai-menu", { timeout: 3000 });
@@ -1514,10 +1514,10 @@ function listenFree(server, from) {
       const front = await p.evaluate(() => ({ card: document.querySelector("#mnx-test .mnx-test-card").innerText,
         count: document.querySelector("#mnx-test .mnx-test-count").textContent,
         focused: document.activeElement && document.activeElement.textContent,
-        inPanel: !!document.querySelector("#mnx-resources #mnx-test") }));
-      check("1.5", "Test me runs in the panel: the card with its blank hidden, one at a time",
-        front.inPanel && /The \[…\] transduces sound/.test(front.card) && !/cochlea/.test(front.card) && front.count === "1 / 1" &&
-        front.focused === "Show answer", JSON.stringify(front));
+        inWindow: !!document.querySelector("#mnx-md-overlay #mnx-test") && !document.querySelector("#mnx-resources #mnx-test") }));
+      check("1.5", "Test me opens a focus window over the page: the card with its blank hidden, one at a time",
+        front.inWindow && /The \[…\] transduces sound/.test(front.card) && !/cochlea/.test(front.card) && front.count === "1 of 1" &&
+        /^Show answer/.test(front.focused || ""), JSON.stringify(front));
       await p.keyboard.press("Enter");                    // the focused Show answer
       await p.waitForSelector("#mnx-test .mnx-test-got", { timeout: 3000 });
       const back = await p.evaluate(() => ({ card: document.querySelector("#mnx-test .mnx-test-card").innerText,
@@ -1530,7 +1530,7 @@ function listenFree(server, from) {
       const endv = await p.evaluate(() => ({ score: document.querySelector("#mnx-test .mnx-test-score").innerText,
         missed: Array.from(document.querySelectorAll("#mnx-test .mnx-test-missed li")).map((l) => l.textContent),
         acts: Array.from(document.querySelectorAll("#mnx-test .mnx-test-act")).map((b) => b.textContent),
-        note: document.querySelector("#mnx-test .mnx-test-card").innerText }));
+        note: document.querySelector("#mnx-test .mnx-test-note").innerText }));
       const writesDuring = mock.calls().slice(n0).filter((c) => WRITES.indexOf(c.op) >= 0).map((c) => c.op);
       check("1.5", "…the end says what you missed, changed nothing in Anki, and offers the follow-ups",
         /0 of 1/.test(endv.score) && endv.missed[0] === "cochlea" && /nothing was graded in Anki/.test(endv.note) &&
@@ -1543,6 +1543,70 @@ function listenFree(server, from) {
       check("1.5", "…and unsuspends exactly the card you missed (cloze 1), not its sibling",
         !!un && JSON.stringify(un.args.queries) === JSON.stringify(["cid:11111111111110"]) && cards[0] === false && cards[1] === true,
         JSON.stringify(un && un.args) + " " + JSON.stringify(cards));
+      await p.close();
+    }
+
+    // The panel's layout: question actions up top (one filled button), card
+    // actions on the cards strip; line icons, not emoji; each shows its key.
+    {
+      mock.reset();
+      await ctx.grantPermissions(["clipboard-read", "clipboard-write"], { origin: "https://coursology-qbank.com" });
+      const p = await openAt(reviewHtml("4211", `<script>
+        window.__navs = 0;
+        document.addEventListener("keydown", (e) => { if (["ArrowRight", "ArrowLeft", "1"].indexOf(e.key) >= 0) window.__navs++; });
+      </script>`));
+      await p.waitForSelector("#mnx-resources .mnx-cards .mnx-pbtn", { timeout: 12000 });
+      const lay = await p.evaluate(() => {
+        const panel = document.getElementById("mnx-resources");
+        const kids = Array.from(panel.children).map((c) => c.className.split(" ")[0]);
+        const label = (b) => (b.querySelector(".mnx-pbtn-t") || b).textContent.trim();
+        const head = Array.from(panel.querySelectorAll(".mnx-phead .mnx-pbtn:not(.mnx-split-caret)")).map(label);
+        const cards = Array.from(panel.querySelectorAll(".mnx-cards .mnx-pbtn")).map(label);
+        const filled = Array.from(panel.querySelectorAll(".mnx-pbtn")).filter((b) => b.classList.contains("mnx-save")).length;
+        const emoji = /[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/u.test(Array.from(panel.querySelectorAll("button")).map((b) => b.textContent).join(" "));
+        const keys = Array.from(panel.querySelectorAll(".mnx-phead .mnx-kbd, .mnx-cards .mnx-kbd")).map((k) => k.textContent);
+        return { kids, head, cards, filled, emoji, keys, headH: Math.round(panel.querySelector(".mnx-phead").getBoundingClientRect().height),
+                 icons: panel.querySelectorAll(".mnx-phead svg.mnx-ico, .mnx-cards svg.mnx-ico").length };
+      });
+      check("1.5", "panel: question actions up top, card actions beside the cards, in that order",
+        lay.kids.slice(0, 3).join(",") === "mnx-phead,mnx-recall-box,mnx-cards" &&
+        lay.head.join("|") === "Copy for AI|Make card|Save to Missed Qs" && lay.cards.join("|") === "Preview|Test me", JSON.stringify(lay));
+      check("1.5", "…one filled button, line icons instead of emoji, each key shown, and the row fits on one line",
+        lay.filled === 1 && !lay.emoji && lay.icons >= 5 && lay.keys.join("") === "QGVT" && lay.headH <= 50, JSON.stringify(lay));
+      // T opens the focus window; keys inside it never reach the page; Anki's keys grade
+      await p.locator("#mnx-resources .mnx-phead").click({ position: { x: 4, y: 4 } });
+      await p.keyboard.press("t");
+      await p.waitForSelector("#mnx-md-overlay #mnx-test .mnx-test-reveal", { timeout: 4000 });
+      await p.keyboard.press("ArrowRight");
+      await p.keyboard.press("1");
+      await p.keyboard.press("Space");                     // Show answer
+      await p.waitForSelector("#mnx-test .mnx-test-got", { timeout: 3000 });
+      await p.waitForTimeout(250);
+      await p.keyboard.press("1");                         // Missed, as in Anki
+      await p.waitForSelector("#mnx-test .mnx-test-score", { timeout: 3000 });
+      const kb = await p.evaluate(() => ({ navs: window.__navs, score: document.querySelector("#mnx-test .mnx-test-score").innerText }));
+      check("1.5", "T opens the test; Space shows the answer, 1 marks it missed; arrows and 1 never reach the page",
+        kb.navs === 0 && /0 of 1/.test(kb.score), JSON.stringify(kb));
+      await p.keyboard.press("Escape");
+      await p.waitForTimeout(200);
+      // the ▾ menu never covers its own button, even with no room below it
+      await p.setViewportSize({ width: 1400, height: 430 });
+      await p.evaluate(() => { const c = document.querySelector("#mnx-resources .mnx-split-caret"); c.scrollIntoView({ block: "end" }); });
+      await p.waitForTimeout(200);
+      await p.locator("#mnx-resources .mnx-split-caret").click();
+      await p.waitForSelector("#mnx-ai-menu", { timeout: 3000 });
+      const ov = await p.evaluate(() => {
+        const m = document.getElementById("mnx-ai-menu").getBoundingClientRect(), c = document.querySelector("#mnx-resources .mnx-split-caret").getBoundingClientRect();
+        const overlap = !(m.right <= c.left || m.left >= c.right || m.bottom <= c.top || m.top >= c.bottom);
+        return { overlap, menu: [Math.round(m.top), Math.round(m.bottom)], caret: [Math.round(c.top), Math.round(c.bottom)] };
+      });
+      check("1.5", "the ▾ menu never opens over its own button (a second click there can't change the default)", !ov.overlap, JSON.stringify(ov));
+      await p.evaluate(() => navigator.clipboard.writeText(""));
+      await p.locator("#mnx-ai-menu .mnx-aim-item", { hasText: "Copy the explanation only" }).click();
+      await p.waitForTimeout(400);
+      const ex = (await p.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, "\n");
+      check("1.5", "…and copying the explanation alone lives in that menu now", /Explanation body text/.test(ex) && !/You are an expert/.test(ex), ex.slice(0, 60));
+      await p.setViewportSize({ width: 1400, height: 900 });
       await p.close();
     }
 

@@ -33,7 +33,7 @@ If you only read one table, read this one.
 | **Preview** | Read the matched card as Anki renders it, clozes revealed, images inline | |
 | **Open in Anki** | This question's cards in Anki's Browse window | **D** |
 | **Copy for AI** | A focused prompt + the question, your answer and the correct one, on the clipboard; **▾** picks the prompt | **Q** |
-| **Copy explanation** | Just the explanation text | |
+| **Copy the explanation only** | Just the explanation text — in the **▾** menu next to Copy for AI | |
 | **Save to Missed Qs** | Keep it in a chapter subdeck with your note — move, tag, or copy | **V** |
 | **Remove from Missed Qs** | Undo that save. Untags, moves the card home, deletes the copy | |
 | **Make a card** | Select explanation text → a new Cloze or Basic card in Anki | **G** |
@@ -251,7 +251,7 @@ prompt the one-click default. Nothing is sent anywhere — you paste it.
 
 <sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/06-copy-for-ai.mp4)</sub>
 
-### 📝 Copy explanation
+### Copy the explanation only
 
 Just the qbank's explanation text, for your own notes.
 
@@ -264,7 +264,9 @@ with **‹ Prev / Next ›** across every card matched to the question.
 
 The cards tagged with this question are already the flashcards for it — AnKing
 wrote them, the question id links them — so **Test me** runs them as a quick
-test, inside the panel, without leaving the question:
+test in a focus window over the page — the question and the explanation (which
+state the answer) are dimmed behind it, so recalling the card is real — without
+leaving the question. **T** opens it; **Esc** or **✕** brings you back:
 
 1. One cloze at a time, like Anki: the blank hidden (or its hint shown).
 2. **Show answer** — the answer, with the card's **Extra** open and **Additional
@@ -534,6 +536,7 @@ click away on each row's key badge.
 | **G** | Make a card |
 | **Q** | Copy for AI |
 | **V** | Save to Missed Qs |
+| **T** | Test yourself on this question's cards (then **Space** shows the answer, **Space** = Got it, **1** = Missed) |
 | **D** | Open this question in Anki |
 | **?** | Shortcut cheatsheet |
 | **Esc** | Close the overlay or dialog |

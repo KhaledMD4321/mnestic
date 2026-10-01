@@ -136,8 +136,10 @@ page and, right under the explanation, shows:
   (*Knew it*, *Narrowed to 2*, *Guessed*); a wrong one asks why (*Didn't know it*,
   *Misread*, *Reasoned wrong*, *Torn between 2*). Each answer suggests the one next
   step, and your weak areas count a guess as missed and a coin flip as half.
-- **🧠 Test me** — the question's own AnKing cards as a quick flashcard run, right
-  in the panel: the blank hidden, *Show answer*, *Got it* / *Missed*. Practice
+- **Test me** (or **T**) — the question's own AnKing cards as a quick flashcard run,
+  in a focus window over the page (so the explanation can't give the answer away):
+  the blank hidden, **Space** to show the answer, then **Space** = *Got it*, **1** =
+  *Missed*, like Anki. Practice
   only — nothing is graded in Anki — and at the end one tap unsuspends exactly
   the cards you missed.
 
@@ -234,7 +236,8 @@ The **▾** next to the button picks the prompt: **Full review** (the default),
 **Why I got it wrong**, **Compare the choices**, **High-yield points**, **Quiz me**,
 or your own (written in the popup). Each one adapts to whether you were right,
 wrong or unsure, and to the Step. **★** makes one the one-click default.
-**📝 Copy explanation** copies just the explanation, for your own notes.
+**Copy the explanation only** (at the bottom of the **▾** menu) copies just the
+explanation, for your own notes.
 
 ![Copy for AI, pasted: your prompt, then the question id, link and full question](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/06-copy-for-ai.gif)
 
@@ -284,6 +287,7 @@ unanswered question, stay quiet while you type, and switch off in the popup.
 | **G** | Make a card from your selection |
 | **Q** | Copy for AI |
 | **V** | Save to Missed Qs |
+| **T** | Test yourself on this question's cards |
 | **D** | Open this question's cards in Anki |
 | **?** | Show the shortcuts |
 | **Esc** | Close an overlay or dialog |

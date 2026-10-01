@@ -806,7 +806,7 @@
     #mnx-confirm .mnx-cf-ok:hover{background:var(--mnx-accent-600)}
 
     /* resource card */
-    #${PANEL_ID}{margin:14px 0;font-family:var(--mnx-font);color:var(--mnx-text);background:var(--mnx-surface);border:1px solid var(--mnx-border);border-radius:var(--mnx-r);display:block;position:relative;z-index:1;overflow:hidden;box-shadow:var(--mnx-shadow-sm);animation:mnx-rise .32s cubic-bezier(.2,.7,.3,1) both}
+    #${PANEL_ID}{margin:14px 0;font-family:var(--mnx-font);color:var(--mnx-text);background:var(--mnx-surface);border:1px solid var(--mnx-border);border-radius:var(--mnx-r);display:block;position:relative;z-index:1;overflow:clip;container-type:inline-size;box-shadow:var(--mnx-shadow-sm);animation:mnx-rise .32s cubic-bezier(.2,.7,.3,1) both}
     #${PANEL_ID}.mnx-float{position:fixed;right:16px;bottom:16px;width:400px;max-height:60vh;overflow:auto;z-index:2147483646;box-shadow:var(--mnx-shadow)}
     #${PANEL_ID} table{border-collapse:collapse;width:100%;font-size:14px;background:transparent}
     #${PANEL_ID} td{border:none;border-bottom:1px solid var(--mnx-border);padding:10px 13px;vertical-align:top;line-height:1.45}
@@ -899,8 +899,10 @@
     #${PANEL_ID} .mnx-recall-act:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
 
     /* ---- how ready you are for this question ---- */
-    #${PANEL_ID} .mnx-cards{display:flex;align-items:center;gap:10px;padding:8px 13px;
+    #${PANEL_ID} .mnx-cards{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:8px 10px 8px 14px;
       border-bottom:1px solid var(--mnx-border);background:var(--mnx-surface-2);font-size:12.5px}
+    #${PANEL_ID} .mnx-cards-info{display:flex;align-items:center;gap:10px;flex:1 1 240px;min-width:0}
+    #${PANEL_ID} .mnx-cards-acts{display:flex;gap:6px;margin-left:auto}
     #${PANEL_ID} .mnx-cards-bar{display:flex;flex:none;width:96px;height:6px;border-radius:999px;overflow:hidden;background:var(--mnx-border)}
     #${PANEL_ID} .mnx-cards-bar i{display:block;height:100%}
     #${PANEL_ID} .mnx-seg-mature{background:var(--mnx-good)}
@@ -911,7 +913,7 @@
     #${PANEL_ID} .mnx-cards-txt{color:var(--mnx-muted);font-variant-numeric:tabular-nums;
       overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     #${PANEL_ID} .mnx-cards-txt b{color:var(--mnx-ink);font-weight:700}
-    #${PANEL_ID} .mnx-unsus{margin-left:auto;flex:none;font:inherit;font-size:12px;font-weight:600;cursor:pointer;
+    #${PANEL_ID} .mnx-unsus{flex:none;font:inherit;font-size:12px;font-weight:600;cursor:pointer;
       border:1px solid var(--mnx-border);background:var(--mnx-surface);color:var(--mnx-accent);
       border-radius:var(--mnx-r-xs);padding:3px 10px;transition:background .14s,transform .14s}
     #${PANEL_ID} .mnx-unsus:hover{background:var(--mnx-accent-soft)}
@@ -919,8 +921,9 @@
     #${PANEL_ID} .mnx-unsus:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
     #${PANEL_ID} .mnx-unsus[disabled]{opacity:.55;cursor:default}
     @media (prefers-reduced-motion:reduce){
-      #${PANEL_ID} .mnx-r-chev,#${PANEL_ID} .mnx-r-head{transition:none}
-      #${PANEL_ID} .mnx-r-body{animation:none}
+      #${PANEL_ID} .mnx-r-chev,#${PANEL_ID} .mnx-r-head,#${PANEL_ID} .mnx-pbtn{transition:none}
+      #${PANEL_ID},#${PANEL_ID} .mnx-r-body,#mnx-md-overlay .mnx-md{animation:none}
+      #mnx-md-overlay .mnx-test-btn,#mnx-md-overlay .mnx-test-prog i{transition:none}
     }
 
     /* fullscreen image overlay */
@@ -993,53 +996,58 @@
     #${SUMMARY_ID} .mnx-x:hover{color:var(--mnx-text);background:var(--mnx-surface-2)}
 
     /* review-panel header actions */
-    #${PANEL_ID} .mnx-phead{display:flex;gap:6px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--mnx-border);background:linear-gradient(180deg,var(--mnx-accent-soft),var(--mnx-surface-2))}
-    #${PANEL_ID} .mnx-pbtn{border:none;border-radius:var(--mnx-r-xs);padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--mnx-font);background:var(--mnx-elev);color:var(--mnx-ink);box-shadow:var(--mnx-shadow-sm);transition:transform .16s,filter .16s}
-    #${PANEL_ID} .mnx-pbtn:hover{filter:brightness(.97);transform:translateY(-1px)}
-    #${PANEL_ID} .mnx-pbtn:active{transform:translateY(0) scale(.98)}
+    #${PANEL_ID} .mnx-phead{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 14px;border-bottom:1px solid var(--mnx-border);background:var(--mnx-surface);position:sticky;top:0;z-index:3}
+    #${PANEL_ID} .mnx-phead-id{font-size:11.5px;font-weight:600;color:var(--mnx-muted);font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:.02em}
+    #${PANEL_ID} .mnx-phead-acts{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0}
+    #${PANEL_ID} .mnx-pbtn{display:inline-flex;align-items:center;gap:6px;height:32px;box-sizing:border-box;padding:0 11px;border:1px solid var(--mnx-border);border-radius:var(--mnx-r-xs);font:600 12.5px var(--mnx-font);cursor:pointer;background:var(--mnx-surface);color:var(--mnx-ink);white-space:nowrap;transition:background .15s,border-color .15s,transform .12s,filter .15s}
+    #${PANEL_ID} .mnx-ico{width:15px;height:15px;flex:none;display:block}
+    #${PANEL_ID} .mnx-kbd{font:600 10.5px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:3px 5px;border-radius:4px;border:1px solid var(--mnx-border);background:var(--mnx-surface-2);color:var(--mnx-muted);margin-left:1px}
+    #${PANEL_ID}.mnx-nokeys .mnx-kbd{display:none}
+    #${PANEL_ID} .mnx-pbtn.mnx-accent{color:var(--mnx-accent);border-color:color-mix(in srgb,var(--mnx-accent) 40%,var(--mnx-border))}
+    #${PANEL_ID} .mnx-pbtn.mnx-accent:hover{background:var(--mnx-accent-soft)}
+    #${PANEL_ID} .mnx-pbtn:hover{background:var(--mnx-surface-2);border-color:color-mix(in srgb,var(--mnx-accent) 30%,var(--mnx-border))}
+    #${PANEL_ID} .mnx-pbtn:active{transform:scale(.98)}
     #${PANEL_ID} .mnx-pbtn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
-    #${PANEL_ID} .mnx-test{margin:10px 12px;border:1px solid var(--mnx-border);border-radius:var(--mnx-r-sm);background:var(--mnx-surface);overflow:hidden}
-    #${PANEL_ID} .mnx-test-top{display:flex;align-items:center;gap:8px;padding:8px 10px 6px}
-    #${PANEL_ID} .mnx-test-title{font-size:12px;font-weight:700;color:var(--mnx-text)}
-    #${PANEL_ID} .mnx-test-count{font-size:11.5px;color:var(--mnx-muted);font-variant-numeric:tabular-nums}
-    #${PANEL_ID} .mnx-test-end{margin-left:auto;border:none;background:none;font:600 11.5px var(--mnx-font);color:var(--mnx-muted);cursor:pointer;padding:3px 6px;border-radius:var(--mnx-r-xs)}
-    #${PANEL_ID} .mnx-test-end:hover{color:var(--mnx-text);background:var(--mnx-surface-2)}
-    #${PANEL_ID} .mnx-test-prog{height:3px;background:var(--mnx-surface-2)}
-    #${PANEL_ID} .mnx-test-prog i{display:block;height:100%;width:0;background:var(--mnx-accent);transition:width .25s}
-    #${PANEL_ID} .mnx-test-card{padding:12px 12px 4px;font-size:13.5px;line-height:1.55;color:var(--mnx-text)}
-    #${PANEL_ID} .mnx-test-card img{max-width:100%;height:auto;display:block;margin:8px 0;border-radius:var(--mnx-r-xs)}
-    #${PANEL_ID} .mnx-test-card .cloze{color:var(--mnx-accent);font-weight:700}
-    #${PANEL_ID} .mnx-test-extra{padding:0 12px}
-    #${PANEL_ID} .mnx-test-extra .mnx-field{border-top:1px solid var(--mnx-border);padding:6px 0}
-    #${PANEL_ID} .mnx-test-extra .mnx-field > summary{cursor:pointer;font-size:12.5px;display:flex;gap:8px;align-items:baseline;padding:3px 0;list-style-position:inside}
-    #${PANEL_ID} .mnx-test-extra .mnx-field > summary b{color:var(--mnx-ink);flex:none}
-    #${PANEL_ID} .mnx-test-extra .mnx-field-hint{color:var(--mnx-muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-    #${PANEL_ID} .mnx-test-extra .mnx-field[open] > summary .mnx-field-hint{display:none}
-    #${PANEL_ID} .mnx-test-extra .mnx-field-body{padding:4px 0 2px;font-size:13px;line-height:1.5}
-    #${PANEL_ID} .mnx-test-extra .mnx-field-body img{max-width:100%;height:auto;display:block;margin:8px 0;border-radius:var(--mnx-r-xs)}
-    #${PANEL_ID} .mnx-test-actions{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px 12px}
-    #${PANEL_ID} .mnx-test-btn{flex:1 1 120px;border:1px solid var(--mnx-border);border-radius:var(--mnx-r-xs);padding:8px 12px;font:600 12.5px var(--mnx-font);cursor:pointer;background:var(--mnx-surface-2);color:var(--mnx-text);transition:background .14s,transform .12s,filter .14s}
-    #${PANEL_ID} .mnx-test-btn:active{transform:scale(.98)}
-    #${PANEL_ID} .mnx-test-btn:focus-visible,#${PANEL_ID} .mnx-test-act:focus-visible,#${PANEL_ID} .mnx-test-end:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
-    #${PANEL_ID} .mnx-test-reveal{background:var(--mnx-accent);border-color:var(--mnx-accent);color:#fff}
-    #${PANEL_ID} .mnx-test-reveal:hover{filter:brightness(1.06)}
-    #${PANEL_ID} .mnx-test-miss{color:var(--mnx-bad-txt)}
-    #${PANEL_ID} .mnx-test-miss:hover{background:rgba(220,75,69,.10);border-color:var(--mnx-bad)}
-    #${PANEL_ID} .mnx-test-got{color:var(--mnx-good-txt)}
-    #${PANEL_ID} .mnx-test-got:hover{background:rgba(31,157,87,.10);border-color:var(--mnx-good)}
-    #${PANEL_ID} .mnx-test-score{font-size:13px;margin-bottom:6px}
-    #${PANEL_ID} .mnx-test-score b{font-size:15px}
-    #${PANEL_ID} .mnx-test-missed{margin:4px 0 8px;padding-left:18px;font-size:12.5px}
-    #${PANEL_ID} .mnx-test-missed li{margin:2px 0}
-    #${PANEL_ID} .mnx-test-act{font:600 12px var(--mnx-font);cursor:pointer;padding:5px 11px;border-radius:var(--mnx-r-pill);border:1px solid var(--mnx-border);background:var(--mnx-surface);color:var(--mnx-accent);transition:background .14s}
-    #${PANEL_ID} .mnx-test-act:hover{background:var(--mnx-accent-soft)}
-    #${PANEL_ID} .mnx-test-act:disabled{opacity:.6;cursor:progress}
-    #${PANEL_ID} .mnx-test-act.mnx-test-close{color:var(--mnx-muted);margin-left:auto}
+    #mnx-md-overlay .mnx-md.mnx-md-test{width:min(540px,92vw)}
+    #mnx-md-overlay .mnx-md-test .mnx-md-head{gap:10px}
+    #mnx-md-overlay .mnx-test-count{margin-left:auto;font-size:12px;font-weight:600;color:var(--mnx-muted);font-variant-numeric:tabular-nums}
+    #mnx-md-overlay .mnx-test-prog{display:flex;gap:4px;margin-bottom:16px}
+    #mnx-md-overlay .mnx-test-prog i{flex:1;height:4px;border-radius:2px;background:var(--mnx-border);transition:background .2s}
+    #mnx-md-overlay .mnx-test-prog i.now{background:var(--mnx-accent)}
+    #mnx-md-overlay .mnx-test-prog i.got{background:var(--mnx-good)}
+    #mnx-md-overlay .mnx-test-prog i.miss{background:var(--mnx-bad)}
+    #mnx-md-overlay .mnx-test-card{font-size:16px;line-height:1.6;color:var(--mnx-text);min-height:3.2em}
+    #mnx-md-overlay .mnx-test-card .cloze{color:var(--mnx-accent);font-weight:700}
+    #mnx-md-overlay .mnx-test-extra{margin-top:12px}
+    #mnx-md-overlay .mnx-test-note{margin-top:14px;font-size:11.5px;color:var(--mnx-muted)}
+    #mnx-md-overlay .mnx-test-actions{flex-wrap:wrap;justify-content:stretch}
+    #mnx-md-overlay .mnx-test-btn{flex:1 1 140px;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;border:1px solid var(--mnx-border);border-radius:var(--mnx-r-sm);font:600 13.5px var(--mnx-font);cursor:pointer;background:var(--mnx-surface);color:var(--mnx-text);transition:background .15s,border-color .15s,transform .12s,filter .15s}
+    #mnx-md-overlay .mnx-test-btn:active{transform:scale(.98)}
+    #mnx-md-overlay .mnx-test-btn:focus-visible,#mnx-md-overlay .mnx-test-act:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
+    #mnx-md-overlay .mnx-test-btn .mnx-kbd{font:600 10.5px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:3px 6px;border-radius:4px;border:1px solid currentColor;opacity:.55}
+    #mnx-md-overlay .mnx-test-reveal{background:var(--mnx-accent);border-color:var(--mnx-accent);color:#fff}
+    #mnx-md-overlay .mnx-test-reveal:hover{filter:brightness(1.06)}
+    #mnx-md-overlay .mnx-test-miss{color:var(--mnx-bad-txt)}
+    #mnx-md-overlay .mnx-test-miss:hover{background:color-mix(in srgb,var(--mnx-bad) 10%,var(--mnx-surface));border-color:var(--mnx-bad)}
+    #mnx-md-overlay .mnx-test-got{color:var(--mnx-good-txt)}
+    #mnx-md-overlay .mnx-test-got:hover{background:color-mix(in srgb,var(--mnx-good) 10%,var(--mnx-surface));border-color:var(--mnx-good)}
+    #mnx-md-overlay .mnx-test-score{font-size:14px;margin-bottom:6px}
+    #mnx-md-overlay .mnx-test-score b{font-size:18px}
+    #mnx-md-overlay .mnx-test-missed{margin:6px 0 4px;padding-left:18px;font-size:13.5px}
+    #mnx-md-overlay .mnx-test-missed li{margin:3px 0}
+    #mnx-md-overlay .mnx-test-act{font:600 12.5px var(--mnx-font);cursor:pointer;height:34px;padding:0 13px;border-radius:var(--mnx-r-xs);border:1px solid var(--mnx-border);background:var(--mnx-surface);color:var(--mnx-accent);transition:background .14s}
+    #mnx-md-overlay .mnx-test-act:hover{background:var(--mnx-accent-soft)}
+    #mnx-md-overlay .mnx-test-act:disabled{opacity:.6;cursor:progress}
+    #mnx-md-overlay .mnx-test-act.mnx-test-close{color:var(--mnx-muted);margin-left:auto}
+    #mnx-md-overlay .mnx-test-extra .mnx-field{border-top:1px solid var(--mnx-border);padding:6px 0}
     #${PANEL_ID} .mnx-split{display:inline-flex;align-items:stretch}
     #${PANEL_ID} .mnx-split .mnx-split-main{border-top-right-radius:0;border-bottom-right-radius:0}
-    #${PANEL_ID} .mnx-split .mnx-split-caret{border-top-left-radius:0;border-bottom-left-radius:0;padding:6px 8px;margin-left:1px;font-size:11px}
+    #${PANEL_ID} .mnx-split .mnx-split-caret{border-top-left-radius:0;border-bottom-left-radius:0;padding:0 7px;margin-left:-1px}
+    #${PANEL_ID} .mnx-split-preset{font-weight:500;color:var(--mnx-muted);max-width:140px;overflow:hidden;text-overflow:ellipsis}
+    @container (max-width:640px){#${PANEL_ID} .mnx-split-preset,#${PANEL_ID} .mnx-phead-id{display:none}}
+    @container (max-width:520px){#${PANEL_ID} .mnx-kbd{display:none}}
     #${PANEL_ID} .mnx-split .mnx-split-caret[aria-expanded=true]{background:var(--mnx-accent-soft);color:var(--mnx-accent)}
-    #mnx-ai-menu{position:fixed;z-index:2147483646;width:292px;max-width:calc(100vw - 16px);box-sizing:border-box;padding:6px;border:1px solid var(--mnx-border);border-radius:var(--mnx-r-sm);background:var(--mnx-elev);color:var(--mnx-text);box-shadow:var(--mnx-shadow);font-family:var(--mnx-font)}
+    #mnx-ai-menu{position:fixed;z-index:2147483646;overflow:auto;width:292px;max-width:calc(100vw - 16px);box-sizing:border-box;padding:6px;border:1px solid var(--mnx-border);border-radius:var(--mnx-r-sm);background:var(--mnx-elev);color:var(--mnx-text);box-shadow:var(--mnx-shadow);font-family:var(--mnx-font)}
     #mnx-ai-menu .mnx-aim-head{padding:6px 8px 4px;font-size:11px;font-weight:600;color:var(--mnx-muted)}
     #mnx-ai-menu .mnx-aim-row{display:flex;align-items:stretch;gap:2px;border-radius:var(--mnx-r-xs)}
     #mnx-ai-menu .mnx-aim-row:hover{background:var(--mnx-surface-2)}
@@ -1051,9 +1059,16 @@
     #mnx-ai-menu .is-default .mnx-aim-star{color:var(--mnx-accent)}
     #mnx-ai-menu .is-default .mnx-aim-label::after{content:" · one click";font-weight:500;color:var(--mnx-accent);font-size:11px}
     #mnx-ai-menu .mnx-aim-item:focus-visible,#mnx-ai-menu .mnx-aim-star:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
+    #mnx-ai-menu .mnx-aim-sep{height:1px;margin:4px 6px;background:var(--mnx-border)}
     #mnx-ai-menu .mnx-aim-foot{margin-top:4px;padding:7px 8px 4px;border-top:1px solid var(--mnx-border);font-size:11px;color:var(--mnx-muted)}
-    #${PANEL_ID} .mnx-pbtn.mnx-save{background:var(--mnx-save-bg);color:var(--mnx-on-save);box-shadow:0 4px 12px -4px rgba(31,157,87,.5)}
-    #${PANEL_ID} .mnx-pbtn.mnx-save:hover{filter:brightness(1.05)}
+    /* A colour-filled button gets its own layer: at fractional display scaling (125%)
+       Chrome otherwise left a faint 1-px seam beside its text, depending on where the
+       button fell on the pixel grid. Checked on Windows at 120%. */
+    #${PANEL_ID} .mnx-pbtn.mnx-save,#mnx-md-overlay .mnx-test-reveal,#mnx-selchip{transform:translateZ(0)}
+    #${PANEL_ID} .mnx-pbtn.mnx-save:active{transform:translateZ(0) scale(.98)}
+    #${PANEL_ID} .mnx-pbtn.mnx-save{background:var(--mnx-save-bg);border-color:transparent;color:var(--mnx-on-save)}
+    #${PANEL_ID} .mnx-pbtn.mnx-save .mnx-kbd{background:transparent;border-color:color-mix(in srgb,var(--mnx-on-save) 40%,transparent);color:inherit;opacity:.9}
+    #${PANEL_ID} .mnx-pbtn.mnx-save:hover{background:var(--mnx-save-bg);filter:brightness(1.06)}
 
     /* modal system (preview / save / make card / breakdown) */
     #mnx-md-overlay{position:fixed;inset:0;background:rgba(10,14,30,.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:2147483647;display:flex;align-items:flex-start;justify-content:center;padding:6vh 0;font-family:var(--mnx-font)}
@@ -1193,7 +1208,8 @@
     #mnx-md-overlay .mnx-kb-keys{display:flex;gap:4px;flex-wrap:wrap}
     #mnx-md-overlay .mnx-kb kbd{font:700 11px var(--mnx-font);background:var(--mnx-surface-2);border:1px solid var(--mnx-border);border-bottom-width:2px;border-radius:var(--mnx-r-xs);padding:2px 7px;color:var(--mnx-ink);min-width:14px;text-align:center}
     #mnx-md-overlay .mnx-kb-desc{font-size:12.5px;color:var(--mnx-text)}
-    #mnx-selchip{position:fixed;z-index:2147483647;display:none;align-items:center;gap:6px;background:linear-gradient(180deg,var(--mnx-accent),var(--mnx-accent-600));color:#fff;border:none;border-radius:var(--mnx-r-sm);padding:9px 14px;font:700 12.5px var(--mnx-font);cursor:pointer;box-shadow:var(--mnx-shadow-btn);transition:transform .16s,filter .16s;animation:mnx-rise .2s ease both}
+    #mnx-selchip .mnx-ico{width:15px;height:15px;flex:none;display:block}
+    #mnx-selchip{position:fixed;z-index:2147483647;display:none;align-items:center;gap:6px;background:var(--mnx-accent);color:#fff;border:none;border-radius:var(--mnx-r-sm);padding:9px 14px;font:700 12.5px var(--mnx-font);cursor:pointer;box-shadow:var(--mnx-shadow-btn);transition:transform .16s,filter .16s;animation:mnx-rise .2s ease both}
     #mnx-selchip:hover{background:var(--mnx-accent-600);transform:translateY(-1px)}
   `;
   document.documentElement.appendChild(style);
@@ -1256,7 +1272,10 @@
     if (changes.highYield) { hyOn = !!changes.highYield.newValue; }
     if ("aiPrompt" in changes) { aiPrompt = changes.aiPrompt.newValue == null ? "" : changes.aiPrompt.newValue; }
     if ("aiPreset" in changes) { aiPreset = changes.aiPreset.newValue || null; refreshAiButtons(); }
-    if (changes.kbShortcuts) { kbShortcuts = changes.kbShortcuts.newValue !== false; }
+    if (changes.kbShortcuts) {
+      kbShortcuts = changes.kbShortcuts.newValue !== false;
+      const pn = document.getElementById(PANEL_ID); if (pn) pn.classList.toggle("mnx-nokeys", !kbShortcuts);
+    }
     if (changes.mnxMissedMode) { missedMode = changes.mnxMissedMode.newValue || "move"; }
     if (changes.akMissedDeck) { plannedMissedDeck = changes.akMissedDeck.newValue || ""; }
   });
@@ -2679,7 +2698,7 @@
     const tag = (t.tagName || "").toLowerCase();
     return tag === "input" || tag === "textarea" || tag === "select" || !!t.isContentEditable;
   }
-  const SHORTCUT_LETTERS = new Set(Object.keys(IMG_SOURCES).concat(["G", "Q", "V", "D"]));
+  const SHORTCUT_LETTERS = new Set(Object.keys(IMG_SOURCES).concat(["G", "Q", "V", "D", "T"]));
   window.addEventListener("keydown", e => {
     if (!e.isTrusted) return;            // page script must not drive the shortcuts
     const claim = () => { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); };
@@ -2709,6 +2728,10 @@
     else if (up === "Q") copyFullQuestion(qid);                                                           // copy for AI
     else if (up === "V") openSaveDialog(s);                                                                // save to Missed Qs
     else if (up === "D") openInAnki(s);                                                                    // open in Anki
+    else if (up === "T") {                                                                                 // test yourself
+      if (s.notes.length && testItems(s.notes).items.length) openCardTest(s);
+      else toast("No cards with blanks to test for this question.");
+    }
   }, true);
   // small keyboard cheatsheet (press ?)
   function showShortcutHelp() {
@@ -2717,6 +2740,7 @@
       ["G", "Make a card (uses your text selection)"],
       ["Q", "Copy for AI"],
       ["V", "Save to Missed Qs"],
+      ["T", "Test yourself on this question's cards (Space shows the answer, then Space = Got it, 1 = Missed)"],
       ["D", "Open this question's cards in Anki"],
       ["F S P O E A", "Overlay First Aid / Sketchy / Physeo / OME / Extra / Additional images"],
       ["Esc", "Close a dialog or image overlay"],
@@ -2957,7 +2981,11 @@
   // in (Tab cycles inside it), and handed back to where it was on close.
   const FOCUSABLE = "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])";
   let modalSeq = 0;
+  let currentModal = null;
   function buildModal(titleText, onClose) {
+    // A dialog opened from another (Test me -> Save) replaces it properly:
+    // the old one's key listener and close hook go with it.
+    if (currentModal) currentModal.close(true);
     const old = document.getElementById("mnx-md-overlay"); if (old) old.remove();
     const before = document.activeElement;
     const ov = document.createElement("div"); ov.id = "mnx-md-overlay";
@@ -2971,13 +2999,19 @@
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
       else if (!e.shiftKey && (document.activeElement === last || !md.contains(document.activeElement))) { e.preventDefault(); first.focus(); }
     };
-    function close() {
+    function close(replaced) {
       document.removeEventListener("keydown", onKey, true);
       ov.remove();
+      if (currentModal && currentModal.ov === ov) currentModal = null;
       if (onClose) { try { onClose(); } catch (e) {} }
+      if (replaced === true) return;
       try { if (before && before.isConnected && before.focus) before.focus(); } catch (e) {}
     }
     ov.addEventListener("click", e => { if (e.target === ov) close(); });
+    // Keys pressed in a Mnestic window stay in it: behind it, the qbank's own
+    // shortcuts must not fire (on Coursology the arrows change question and
+    // 1, 2 ... pick a highlighter). Mnestic's own handlers inside still run.
+    ["keydown", "keyup", "keypress"].forEach(t => ov.addEventListener(t, e => e.stopPropagation()));
     const md = document.createElement("div"); md.className = "mnx-md";
     const titleId = "mnx-md-title-" + (++modalSeq);
     md.setAttribute("role", "dialog");
@@ -2997,7 +3031,8 @@
     // After the caller has filled it in; a dialog that focuses its own field
     // (Make card's text box) keeps that.
     setTimeout(() => { if (ov.isConnected && !md.contains(document.activeElement)) x.focus(); }, 0);
-    return { ov, body, foot, close };
+    currentModal = { ov, close };
+    return { ov, md, head, body, foot, close };
   }
   function mdButton(label, cls, onClick) {
     const b = document.createElement("button"); b.className = "mnx-md-btn " + cls; b.textContent = label;
@@ -4077,8 +4112,46 @@
   }
 
   // ---- panel header (sits atop the resource panel on the review page) ----
-  function pbtn(label, cls, onClick) {
-    const b = document.createElement("button"); b.className = "mnx-pbtn " + (cls || ""); b.textContent = label;
+  // Small line icons, drawn here: no emoji (they render differently on every
+  // system), no icon font, nothing fetched. 24-unit grid, stroked in the text
+  // colour.
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const ICONS = {
+    ai: [["path", { d: "M12 3.5l1.8 4.9 4.9 1.8-4.9 1.8L12 16.9l-1.8-4.9-4.9-1.8 4.9-1.8z" }],
+         ["path", { d: "M18.5 15.5l.7 1.6 1.6.7-1.6.7-.7 1.6-.7-1.6-1.6-.7 1.6-.7z" }]],
+    chevron: [["polyline", { points: "6 9.5 12 15.5 18 9.5" }]],
+    makecard: [["rect", { x: 3.5, y: 4.5, width: 17, height: 15, rx: 2.5 }],
+               ["line", { x1: 12, y1: 9, x2: 12, y2: 15 }], ["line", { x1: 9, y1: 12, x2: 15, y2: 12 }]],
+    save: [["polygon", { points: "12 3.8 14.5 8.9 20.1 9.7 16 13.6 17 19.2 12 16.6 7 19.2 8 13.6 3.9 9.7 9.5 8.9" }]],
+    eye: [["path", { d: "M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" }], ["circle", { cx: 12, cy: 12, r: 2.8 }]],
+    test: [["rect", { x: 8, y: 3.5, width: 12.5, height: 15, rx: 2 }], ["path", { d: "M4.5 7.5v11a2.5 2.5 0 0 0 2.5 2.5h8.5" }]],
+    copy: [["rect", { x: 9, y: 9, width: 11.5, height: 11.5, rx: 2 }],
+           ["path", { d: "M5.5 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v.5" }]],
+    x: [["line", { x1: 6.5, y1: 6.5, x2: 17.5, y2: 17.5 }], ["line", { x1: 17.5, y1: 6.5, x2: 6.5, y2: 17.5 }]],
+    check: [["polyline", { points: "4.5 12.5 9.5 17.5 19.5 6.5" }]]
+  };
+  function icon(name) {
+    const svg = document.createElementNS(SVG_NS, "svg");
+    const set = (el, a) => { for (const k in a) el.setAttribute(k, a[k]); };
+    set(svg, { viewBox: "0 0 24 24", "aria-hidden": "true", class: "mnx-ico", fill: "none", stroke: "currentColor",
+               "stroke-width": "1.8", "stroke-linecap": "round", "stroke-linejoin": "round" });
+    (ICONS[name] || []).forEach(([tag, attrs]) => { const el = document.createElementNS(SVG_NS, tag); set(el, attrs); svg.appendChild(el); });
+    return svg;
+  }
+  // A key hint on a button, so the fast way is in plain sight. Hidden when
+  // keyboard shortcuts are off (the panel then has .mnx-nokeys).
+  function keyHint(key) {
+    const k = document.createElement("kbd"); k.className = "mnx-kbd"; k.textContent = key; k.setAttribute("aria-hidden", "true");
+    return k;
+  }
+  // A panel button: icon, label, and its key. opts: { icon, key, title }.
+  function pbtn(label, cls, onClick, opts) {
+    opts = opts || {};
+    const b = document.createElement("button"); b.type = "button"; b.className = "mnx-pbtn " + (cls || "");
+    if (opts.icon) b.appendChild(icon(opts.icon));
+    const t = document.createElement("span"); t.className = "mnx-pbtn-t"; t.textContent = label; b.appendChild(t);
+    if (opts.key) { b.appendChild(keyHint(opts.key)); b.setAttribute("aria-keyshortcuts", opts.key); }
+    if (opts.title || opts.key) b.title = (opts.title || label) + (opts.key ? " (" + opts.key + ")" : "");
     b.addEventListener("click", onUserClick(onClick)); return b;
   }
   // "Copy for AI" as a split button: one click copies the question with your
@@ -4090,13 +4163,18 @@
     const main = document.createElement("button"); main.type = "button"; main.className = "mnx-pbtn mnx-split-main";
     const caret = document.createElement("button"); caret.type = "button"; caret.className = "mnx-pbtn mnx-split-caret";
     caret.setAttribute("aria-haspopup", "menu"); caret.setAttribute("aria-expanded", "false");
-    caret.setAttribute("aria-label", "Choose the AI prompt"); caret.title = "Choose the AI prompt";
-    caret.textContent = "▾";
+    caret.setAttribute("aria-label", "Choose the AI prompt, or copy the explanation"); caret.title = "Choose the AI prompt, or copy the explanation";
+    caret.appendChild(icon("chevron"));
+    const label = document.createElement("span"); label.className = "mnx-pbtn-t"; label.textContent = "Copy for AI";
+    const preset = document.createElement("span"); preset.className = "mnx-split-preset";
+    main.append(icon("ai"), label, preset, keyHint("Q"));
+    main.setAttribute("aria-keyshortcuts", "Q");
     wrap.append(main, caret);
     wrap.mnxRefresh = () => {
       const p = Ai.preset(aiPresetKey()) || Ai.PRESETS[0];
-      main.textContent = "🤖 Copy for AI · " + p.label;
+      preset.textContent = " · " + p.label;
       main.title = p.hint + ". Copies the question, your answer and the explanation with this prompt (Q).";
+      main.setAttribute("aria-label", "Copy for AI with the " + p.label + " prompt");
     };
     wrap.mnxRefresh();
     main.addEventListener("click", onUserClick(() => copyForAI(qid)));
@@ -4152,18 +4230,36 @@
       menu.appendChild(row);
       items.push(b, star);
     });
+    // Copying the explanation alone (for your own notes) lives here now: it's
+    // a copy too, and one button fewer on the panel.
+    const sep = document.createElement("div"); sep.className = "mnx-aim-sep"; menu.appendChild(sep);
+    const exRow = document.createElement("div"); exRow.className = "mnx-aim-row";
+    const exItem = document.createElement("button"); exItem.type = "button"; exItem.className = "mnx-aim-item mnx-aim-plain"; exItem.setAttribute("role", "menuitem");
+    const exT = document.createElement("span"); exT.className = "mnx-aim-label"; exT.textContent = "Copy the explanation only";
+    const exH = document.createElement("span"); exH.className = "mnx-aim-hint"; exH.textContent = "No prompt — for your own notes";
+    exItem.append(exT, exH);
+    exItem.addEventListener("click", onUserClick(() => { closeAiMenu(caret); copyExplanation(); }));
+    exRow.appendChild(exItem); menu.appendChild(exRow); items.push(exItem);
     const foot = document.createElement("div"); foot.className = "mnx-aim-foot";
     foot.textContent = ownPrompt ? "Edit “My own prompt” in the Mnestic popup." : "Write your own prompt in the Mnestic popup to add it here.";
     menu.appendChild(foot);
     document.documentElement.appendChild(menu);
-    // Below the ▾ (above it if there's no room), kept on screen.
+    // Below the ▾, or above it when there's more room there -- and never over
+    // it: a menu that opened on top of its own button put a star under the
+    // pointer, so a second click on ▾ changed your default prompt. When
+    // neither side fits, the menu scrolls inside the room it has.
     const r = caret.getBoundingClientRect();
     const mw = menu.offsetWidth, mh = menu.offsetHeight;
     const left = Math.max(8, Math.min(r.right - mw, window.innerWidth - mw - 8));
-    const top = (r.bottom + 6 + mh < window.innerHeight) ? r.bottom + 6 : Math.max(8, r.top - mh - 6);
-    menu.style.left = left + "px"; menu.style.top = top + "px";
+    const below = window.innerHeight - r.bottom - 14, above = r.top - 14;
+    const down = below >= mh || below >= above;
+    const room = Math.max(120, down ? below : above);
+    const h = Math.min(mh, room);
+    menu.style.maxHeight = room + "px";
+    menu.style.left = left + "px";
+    menu.style.top = (down ? r.bottom + 6 : r.top - 6 - h) + "px";
     caret.setAttribute("aria-expanded", "true");
-    const onDoc = e => { if (!menu.contains(e.target) && e.target !== caret) closeAiMenu(); };
+    const onDoc = e => { if (!menu.contains(e.target) && !caret.contains(e.target)) closeAiMenu(); };
     const onKey = e => {
       if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeAiMenu(caret); return; }
       if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
@@ -4189,22 +4285,21 @@
   function addPanelHeader(s) {
     const panel = document.getElementById(PANEL_ID); if (!panel) return;
     const qid = s.qid;
-    const head = document.createElement("div"); head.className = "mnx-phead";
     closeAiMenu();                          // a menu left open for the previous question
     closeCardTest();
-    head.appendChild(aiSplitButton(qid));   // the question, your answer, the explanation + a prompt
-    head.appendChild(pbtn("📝 Copy explanation", "", () => copyExplanation()));  // for your notes
-    head.appendChild(pbtn("✚ Make card", "", () => openMakeCardDialog(String((window.getSelection && window.getSelection()) || ""))));
-    if (s.notes.length) {
-      head.appendChild(pbtn("👁 Preview", "", () => openPreview(s.notes, 0)));
-      if (testItems(s.notes).items.length) {
-        const last = (trackerLog.answered[currentQbankSlug() + " " + qid] || {}).test;
-        const tb = pbtn("🧠 Test me", "", () => (document.getElementById(TEST_ID) ? closeCardTest() : openCardTest(s)));
-        tb.title = "Test yourself on this question's cards, here on the page" + (last ? " · last time " + last.got + " of " + last.total : "");
-        head.appendChild(tb);
-      }
-      head.appendChild(pbtn("★ Save to Missed Qs", "mnx-save", () => openSaveDialog(s)));
-    }
+    panel.classList.toggle("mnx-nokeys", !kbShortcuts);
+    // Grouped so the right button is quick to find. Up here: what you do with
+    // the QUESTION -- copy it for AI, make a card, save it (the one filled
+    // button). On the cards strip below: what you do with its CARDS --
+    // Preview, Test me. Each shows its key.
+    const head = document.createElement("div"); head.className = "mnx-phead";
+    const id = document.createElement("span"); id.className = "mnx-phead-id"; id.textContent = "Q" + qid; id.title = "Question " + qid;
+    const acts = document.createElement("div"); acts.className = "mnx-phead-acts";
+    acts.appendChild(aiSplitButton(qid));   // the question, your answer, the explanation + a prompt
+    acts.appendChild(pbtn("Make card", "", () => openMakeCardDialog(String((window.getSelection && window.getSelection()) || "")),
+      { icon: "makecard", key: "G", title: "Make a card — select explanation text first to use it" }));
+    if (s.notes.length) acts.appendChild(pbtn("Save to Missed Qs", "mnx-save", () => openSaveDialog(s), { icon: "save", key: "V" }));
+    head.append(id, acts);
     panel.appendChild(head);
     addConfidenceRow(s);
     if (s.notes.length) addCardStatus(s);
@@ -4366,58 +4461,76 @@
     });
     return { items: items.slice(0, TEST_MAX_ITEMS), skipped };
   }
+  // It opens in a focus window: the question and the explanation -- which
+  // state the answer -- are dimmed behind it, so recalling the card is real.
+  // Keys work like Anki: Space shows the answer, then Space = Got it and
+  // 1 = Missed. Esc or ✕ puts you back where you were.
   const TEST_ID = "mnx-test";
-  function closeCardTest() { const t = document.getElementById(TEST_ID); if (t) t.remove(); }
+  function closeCardTest() {
+    if (document.getElementById(TEST_ID) && currentModal) currentModal.close();
+  }
   function openCardTest(s, only) {
-    const panel = document.getElementById(PANEL_ID); if (!panel || !isLive(s)) return;
-    closeCardTest();
+    if (!isLive(s)) return;
     const all = testItems(s.notes);
     const items = only && only.length ? only : all.items;
     if (!items.length) { toast("These cards have no blanks to test (image occlusion or empty cards)."); return; }
-    const box = document.createElement("section");
-    box.id = TEST_ID; box.className = "mnx-test";
-    box.setAttribute("aria-label", "Test yourself on this question's cards");
-    const top = document.createElement("div"); top.className = "mnx-test-top";
-    const title = document.createElement("span"); title.className = "mnx-test-title"; title.textContent = "Test yourself";
+    const m = buildModal("Test yourself");
+    m.md.id = TEST_ID; m.md.classList.add("mnx-md-test");
     const count = document.createElement("span"); count.className = "mnx-test-count";
-    const end = document.createElement("button"); end.type = "button"; end.className = "mnx-test-end"; end.textContent = "End";
-    end.title = "End the test (Esc)";
-    top.append(title, count, end);
+    m.head.insertBefore(count, m.head.lastChild);
     const prog = document.createElement("div"); prog.className = "mnx-test-prog";
-    const progFill = document.createElement("i"); prog.appendChild(progFill);
+    const segs = items.map(() => { const i = document.createElement("i"); prog.appendChild(i); return i; });
     const card = document.createElement("div"); card.className = "mnx-test-card mnx-md-prev";
+    card.setAttribute("aria-live", "polite");
     const extra = document.createElement("div"); extra.className = "mnx-test-extra";
-    const actions = document.createElement("div"); actions.className = "mnx-test-actions";
-    box.append(top, prog, card, extra, actions);
-    const headEl = panel.querySelector(".mnx-phead");
-    if (headEl && headEl.nextSibling) panel.insertBefore(box, headEl.nextSibling); else panel.appendChild(box);
+    const note = document.createElement("div"); note.className = "mnx-test-note";
+    note.textContent = "Practice only — your Anki schedule isn't changed.";
+    m.body.append(prog, card, extra, note);
+    const actions = m.foot; actions.classList.add("mnx-test-actions");
 
-    let i = 0;
+    let i = 0, stage = "front", stageAt = 0;
     const results = [];                                    // { item, got }
-    const stillHere = () => isLive(s) && box.isConnected;
-    end.addEventListener("click", onUserClick(() => (results.length ? finish() : closeCardTest())));
-    box.addEventListener("keydown", e => {
-      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); results.length ? finish() : closeCardTest(); }
+    const stillHere = () => isLive(s) && m.ov.isConnected;
+    // Anki's keys. A focused button takes Space / Enter itself; these cover
+    // the rest. A held key can't skip through cards (200 ms per step).
+    m.ov.addEventListener("keydown", e => {
+      if (!e.isTrusted || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      if (Date.now() - stageAt < 200) return;
+      const onButton = e.target && e.target.tagName === "BUTTON";
+      if ((e.key === " " || e.key === "Enter") && !onButton) {
+        e.preventDefault();
+        if (stage === "front") back(); else if (stage === "back") grade(true);
+      } else if (e.key === "1" && stage === "back") { e.preventDefault(); grade(false); }
     });
+    // The 200 ms guard only applies between cards (a key held on Got it must
+    // not race through the next one); the first card answers at once.
+    function setStage(st, at) { stage = st; stageAt = at == null ? Date.now() : at; }
     function setProgress() {
-      count.textContent = Math.min(i + 1, items.length) + " / " + items.length;
-      progFill.style.width = (100 * i / items.length) + "%";
+      count.textContent = Math.min(i + 1, items.length) + " of " + items.length;
+      segs.forEach((g, k) => { g.className = k < results.length ? (results[k].got ? "got" : "miss") : k === i ? "now" : ""; });
+    }
+    function bigButton(cls, label, key, fn) {
+      const b = document.createElement("button"); b.type = "button"; b.className = "mnx-test-btn " + cls;
+      const t = document.createElement("span"); t.textContent = label; b.appendChild(t);
+      if (key) b.appendChild(keyHint(key));
+      b.addEventListener("click", onUserClick(() => { if (Date.now() - stageAt >= 200) fn(); }));
+      return b;
     }
     function show() {
       const it = items[i];
+      setStage("front", results.length ? Date.now() : 0);
       setProgress();
       setSafeHtml(card, it.front);
       resolveMediaImages(card, stillHere);
       extra.replaceChildren();
       actions.replaceChildren();
-      const reveal = document.createElement("button"); reveal.type = "button"; reveal.className = "mnx-test-btn mnx-test-reveal";
-      reveal.textContent = "Show answer";
-      reveal.addEventListener("click", onUserClick(() => back()));
+      const reveal = bigButton("mnx-test-reveal", "Show answer", "Space", back);
       actions.appendChild(reveal);
       reveal.focus({ preventScroll: true });
     }
     function back() {
       const it = items[i];
+      setStage("back");
       setSafeHtml(card, it.back);
       resolveMediaImages(card, stillHere);
       // Extra open; Additional Resources one click away (images load when opened).
@@ -4438,21 +4551,21 @@
         extra.appendChild(d);
       });
       actions.replaceChildren();
-      const miss = document.createElement("button"); miss.type = "button"; miss.className = "mnx-test-btn mnx-test-miss"; miss.textContent = "Missed";
-      const got = document.createElement("button"); got.type = "button"; got.className = "mnx-test-btn mnx-test-got"; got.textContent = "Got it";
-      miss.addEventListener("click", onUserClick(() => grade(false)));
-      got.addEventListener("click", onUserClick(() => grade(true)));
+      const miss = bigButton("mnx-test-miss", "Missed", "1", () => grade(false));
+      const got = bigButton("mnx-test-got", "Got it", "Space", () => grade(true));
       actions.append(miss, got);
       got.focus({ preventScroll: true });
     }
     function grade(gotIt) {
+      if (stage !== "back") return;
       results.push({ item: items[i], got: gotIt });
       i++;
       if (i < items.length) show(); else finish();
     }
     async function finish() {
-      progFill.style.width = "100%";
-      count.textContent = "";
+      setStage("end");
+      setProgress();
+      count.textContent = "Done";
       const got = results.filter(r => r.got).length, missed = results.filter(r => !r.got);
       rememberTest(s.qid, got, results.length);
       card.replaceChildren(); extra.replaceChildren(); actions.replaceChildren();
@@ -4464,9 +4577,7 @@
         const ul = document.createElement("ul"); ul.className = "mnx-test-missed";
         missed.forEach(r => { const li = document.createElement("li"); li.textContent = r.item.answer || noteSnippet(r.item.note); li.title = noteSnippet(r.item.note); ul.appendChild(li); });
         card.appendChild(ul);
-        const note = document.createElement("div"); note.className = "mnx-md-hint";
         note.textContent = "Practice only — nothing was graded in Anki, so your schedule is unchanged.";
-        card.appendChild(note);
         // Which missed cards are suspended -- those are the ones worth a tap.
         let stats = null;
         try { stats = (await bridge("cardStats", { queries: [s.query || qidQuery(s.qid, s.sv || 1)] }))[0] || []; } catch (e) { stats = null; }
@@ -4496,14 +4607,15 @@
         }
         actions.appendChild(testAction("Save to Missed Qs", () => openSaveDialog(s, missedNotes[0])));
         actions.appendChild(testAction("Test the missed again", () => openCardTest(s, missed.map(r => r.item))));
+      } else {
+        note.textContent = "Practice only — your Anki schedule isn't changed.";
       }
-      const done = testAction("Close", () => closeCardTest());
+      const done = testAction("Close", () => m.close());
       done.classList.add("mnx-test-close");
       actions.appendChild(done);
       (actions.querySelector("button") || done).focus({ preventScroll: true });
     }
     show();
-    box.scrollIntoView({ block: "nearest" });
   }
   function testAction(label, fn, title) {
     const b = document.createElement("button"); b.type = "button"; b.className = "mnx-test-act"; b.textContent = label;
@@ -4530,24 +4642,39 @@
   // where you actually stand", and surfaces suspended cards you'd never see.
   async function addCardStatus(s) {
     const panel = document.getElementById(PANEL_ID); if (!panel) return;
+    // Your cards for this question and what to do with them. The buttons are
+    // there at once; the counts fill in when Anki answers.
     const strip = document.createElement("div");
     strip.className = "mnx-cards";
+    const info = document.createElement("div"); info.className = "mnx-cards-info";
     const bar = document.createElement("div"); bar.className = "mnx-cards-bar";
     const txt = document.createElement("span"); txt.className = "mnx-cards-txt";
     txt.textContent = "Checking your cards…";
-    strip.append(bar, txt);
-    // Directly under the button row, above the resources.
-    const headEl = panel.querySelector(".mnx-phead");
-    if (headEl && headEl.nextSibling) panel.insertBefore(strip, headEl.nextSibling);
+    info.append(bar, txt);
+    const acts = document.createElement("div"); acts.className = "mnx-cards-acts";
+    acts.appendChild(pbtn("Preview", "", () => openPreview(s.notes, 0), { icon: "eye", title: "Read the matched cards" }));
+    if (testItems(s.notes).items.length) {
+      const last = (trackerLog.answered[currentQbankSlug() + " " + s.qid] || {}).test;
+      acts.appendChild(pbtn("Test me", "mnx-accent", () => openCardTest(s), { icon: "test", key: "T",
+        title: "Test yourself on this question's cards" + (last ? " — last time " + last.got + " of " + last.total : "") }));
+    }
+    strip.append(info, acts);
+    // Under "How did that go?" (or the buttons), above the resources.
+    const after = panel.querySelector(".mnx-recall-box") || panel.querySelector(".mnx-phead");
+    if (after && after.nextSibling) panel.insertBefore(strip, after.nextSibling);
     else panel.appendChild(strip);
 
     // The search that matched -- so these counts are about the cards on screen.
     const query = s.query || qidQuery(s.qid, s.sv || 1);
     let m;
     try { m = (await bridge("cardMaturity", { queries: [query] }))[0]; }
-    catch (e) { strip.remove(); return; }
-    if (!isLive(s)) { strip.remove(); return; }          // moved on while we waited
-    if (!m || !m.total) { strip.remove(); return; }
+    catch (e) { m = null; }
+    if (!isLive(s) || !strip.isConnected) return;          // moved on while we waited
+    if (!m || !m.total) {
+      bar.remove();
+      txt.textContent = s.notes.length + (s.notes.length === 1 ? " matched card" : " matched cards");
+      return;
+    }
 
     const SEGS = [
       ["mature", m.mature, "mature"],
@@ -4568,6 +4695,7 @@
     const strong = document.createElement("b");
     strong.textContent = m.total + (m.total === 1 ? " card" : " cards");
     txt.append(strong, document.createTextNode(parts.length ? "  ·  " + parts.join("  ·  ") : ""));
+    txt.title = parts.join(", ");
     bar.title = parts.join(", ");
 
     if (m.suspended > 0) {
@@ -4588,7 +4716,7 @@
           toast("Couldn't unsuspend: " + bridgeFailure(e));
         }
       }));
-      strip.appendChild(btn);
+      info.appendChild(btn);
     }
   }
 
@@ -4747,7 +4875,9 @@
   let selChipEl = null;
   function ensureSelChip() {
     if (selChipEl && document.body.contains(selChipEl)) return selChipEl;
-    const b = document.createElement("button"); b.id = "mnx-selchip"; b.type = "button"; b.textContent = "✚ Make card";
+    const b = document.createElement("button"); b.id = "mnx-selchip"; b.type = "button";
+    const bt = document.createElement("span"); bt.textContent = "Make card";
+    b.append(icon("makecard"), bt);
     b.addEventListener("mousedown", e => e.preventDefault());           // keep the text selection
     b.addEventListener("click", onUserClick(e => { e.preventDefault(); e.stopPropagation(); openMakeCardDialog(b.dataset.text || ""); }));
     document.body.appendChild(b); selChipEl = b; return b;
@@ -4770,7 +4900,7 @@
     chip.style.left = left + "px"; chip.style.top = top + "px";
   }
   document.addEventListener("mouseup", () => setTimeout(maybeShowSelChip, 0));
-  document.addEventListener("mousedown", e => { if (selChipEl && e.target !== selChipEl) hideSelChip(); });
+  document.addEventListener("mousedown", e => { if (selChipEl && !selChipEl.contains(e.target)) hideSelChip(); });
   document.addEventListener("scroll", hideSelChip, true);
 
   // ---- one-click "Anki" button next to the Question Id in the player header ----
