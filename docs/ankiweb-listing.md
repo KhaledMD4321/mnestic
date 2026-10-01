@@ -46,9 +46,10 @@ outright.
 ## What it can do
 
 Search your notes, read a note's fields and tags, read card stats and maturity,
-list decks and tags, read and write media, open Anki's Browse window, add tags,
-append to a field, create or copy a note, move cards into a deck, create a deck,
-unsuspend, and build a filtered deck.
+list decks and tags, read and write media, open Anki's Browse window (and bring
+it to the front), add tags, append to a field, create or copy a note, move cards
+into a deck, create a deck, unsuspend, re-suspend the cards a save unsuspended
+(when you undo it), and build a filtered deck.
 
 ## What it will not do
 

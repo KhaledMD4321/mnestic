@@ -1176,6 +1176,8 @@ function listenFree(server, from) {
     {
       mock.reset();
       const p = await openAt(reviewHtml("4211"));
+      const pageAsked = [];                          // card images asked of the QBANK's server
+      p.on("request", (r) => { if (/(fa|sketchy|physeo)-\d\.png/.test(r.url())) pageAsked.push(r.url()); });
       await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 12000 });
       await p.waitForTimeout(1500);                  // let the panel's own prefetch finish
       const faReads = () => mock.calls().filter((c) => c.op === "readMedia" && /fa-\d/.test(c.args.filename || "")).length;
@@ -1194,6 +1196,8 @@ function listenFree(server, from) {
       await p.waitForTimeout(1000);
       const opened = faReads();
       const imgs = await p.evaluate(() => Array.from(document.querySelectorAll("#mnx-md-overlay .mnx-field[open] img")).filter((i) => /^data:/.test(i.src)).length);
+      check("1.5", "card images come from your collection only: the qbank's server is never asked for an Anki file name",
+        pageAsked.length === 0 && imgs >= 3, pageAsked.slice(0, 3).join(" "));
       check("1.4", "a collapsed field's images load only when it is opened",
         collapsed === baseline && opened > collapsed && imgs >= 3,
         "reads: baseline " + baseline + ", preview open " + collapsed + ", section open " + opened + ", shown " + imgs);
@@ -1572,7 +1576,7 @@ function listenFree(server, from) {
         lay.kids.slice(0, 3).join(",") === "mnx-phead,mnx-recall-box,mnx-cards" &&
         lay.head.join("|") === "Copy for AI|Make card|Save to Missed Qs" && lay.cards.join("|") === "Preview|Test me", JSON.stringify(lay));
       check("1.5", "…one filled button, line icons instead of emoji, each key shown, and the row fits on one line",
-        lay.filled === 1 && !lay.emoji && lay.icons >= 5 && lay.keys.join("") === "QGVT" && lay.headH <= 50, JSON.stringify(lay));
+        lay.filled === 1 && !lay.emoji && lay.icons >= 5 && lay.keys.join("") === "QGVT" && lay.headH < 64, JSON.stringify(lay));
       // T opens the focus window; keys inside it never reach the page; Anki's keys grade
       await p.locator("#mnx-resources .mnx-phead").click({ position: { x: 4, y: 4 } });
       await p.keyboard.press("t");

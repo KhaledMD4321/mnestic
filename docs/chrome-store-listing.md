@@ -55,8 +55,12 @@ same way, which is what lets one AnKing tag search work on all of them.
 • MAKE A CARD. Select any explanation text and turn it into a new Cloze or Basic
   card, created in Anki with the question id as its source. Paste screenshots in.
 
-• TEST YOURSELF. The question's own AnKing cards as a quick flashcard run, right
-  in the panel. Practice only — your Anki schedule is never touched.
+• TEST YOURSELF. The question's own AnKing cards as a quick flashcard run, in a
+  focus window that hides the explanation while you recall — Space and 1, like
+  Anki. Practice only: your Anki schedule is never touched.
+
+• HOW DID THAT GO? One optional tap — knew it, guessed, misread, torn between
+  two — and the one next step that helps. Guesses count as weak.
 
 • COPY FOR AI. The question, your answer and the correct one, with a focused
   prompt (full review, why you got it wrong, compare the choices, high-yield
