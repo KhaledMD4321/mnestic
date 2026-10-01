@@ -1267,6 +1267,34 @@ function listenFree(server, from) {
       await setCfg({ akMissedDeck: "", akMissedDeckByStep: {} });
     }
 
+    // Upgrading from 1.3: its log keyed days by local-midnight milliseconds.
+    // The popup must read that history as calendar days (and the content
+    // script rewrites it once as v3), with nothing lost.
+    {
+      const midnight = (back) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - back); return String(d.getTime()); };
+      const v2 = { answered: { "usmle1 1633": { ts: Date.now(), slug: "usmle1", qid: "1633" } },
+                   totals: {}, daily: { usmle1: { [midnight(1)]: 10, [midnight(2)]: 5 } }, targets: { weekly: 0, daily: 0 } };
+      await setCfg({ akTrackerV2: v2 });
+      const pop = await ctx.newPage();
+      await pop.goto(`chrome-extension://${extId}/popup.html`);
+      await pop.waitForTimeout(1200);
+      const st = await pop.evaluate(() => ({ today: document.getElementById("trkToday").textContent, week: document.getElementById("trkWeek").textContent,
+        streak: document.getElementById("trkStreak").textContent }));
+      await pop.close();
+      check("1.4", "a 1.3 study log reads correctly after the upgrade (3-day streak, nothing lost)",
+        /^1/.test(st.today) && /3-day/.test(st.streak), JSON.stringify(st));
+      // a qbank tab loads the log and stores it once in the new format
+      const p = await openAt(reviewHtml("4211"));
+      await p.waitForSelector("#mnx-resources", { timeout: 12000 });
+      await p.waitForTimeout(1500);
+      await p.close();
+      const log = await readTracker();
+      const keys = Object.keys((log && log.daily && log.daily.usmle1) || {});
+      check("1.4", "…and is rewritten once as v3 with calendar-day keys",
+        log && log.v === 3 && keys.length === 2 && keys.every((k) => /^\d{4}-\d{2}-\d{2}$/.test(k)), JSON.stringify(log && log.daily));
+      await setCfg({ akTrackerV2: null });
+    }
+
     // B-04: a counter jump across days is kept undated, not put on today.
     {
       const yesterday = Date.now() - 86400000;
