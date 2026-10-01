@@ -58,3 +58,18 @@ test("an empty block is not a division by zero", () => {
   assert.deepEqual(out.groups, []);
   assert.equal(out.blockAccuracy, 0);
 });
+
+test("a right answer narrowed to two counts as half", () => {
+  const rows = [
+    { qid: "1", subject: "Renal", wrong: false }, { qid: "2", subject: "Renal", wrong: false },
+    { qid: "3", subject: "Renal", wrong: false }, { qid: "4", subject: "Renal", wrong: true }];
+  const narrowed = new Set(["2", "3"]);
+  const { groups, correct, blockAccuracy } = W.aggregate(rows, "subject", missed, null, { credit: (r) => (narrowed.has(r.qid) ? 0.5 : 1) });
+  assert.equal(correct, 2);
+  assert.equal(blockAccuracy, 0.5);
+  assert.equal(groups[0].correct, 2);
+  assert.equal(groups[0].half, 2);
+  assert.equal(groups[0].wrong, 1, "a half is not a miss: it isn't listed to open as missed");
+  // without the credit rule nothing changes
+  assert.equal(W.aggregate(rows, "subject", missed).correct, 3);
+});

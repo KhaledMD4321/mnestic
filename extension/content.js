@@ -29,7 +29,7 @@
   // Pure logic, loaded before this file (see manifest) and unit-tested on its
   // own: calendar days, tracker math, matching/ranking, tag parsing, weak
   // areas, cloze text.
-  const { dates: Dt, tracker: Trk, match: Mt, tags: Tg, weak: Wk, cards: Cd } = globalThis.Mnx;
+  const { dates: Dt, tracker: Trk, match: Mt, tags: Tg, weak: Wk, cards: Cd, ai: Ai } = globalThis.Mnx;
   const { safeQid, safeQidOrNull, qidQuery, qidQueryLoose } = Mt;
 
   // ---------- talk to Anki via the background worker (the Mnestic Bridge) ----------
@@ -222,6 +222,14 @@
       }
       return chosen;
     },
+    // The question in parts, for "Copy for AI" and "How did that go?" --
+    // confirmed on the live review page (2026-10-01): the stem is
+    // #question-text; each choice is a div.group/choice row; the correct one
+    // carries svg.fa-check, a wrong pick svg.fa-xmark, and the choice you
+    // picked has the radio's dot (an element inside its <button>).
+    stemEl() { return document.querySelector("#question-text"); },
+    choiceRows() { return Array.from(document.querySelectorAll("div[class*='group/choice']")); },
+    choiceSelected(row) { return !!row.querySelector("button > *"); },
 
     // ---- RESULTS PAGE (the score table) ----
     // Container for the "Anki: Missed / All / Marked" buttons. Coursology has no
@@ -601,6 +609,10 @@
   //                              from a host we won't add to the allowlist
   //   exhibits()                 optional: figures behind buttons in the
   //                              explanation, [{label, open() -> image URL}]
+  //   stemEl(), choiceRows(),    optional: the stem element, one element per
+  //   choiceSelected(row)        answer choice, and "is this the one you
+  //                              picked". Without them readQuestionParts()
+  //                              finds lettered choices itself.
   //
   // docs/adding-a-qbank.md walks through it.
   // ============================================================
@@ -871,9 +883,20 @@
     #${PANEL_ID} .mnx-recall-btn:hover{background:var(--mnx-surface-2)}
     #${PANEL_ID} .mnx-recall-btn:active{transform:scale(.97)}
     #${PANEL_ID} .mnx-recall-btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
-    #${PANEL_ID} .mnx-recall-knew.on{background:rgba(31,157,87,.14);border-color:var(--mnx-good);color:var(--mnx-good)}
-    #${PANEL_ID} .mnx-recall-guessed.on{background:rgba(213,137,28,.16);border-color:var(--mnx-warn);color:var(--mnx-warn)}
-    #${PANEL_ID} .mnx-recall-noidea.on{background:rgba(220,75,69,.14);border-color:var(--mnx-bad);color:var(--mnx-bad)}
+    #${PANEL_ID} .mnx-recall-box{border-bottom:1px solid var(--mnx-border)}
+    #${PANEL_ID} .mnx-recall-box .mnx-recall{border-bottom:none}
+    #${PANEL_ID} .mnx-recall-btn.mnx-tone-good.on{background:rgba(31,157,87,.14);border-color:var(--mnx-good);color:var(--mnx-good-txt)}
+    #${PANEL_ID} .mnx-recall-btn.mnx-tone-warn.on{background:rgba(213,137,28,.16);border-color:var(--mnx-warn);color:var(--mnx-warn-txt)}
+    #${PANEL_ID} .mnx-recall-btn.mnx-tone-bad.on{background:rgba(220,75,69,.14);border-color:var(--mnx-bad);color:var(--mnx-bad-txt)}
+    #${PANEL_ID} .mnx-recall-next{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;margin:0 13px 9px;padding:7px 10px;border-radius:var(--mnx-r-xs);background:var(--mnx-surface-2);border-left:3px solid var(--mnx-border);font-size:12px;line-height:1.45;color:var(--mnx-text)}
+    #${PANEL_ID} .mnx-recall-next.mnx-tone-good{border-left-color:var(--mnx-good)}
+    #${PANEL_ID} .mnx-recall-next.mnx-tone-warn{border-left-color:var(--mnx-warn)}
+    #${PANEL_ID} .mnx-recall-next.mnx-tone-bad{border-left-color:var(--mnx-bad)}
+    #${PANEL_ID} .mnx-recall-next-txt{flex:1 1 220px;min-width:0}
+    #${PANEL_ID} .mnx-recall-act{flex:none;font:inherit;font-size:11.5px;font-weight:600;cursor:pointer;padding:3px 9px;border-radius:var(--mnx-r-pill);border:1px solid var(--mnx-border);background:var(--mnx-surface);color:var(--mnx-accent);transition:background .14s,transform .12s}
+    #${PANEL_ID} .mnx-recall-act:hover{background:var(--mnx-accent-soft)}
+    #${PANEL_ID} .mnx-recall-act:active{transform:scale(.97)}
+    #${PANEL_ID} .mnx-recall-act:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
 
     /* ---- how ready you are for this question ---- */
     #${PANEL_ID} .mnx-cards{display:flex;align-items:center;gap:10px;padding:8px 13px;
@@ -975,6 +998,23 @@
     #${PANEL_ID} .mnx-pbtn:hover{filter:brightness(.97);transform:translateY(-1px)}
     #${PANEL_ID} .mnx-pbtn:active{transform:translateY(0) scale(.98)}
     #${PANEL_ID} .mnx-pbtn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
+    #${PANEL_ID} .mnx-split{display:inline-flex;align-items:stretch}
+    #${PANEL_ID} .mnx-split .mnx-split-main{border-top-right-radius:0;border-bottom-right-radius:0}
+    #${PANEL_ID} .mnx-split .mnx-split-caret{border-top-left-radius:0;border-bottom-left-radius:0;padding:6px 8px;margin-left:1px;font-size:11px}
+    #${PANEL_ID} .mnx-split .mnx-split-caret[aria-expanded=true]{background:var(--mnx-accent-soft);color:var(--mnx-accent)}
+    #mnx-ai-menu{position:fixed;z-index:2147483646;width:292px;max-width:calc(100vw - 16px);box-sizing:border-box;padding:6px;border:1px solid var(--mnx-border);border-radius:var(--mnx-r-sm);background:var(--mnx-elev);color:var(--mnx-text);box-shadow:var(--mnx-shadow);font-family:var(--mnx-font)}
+    #mnx-ai-menu .mnx-aim-head{padding:6px 8px 4px;font-size:11px;font-weight:600;color:var(--mnx-muted)}
+    #mnx-ai-menu .mnx-aim-row{display:flex;align-items:stretch;gap:2px;border-radius:var(--mnx-r-xs)}
+    #mnx-ai-menu .mnx-aim-row:hover{background:var(--mnx-surface-2)}
+    #mnx-ai-menu .mnx-aim-item{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;border:none;background:none;padding:7px 8px;border-radius:var(--mnx-r-xs);cursor:pointer;font-family:var(--mnx-font);color:inherit}
+    #mnx-ai-menu .mnx-aim-label{font-size:12.5px;font-weight:600}
+    #mnx-ai-menu .mnx-aim-hint{font-size:11.5px;color:var(--mnx-muted);line-height:1.35}
+    #mnx-ai-menu .mnx-aim-star{flex:none;width:30px;border:none;background:none;border-radius:var(--mnx-r-xs);cursor:pointer;font-size:14px;color:var(--mnx-muted);transition:color .14s,background .14s}
+    #mnx-ai-menu .mnx-aim-star:hover{color:var(--mnx-accent);background:var(--mnx-accent-soft)}
+    #mnx-ai-menu .is-default .mnx-aim-star{color:var(--mnx-accent)}
+    #mnx-ai-menu .is-default .mnx-aim-label::after{content:" · one click";font-weight:500;color:var(--mnx-accent);font-size:11px}
+    #mnx-ai-menu .mnx-aim-item:focus-visible,#mnx-ai-menu .mnx-aim-star:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
+    #mnx-ai-menu .mnx-aim-foot{margin-top:4px;padding:7px 8px 4px;border-top:1px solid var(--mnx-border);font-size:11px;color:var(--mnx-muted)}
     #${PANEL_ID} .mnx-pbtn.mnx-save{background:var(--mnx-save-bg);color:var(--mnx-on-save);box-shadow:0 4px 12px -4px rgba(31,157,87,.5)}
     #${PANEL_ID} .mnx-pbtn.mnx-save:hover{filter:brightness(1.05)}
 
@@ -1096,6 +1136,9 @@
     #mnx-md-overlay .mnx-md-check{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:13px;color:var(--mnx-text);cursor:pointer}
     /* block breakdown (weak areas) */
     #mnx-md-overlay .mnx-brk-sub{font-size:12.5px;color:var(--mnx-muted);margin:-4px 0 14px}
+    #mnx-md-overlay .mnx-why{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:-6px 0 14px;font-size:12px}
+    #mnx-md-overlay .mnx-why-lbl{color:var(--mnx-muted);font-weight:600}
+    #mnx-md-overlay .mnx-why-chip{padding:2px 9px;border-radius:var(--mnx-r-pill);background:var(--mnx-surface-2);border:1px solid var(--mnx-border);color:var(--mnx-text);font-variant-numeric:tabular-nums}
     #mnx-md-overlay .mnx-brk-row{display:grid;grid-template-columns:1fr auto;gap:5px 12px;align-items:center;padding:11px 0;border-top:1px solid var(--mnx-border)}
     #mnx-md-overlay .mnx-brk-row:first-of-type{border-top:none}
     #mnx-md-overlay .mnx-brk-name{font-size:13px;font-weight:600;color:var(--mnx-text)}
@@ -1124,7 +1167,8 @@
   let easyOn = false;
   let hyOn = false;
   const DEFAULT_AI_PROMPT = "I'm studying for the USMLE. Below is a question with its answer choices and explanation. Explain the correct answer and why each other option is wrong, then give me the single highest-yield fact to remember. Be concise.";
-  let aiPrompt = DEFAULT_AI_PROMPT;   // prepended to "Copy for AI"
+  let aiPrompt = DEFAULT_AI_PROMPT;   // "My own prompt" in Copy for AI (set in the popup)
+  let aiPreset = null;                // the preset one click uses (lib/ai.js); null = the default
   let kbShortcuts = true;             // review-page action hotkeys
   // "auto" (the default) reads the qbank's own theme, then the OS. A stored
   // true/false is an explicit override and always wins — a white slab on a dark
@@ -1162,7 +1206,7 @@
       .observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme", "data-mode", "style"] });
     matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (darkPref === "auto") applyTheme(); });
   } catch (e) {}
-  chrome.storage.local.get({ dark: "auto", expectedScore: false, easy: false, highYield: false, aiPrompt: DEFAULT_AI_PROMPT, kbShortcuts: true }, c => { darkPref = (c.dark === true || c.dark === false) ? c.dark : "auto"; esOn = !!c.expectedScore; easyOn = !!c.easy; hyOn = !!c.highYield; aiPrompt = c.aiPrompt == null ? DEFAULT_AI_PROMPT : c.aiPrompt; kbShortcuts = c.kbShortcuts !== false; applyTheme(); });
+  chrome.storage.local.get({ dark: "auto", expectedScore: false, easy: false, highYield: false, aiPrompt: DEFAULT_AI_PROMPT, aiPreset: null, kbShortcuts: true }, c => { aiPreset = c.aiPreset || null; darkPref = (c.dark === true || c.dark === false) ? c.dark : "auto"; esOn = !!c.expectedScore; easyOn = !!c.easy; hyOn = !!c.highYield; aiPrompt = c.aiPrompt == null ? DEFAULT_AI_PROMPT : c.aiPrompt; kbShortcuts = c.kbShortcuts !== false; applyTheme(); });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     if ("dark" in changes) {
@@ -1174,6 +1218,7 @@
     if (changes.easy) { easyOn = !!changes.easy.newValue; }
     if (changes.highYield) { hyOn = !!changes.highYield.newValue; }
     if ("aiPrompt" in changes) { aiPrompt = changes.aiPrompt.newValue == null ? "" : changes.aiPrompt.newValue; }
+    if ("aiPreset" in changes) { aiPreset = changes.aiPreset.newValue || null; refreshAiButtons(); }
     if (changes.kbShortcuts) { kbShortcuts = changes.kbShortcuts.newValue !== false; }
     if (changes.mnxMissedMode) { missedMode = changes.mnxMissedMode.newValue || "move"; }
     if (changes.akMissedDeck) { plannedMissedDeck = changes.akMissedDeck.newValue || ""; }
@@ -1380,10 +1425,43 @@
     const e = trackerLog.answered[currentQbankSlug() + " " + qid];
     return !!(e && (e.conf === "guessed" || e.conf === "noidea"));
   }
+  // A right answer narrowed to two counts as half (lib/weak.js).
+  function creditOf(r) {
+    const e = trackerLog.answered[currentQbankSlug() + " " + r.qid];
+    return e && e.conf === "narrowed" ? 0.5 : 1;
+  }
+  function confOf(qid) { return (trackerLog.answered[currentQbankSlug() + " " + qid] || {}).conf || null; }
+  function fmtHalf(n) { return Number.isInteger(n) ? String(n) : (Math.floor(n) ? Math.floor(n) : "") + "½"; }
   // Weakest first, by smoothed accuracy, with groups too small to judge ranked
   // last (lib/weak.js explains the arithmetic).
   function aggregateBy(rows, key) {
-    return Wk.aggregate(rows, key, isMissed, r => wasGuessed(r.qid)).groups;
+    return Wk.aggregate(rows, key, isMissed, r => wasGuessed(r.qid), { credit: creditOf }).groups;
+  }
+  // Why you miss, from the reasons you gave on this block's wrong answers --
+  // shown once there are enough of them (3) to mean something.
+  const MISS_REASONS = [["noknow", "Didn't know it"], ["misread", "Misread / missed a clue"], ["reasoning", "Reasoned wrong"],
+                        ["torn", "Torn between 2"], ["time", "Ran out of time"], ["noidea", "Didn't know it"]];
+  function whyMissed(rows) {
+    const box = document.createElement("div"); box.className = "mnx-why";
+    const counts = {};
+    let n = 0;
+    rows.forEach(r => {
+      if (!(r.wrong || r.omitted)) return;
+      const c = confOf(r.qid);
+      const hit = MISS_REASONS.find(([k]) => k === c);
+      if (!hit) return;
+      counts[hit[1]] = (counts[hit[1]] || 0) + 1; n++;
+    });
+    if (n < 3) { box.hidden = true; return box; }
+    const lbl = document.createElement("span"); lbl.className = "mnx-why-lbl"; lbl.textContent = "Why you missed (" + n + " rated):";
+    box.appendChild(lbl);
+    Object.keys(counts).sort((a, b) => counts[b] - counts[a]).forEach(k => {
+      const chip = document.createElement("span"); chip.className = "mnx-why-chip";
+      chip.textContent = k + " " + Math.round(100 * counts[k] / n) + "%";
+      chip.title = counts[k] + " of " + n;
+      box.appendChild(chip);
+    });
+    return box;
   }
   // Text, not a bar — so the text-safe variants, which are darker in the light
   // theme. The fill colours read 2.83 to 4.09 against our own surfaces.
@@ -1407,20 +1485,20 @@
     }
     const sub = document.createElement("div"); sub.className = "mnx-brk-sub";
     const list = document.createElement("div");
-    m.body.appendChild(sub); m.body.appendChild(list);
+    m.body.appendChild(sub); m.body.appendChild(whyMissed(rows)); m.body.appendChild(list);
     const why = document.createElement("div"); why.className = "mnx-md-hint"; why.style.marginTop = "12px";
     why.textContent = "Ranked by accuracy adjusted for how many questions each has, so one unlucky question " +
       "doesn't outrank a real weak spot. Groups with fewer than " + Wk.MIN_N + " questions are listed last. " +
-      "Guessed and “no idea” answers count as missed." +
+      "Guessed answers count as missed, and right answers you narrowed to two count as half." +
       (rows.omittedKnown ? "" : " Omitted questions count as correct here — open the test's Question List once to count them as missed.");
     m.body.appendChild(why);
     let shownGroups = [];
     function render() {
       const groups = aggregateBy(rows, key);
       shownGroups = groups;
-      const total = rows.length, correct = rows.filter(r => !isMissed(r)).length;
+      const total = rows.length, correct = rows.reduce((n, r) => n + (isMissed(r) ? 0 : creditOf(r)), 0);
       const pag = (total === 10 || total === 20 || total === 25) ? " · set page size to All for the whole block" : "";
-      sub.textContent = total + " questions · " + correct + " correct (" + Math.round(100 * correct / total) + "%)" + pag;
+      sub.textContent = total + " questions · " + fmtHalf(correct) + " correct (" + Math.round(100 * correct / total) + "%)" + pag;
       list.replaceChildren();
       groups.forEach(g => {
         const row = document.createElement("div"); row.className = "mnx-brk-row";
@@ -1436,7 +1514,8 @@
         const fill = document.createElement("div"); fill.className = "mnx-brk-fill"; fill.style.width = Math.round(g.acc * 100) + "%"; fill.style.background = accColor(g.acc); bar.appendChild(fill);
         const meta = document.createElement("div"); meta.className = "mnx-brk-meta";
         const cnt = document.createElement("span"); cnt.className = "mnx-brk-count";
-        cnt.textContent = g.correct + "/" + g.total + (g.guessed ? " · " + g.guessed + " guessed" : "");
+        cnt.textContent = fmtHalf(g.correct) + "/" + g.total + (g.guessed ? " · " + g.guessed + " guessed" : "") +
+          (g.half ? " · " + g.half + " narrowed to 2" : "");
         meta.appendChild(cnt);
         if (g.wrongQids.length) {
           const open = document.createElement("button"); open.type = "button"; open.className = "mnx-brk-open";
@@ -2896,12 +2975,139 @@
       navigator.clipboard.writeText(text).then(done).catch(() => legacyCopy(text, done));
     } else legacyCopy(text, done);
   }
-  // Full question (stem + choices + explanation) + your AI prompt - for an AI assistant.
-  function copyFullQuestion(qid) {
-    const p = (aiPrompt && aiPrompt.trim()) ? (aiPrompt.trim() + "\n\n") : "";
-    const head = SITE.label + " Question Id: " + qid + "\n" + location.href + "\n\n";
-    copyText(p + head + fullQuestionText(), p ? "Copied with your AI prompt — paste to your assistant." : "Full question copied — paste to your assistant.");
+  // ---- the question, read in parts ------------------------------------------
+  // The stem, the lettered choices, which one you picked, which is correct,
+  // the result, and the explanation -- never the player around them (the
+  // block's 1..40 list, "Item 20 of 40", timers, toolbar labels). Anything not
+  // found is null, and whoever uses it says so instead of guessing.
+  const CHOICE_START = /^\(?([A-J])[.)]\s+(\S[\s\S]*)$/;
+  const ICON_RIGHT = ".fa-check, .fa-circle-check, .fa-square-check, [data-icon='check'], [data-icon='circle-check']";
+  const ICON_WRONG = ".fa-xmark, .fa-times, .fa-circle-xmark, .fa-circle-times, [data-icon='xmark'], [data-icon='times'], [data-icon='circle-xmark']";
+  function classTokens(el) {
+    const c = el && el.className;
+    return String(c && c.baseVal !== undefined ? c.baseVal : (c || "")).toLowerCase().split(/\s+/);
   }
+  function hasClass(row, re) {
+    if (re.test(classTokens(row).join(" "))) return true;
+    return Array.from(row.querySelectorAll("[class]")).some(el => re.test(classTokens(el).join(" ")));
+  }
+  // Lettered choices found without an adapter's help: the smallest element
+  // per letter whose text reads "A. something", widened to its row while the
+  // row holds no other choice. Letters must run A, B, C… with no gap.
+  function findChoiceRows(root) {
+    if (!root) return [];
+    const best = {};
+    root.querySelectorAll("label, li, div, tr, td, span, p, mat-radio-button").forEach(el => {
+      if (el.closest("[id^='mnx-']")) return;
+      const t = (el.innerText || "").trim();
+      if (!t || t.length > 700) return;
+      const m = t.match(CHOICE_START);
+      if (!m) return;
+      const cur = best[m[1]];
+      if (!cur || cur.contains(el)) best[m[1]] = el;
+    });
+    const letters = Object.keys(best).sort();
+    if (letters.length < 2 || letters[0] !== "A") return [];
+    for (let i = 1; i < letters.length; i++) if (letters[i].charCodeAt(0) !== letters[i - 1].charCodeAt(0) + 1) return [];
+    return letters.map(L => {
+      let row = best[L];
+      for (let i = 0; i < 4 && row.parentElement; i++) {
+        const up = row.parentElement;
+        if (letters.some(o => o !== L && up.contains(best[o]))) break;
+        row = up;
+      }
+      return row;
+    });
+  }
+  function choiceRowText(row) {
+    return (row.innerText || "").replace(/\s+/g, " ").trim()
+      .replace(/^\(?[A-J][.)]\s*/, "")
+      .replace(/\s*\(\s*\d{1,3}\s*%\s*\)\s*$/, "")          // "(39%)" chose this
+      .replace(/\s*\d{1,3}\s*%\s*(answered)?\s*$/i, "")
+      .trim();
+  }
+  function readQuestionParts() {
+    const content = SITE.contentRoot ? SITE.contentRoot() : null;
+    const exRoot = SITE.explanationRoot ? SITE.explanationRoot() : null;
+    let rows = [];
+    try { rows = SITE.choiceRows ? SITE.choiceRows() : []; } catch (e) { rows = []; }
+    if (!rows.length) rows = findChoiceRows(content || document.body).filter(r => !(exRoot && exRoot.contains(r)));
+    const choices = [];
+    let mine = null, correct = null;
+    rows.forEach((row, i) => {
+      const lead = ((row.innerText || "").trim().match(/^\(?([A-J])[.)]/) || [])[1];
+      const letter = lead || String.fromCharCode(65 + i);
+      const text = choiceRowText(row);
+      if (!text) return;
+      choices.push({ letter, text });
+      const right = !!row.querySelector(ICON_RIGHT) || hasClass(row, /(^|\s|-)(correct|right)(-answer|-choice)?(\s|$)/);
+      const wrongMark = !!row.querySelector(ICON_WRONG) || hasClass(row, /(^|\s|-)(incorrect|wrong)(-answer|-choice)?(\s|$)/);
+      let picked = false;
+      try { picked = SITE.choiceSelected ? SITE.choiceSelected(row) : false; } catch (e) { picked = false; }
+      if (!picked) picked = !!row.querySelector("input[type=radio]:checked, [aria-checked='true'], [data-state='checked']") ||
+                          hasClass(row, /(^|\s|-)(selected|checked|chosen|user-answer|your-answer|is-selected)(\s|$)/);
+      if (right && !correct) correct = letter;
+      if ((picked || wrongMark) && !mine) mine = letter;     // a wrong mark only ever sits on your own pick
+    });
+    // The page's own verdict ("Incorrect · Correct answer E"), from a short
+    // block outside the choices and the explanation.
+    let label = null, labelCorrect = null;
+    const scope = content || document.body;
+    const stemNode = SITE.stemEl ? (() => { try { return SITE.stemEl(); } catch (e) { return null; } })() : null;
+    for (const el of scope.querySelectorAll("div, p, span, section")) {
+      if (el.getElementsByTagName("*").length > 12) continue;   // a verdict is a small block
+      if (el.closest("[id^='mnx-']") || (exRoot && exRoot.contains(el)) || (stemNode && stemNode.contains(el)) ||
+          rows.some(r => r.contains(el) || el.contains(r))) continue;
+      const t = (el.innerText || "").replace(/\s+/g, " ").trim();
+      if (!t || t.length > 160) continue;
+      const m = t.match(/^(Correct|Incorrect|Omitted)\b/i);
+      if (m && !label) label = m[1].toLowerCase();
+      const c = t.match(/correct (?:answer|is)\s*(?:is)?\s*:?\s*([A-J])\b/i);
+      if (c && !labelCorrect) labelCorrect = c[1].toUpperCase();
+      if (label && labelCorrect) break;
+    }
+    if (!correct && labelCorrect && choices.some(c => c.letter === labelCorrect)) correct = labelCorrect;
+    let result = null;
+    if (mine && correct) result = mine === correct ? "correct" : "incorrect";
+    if (label) {
+      // The page knows best. If it disagrees with what we read, our read of
+      // "your answer" is the doubtful part -- drop it rather than mislead.
+      if (result && result !== label) mine = null;
+      result = label;
+    }
+    if (result === "omitted") mine = null;
+    if (result === "correct" && !mine && correct) mine = correct;
+    let stem = "";
+    try { const st = SITE.stemEl ? SITE.stemEl() : null; if (st) stem = readTextWithoutAkuts(st); } catch (e) { stem = ""; }
+    if (!stem && rows.length) {
+      // the block of text just before the choices
+      let node = rows[0], hops = 0;
+      while (node && hops < 6 && !stem) {
+        const prev = node.previousElementSibling;
+        if (prev && (prev.innerText || "").trim().length > 80 && !(exRoot && prev.contains(exRoot))) stem = readTextWithoutAkuts(prev);
+        node = node.parentElement; hops++;
+      }
+    }
+    const explanation = explanationText().split("\n")
+      .filter(l => !/^\s*(explanation:?|consult ai tutor)\s*$/i.test(l)).join("\n").trim();
+    const parts = { stem: stem.trim(), choices, mine, correct, result, explanation };
+    if (!parts.stem && !choices.length) parts.fallback = Ai.stripFurniture(fullQuestionText());
+    return parts;
+  }
+
+  // "Copy for AI": the question in parts, under the prompt you chose.
+  function copyForAI(qid, key) {
+    const k = key || aiPresetKey();
+    const parts = readQuestionParts();
+    const conf = ((trackerLog.answered[currentQbankSlug() + " " + qid] || {}).conf) || null;
+    const step = detectStepFromUrl() || (Q && Q.sv) || null;     // the exam you're on, from the URL first
+    const text = Ai.compose(parts, k, { step, conf, custom: aiPrompt });
+    const p = Ai.preset(k) || Ai.PRESETS[0];
+    const missing = !parts.mine && parts.result !== "omitted" ? " (couldn't read your answer — the AI is told so)" : "";
+    copyText(text, "Copied: " + p.label + missing + " — paste it to your assistant.");
+  }
+  function copyFullQuestion(qid) { copyForAI(qid); }
+  function aiPresetKey() { return Ai.defaultPreset(aiPreset, aiPrompt, DEFAULT_AI_PROMPT); }
   // Explanation only - for adding to your notes.
   function copyExplanation() {
     copyText(explanationText(), "Explanation copied — paste into your note.");
@@ -3838,11 +4044,117 @@
     const b = document.createElement("button"); b.className = "mnx-pbtn " + (cls || ""); b.textContent = label;
     b.addEventListener("click", onUserClick(onClick)); return b;
   }
+  // "Copy for AI" as a split button: one click copies the question with your
+  // default prompt; ▾ opens the few presets -- each copies at once -- and ★
+  // makes one the one-click default.
+  const AI_MENU_ID = "mnx-ai-menu";
+  function aiSplitButton(qid) {
+    const wrap = document.createElement("span"); wrap.className = "mnx-split";
+    const main = document.createElement("button"); main.type = "button"; main.className = "mnx-pbtn mnx-split-main";
+    const caret = document.createElement("button"); caret.type = "button"; caret.className = "mnx-pbtn mnx-split-caret";
+    caret.setAttribute("aria-haspopup", "menu"); caret.setAttribute("aria-expanded", "false");
+    caret.setAttribute("aria-label", "Choose the AI prompt"); caret.title = "Choose the AI prompt";
+    caret.textContent = "▾";
+    wrap.append(main, caret);
+    wrap.mnxRefresh = () => {
+      const p = Ai.preset(aiPresetKey()) || Ai.PRESETS[0];
+      main.textContent = "🤖 Copy for AI · " + p.label;
+      main.title = p.hint + ". Copies the question, your answer and the explanation with this prompt (Q).";
+    };
+    wrap.mnxRefresh();
+    main.addEventListener("click", onUserClick(() => copyForAI(qid)));
+    caret.addEventListener("click", onUserClick(() => {
+      if (document.getElementById(AI_MENU_ID)) closeAiMenu(); else openAiMenu(caret, qid);
+    }));
+    return wrap;
+  }
+  function refreshAiButtons() {
+    document.querySelectorAll("#" + PANEL_ID + " .mnx-split").forEach(w => w.mnxRefresh && w.mnxRefresh());
+  }
+  let aiMenuCleanup = null;
+  function closeAiMenu(focusBack) {
+    const m = document.getElementById(AI_MENU_ID);
+    if (m) m.remove();
+    if (aiMenuCleanup) { aiMenuCleanup(); aiMenuCleanup = null; }
+    document.querySelectorAll("#" + PANEL_ID + " .mnx-split-caret").forEach(c => c.setAttribute("aria-expanded", "false"));
+    if (focusBack) focusBack.focus();
+  }
+  function openAiMenu(caret, qid) {
+    closeAiMenu();
+    const menu = document.createElement("div");
+    menu.id = AI_MENU_ID; menu.setAttribute("role", "menu"); menu.setAttribute("aria-label", "AI prompts");
+    if (darkMode) menu.classList.add("mnx-dark");
+    const head = document.createElement("div"); head.className = "mnx-aim-head"; head.textContent = "Copy the question with…";
+    menu.appendChild(head);
+    const current = aiPresetKey();
+    const list = Ai.PRESETS.slice();
+    const ownPrompt = Ai.hasOwnPrompt(aiPrompt, DEFAULT_AI_PROMPT);
+    if (ownPrompt) list.push(Ai.CUSTOM);
+    const items = [];
+    list.forEach(p => {
+      const row = document.createElement("div"); row.className = "mnx-aim-row" + (p.key === current ? " is-default" : "");
+      const b = document.createElement("button"); b.type = "button"; b.className = "mnx-aim-item"; b.setAttribute("role", "menuitem");
+      const t = document.createElement("span"); t.className = "mnx-aim-label"; t.textContent = p.label;
+      const h = document.createElement("span"); h.className = "mnx-aim-hint"; h.textContent = p.hint;
+      b.append(t, h);
+      b.addEventListener("click", onUserClick(() => { closeAiMenu(caret); copyForAI(qid, p.key); }));
+      const star = document.createElement("button"); star.type = "button"; star.className = "mnx-aim-star";
+      star.textContent = p.key === current ? "★" : "☆";
+      star.title = p.key === current ? "Your one-click prompt" : "Make this the one-click prompt";
+      star.setAttribute("aria-label", star.title + ": " + p.label);
+      star.setAttribute("aria-pressed", p.key === current ? "true" : "false");
+      star.addEventListener("click", onUserClick(() => {
+        aiPreset = p.key;
+        chrome.storage.local.set({ aiPreset: p.key });
+        refreshAiButtons();
+        openAiMenu(caret, qid);                            // redraw with the new ★
+        const again = document.querySelector("#" + AI_MENU_ID + " .mnx-aim-row.is-default .mnx-aim-star");
+        if (again) again.focus();
+      }));
+      row.append(b, star);
+      menu.appendChild(row);
+      items.push(b, star);
+    });
+    const foot = document.createElement("div"); foot.className = "mnx-aim-foot";
+    foot.textContent = ownPrompt ? "Edit “My own prompt” in the Mnestic popup." : "Write your own prompt in the Mnestic popup to add it here.";
+    menu.appendChild(foot);
+    document.documentElement.appendChild(menu);
+    // Below the ▾ (above it if there's no room), kept on screen.
+    const r = caret.getBoundingClientRect();
+    const mw = menu.offsetWidth, mh = menu.offsetHeight;
+    const left = Math.max(8, Math.min(r.right - mw, window.innerWidth - mw - 8));
+    const top = (r.bottom + 6 + mh < window.innerHeight) ? r.bottom + 6 : Math.max(8, r.top - mh - 6);
+    menu.style.left = left + "px"; menu.style.top = top + "px";
+    caret.setAttribute("aria-expanded", "true");
+    const onDoc = e => { if (!menu.contains(e.target) && e.target !== caret) closeAiMenu(); };
+    const onKey = e => {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeAiMenu(caret); return; }
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      e.preventDefault(); e.stopPropagation();
+      const i = items.indexOf(document.activeElement);
+      const n = e.key === "ArrowDown" ? (i + 1) % items.length : (i <= 0 ? items.length - 1 : i - 1);
+      items[n].focus();
+    };
+    const onMove = () => closeAiMenu();
+    document.addEventListener("mousedown", onDoc, true);
+    document.addEventListener("keydown", onKey, true);
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+    aiMenuCleanup = () => {
+      document.removeEventListener("mousedown", onDoc, true);
+      document.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("scroll", onMove, true);
+      window.removeEventListener("resize", onMove);
+    };
+    const first = menu.querySelector(".mnx-aim-row.is-default .mnx-aim-item") || items[0];
+    if (first) first.focus();
+  }
   function addPanelHeader(s) {
     const panel = document.getElementById(PANEL_ID); if (!panel) return;
     const qid = s.qid;
     const head = document.createElement("div"); head.className = "mnx-phead";
-    head.appendChild(pbtn("🤖 Copy for AI", "", () => copyFullQuestion(qid)));   // full Q + your AI prompt
+    closeAiMenu();                          // a menu left open for the previous question
+    head.appendChild(aiSplitButton(qid));   // the question, your answer, the explanation + a prompt
     head.appendChild(pbtn("📝 Copy explanation", "", () => copyExplanation()));  // for your notes
     head.appendChild(pbtn("✚ Make card", "", () => openMakeCardDialog(String((window.getSelection && window.getSelection()) || ""))));
     if (s.notes.length) {
@@ -3850,42 +4162,123 @@
       head.appendChild(pbtn("★ Save to Missed Qs", "mnx-save", () => openSaveDialog(s)));
     }
     panel.appendChild(head);
-    addConfidenceRow(qid);
+    addConfidenceRow(s);
     if (s.notes.length) addCardStatus(s);
   }
 
-  // A question you got RIGHT by guessing is the highest-yield thing to review,
-  // and no qbank records it — they only see "correct". One tap does.
-  const CONFIDENCE = [
-    ["knew", "Knew it", "You could explain why"],
-    ["guessed", "Guessed", "Right, but you weren't sure — review this"],
-    ["noidea", "No idea", "Flag it for a proper read"]
-  ];
-  function addConfidenceRow(qid) {
+  // "How did that go?" -- optional and one tap; it never stands between you
+  // and the next question. What it asks follows the result read from the page:
+  // a right answer asks how sure you were (a lucky one is the highest-yield
+  // thing to review, and no qbank records it), a wrong one asks why. Each
+  // answer comes with the one next step that helps, and feeds the block
+  // breakdown: Guessed counts as missed, Narrowed to 2 as half.
+  const REFLECT = {
+    right:   { ask: "How sure were you?", opts: ["knew", "narrowed", "guessed"] },
+    wrong:   { ask: "Why did you miss it?", opts: ["noknow", "misread", "reasoning", "torn"] },
+    omitted: { ask: "What happened?", opts: ["noknow", "time"] },
+    unknown: { ask: "How did that go?", opts: ["knew", "narrowed", "guessed", "noknow"] }
+  };
+  const REFLECT_LABEL = {
+    knew: "Knew it", narrowed: "Narrowed to 2", guessed: "Guessed", noknow: "Didn't know it",
+    misread: "Misread / missed a clue", reasoning: "Knew it, reasoned wrong", torn: "Torn between 2", time: "Ran out of time"
+  };
+  const REFLECT_TITLE = {
+    knew: "You could explain why — counts as known",
+    narrowed: "Down to two and picked right — counts as half",
+    guessed: "Right, but by luck — counts as missed",
+    noknow: "A gap in what you know",
+    misread: "You missed or misread a clue in the stem",
+    reasoning: "You knew the facts, but the logic slipped",
+    torn: "Down to two, and picked the wrong one",
+    time: "You ran out of time"
+  };
+  const REFLECT_TONE = { knew: "good", narrowed: "warn", guessed: "warn", noknow: "bad", misread: "bad", reasoning: "bad", torn: "warn", time: "warn" };
+  // A rating saved before 1.5 ("No idea") shows as its nearest new answer.
+  function reflectShown(conf, sit) {
+    if (conf === "noidea") return sit === "right" ? "guessed" : "noknow";
+    return conf;
+  }
+  // The one next step for each answer: a sentence and at most two buttons.
+  function reflectNext(key, s) {
+    const qid = s.qid, has = s.notes.length > 0;
+    const save = has ? ["Save to Missed Qs", () => openSaveDialog(s)] : null;
+    const ai = (k, label) => ["Copy for AI: " + label, () => copyForAI(qid, k)];
+    switch (key) {
+      case "knew": return { text: "Counts as known. Nothing to do here." };
+      case "narrowed": return { text: "Counts as half — you had a coin flip left. Find the one feature that separates the two.",
+                                acts: [ai("choices", "Compare the choices")] };
+      case "guessed": return { text: "Counts as missed — a lucky answer isn't knowledge yet. Review the cards behind it.",
+                               acts: [has ? ["Preview the cards", () => openPreview(s.notes, 0)] : ai("hy", "High-yield points"), save] };
+      case "noknow": return { text: "A knowledge gap: learn it from the cards, then keep them in rotation.",
+                              acts: [has ? ["Preview the cards", () => openPreview(s.notes, 0)] : ai("hy", "High-yield points"), save] };
+      case "misread": return { text: "Go back to the stem and find the clue you skipped — usually the timing, the age, a negative (NOT, EXCEPT) or a lab value.",
+                               acts: [ai("mistake", "Why I got it wrong")] };
+      case "reasoning": return { text: "You had the facts; the reasoning slipped. See exactly where it went wrong.",
+                                 acts: [ai("mistake", "Why I got it wrong")] };
+      case "torn": return { text: "Find the one feature that separates the two choices you were stuck between.",
+                            acts: [ai("choices", "Compare the choices"), save] };
+      case "time": return { text: "Learn the first clue to look for, so a question like this goes faster.",
+                            acts: [ai("full", "Full review")] };
+      default: return null;
+    }
+  }
+  function addConfidenceRow(s) {
     const panel = document.getElementById(PANEL_ID); if (!panel) return;
-    const row = document.createElement("div");
-    row.className = "mnx-recall";
-    const lbl = document.createElement("span");
-    lbl.className = "mnx-recall-lbl"; lbl.textContent = "How did that go?";
-    row.appendChild(lbl);
-    const slug = currentQbankSlug();
-    const current = (trackerLog.answered[slug + " " + qid] || {}).conf || null;
-    CONFIDENCE.forEach(([key, label, title]) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "mnx-recall-btn mnx-recall-" + key + (current === key ? " on" : "");
-      b.setAttribute("aria-pressed", current === key ? "true" : "false");
-      b.textContent = label; b.title = title;
-      b.addEventListener("click", onUserClick(() => {
-        setConfidence(qid, current === key ? null : key);
-        const again = panel.querySelector(".mnx-recall");
-        if (again) { again.remove(); addConfidenceRow(qid); }
-      }));
-      row.appendChild(b);
-    });
+    const qid = s.qid;
+    let sit = "unknown";
+    try {
+      const r = readQuestionParts().result;
+      sit = r === "correct" ? "right" : r === "incorrect" ? "wrong" : r === "omitted" ? "omitted" : "unknown";
+    } catch (e) { sit = "unknown"; }
+    const box = document.createElement("div");
+    box.className = "mnx-recall-box";
+    function draw() {
+      box.replaceChildren();
+      const row = document.createElement("div");
+      row.className = "mnx-recall";
+      row.setAttribute("role", "group");
+      const spec = REFLECT[sit];
+      const lbl = document.createElement("span");
+      lbl.className = "mnx-recall-lbl"; lbl.textContent = spec.ask;
+      row.setAttribute("aria-label", spec.ask + " (optional)");
+      row.appendChild(lbl);
+      const slug = currentQbankSlug();
+      const current = reflectShown((trackerLog.answered[slug + " " + qid] || {}).conf || null, sit);
+      spec.opts.forEach(key => {
+        const b = document.createElement("button");
+        b.type = "button";
+        const on = current === key;
+        b.className = "mnx-recall-btn mnx-tone-" + REFLECT_TONE[key] + (on ? " on" : "");
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+        b.textContent = REFLECT_LABEL[key]; b.title = REFLECT_TITLE[key] + (on ? " · click again to clear" : "");
+        b.addEventListener("click", onUserClick(() => {
+          setConfidence(qid, on ? null : key);
+          draw();
+          const again = box.querySelector(".mnx-recall-btn.on") || box.querySelector(".mnx-recall-btn");
+          if (again) again.focus();
+        }));
+        row.appendChild(b);
+      });
+      box.appendChild(row);
+      const next = current && spec.opts.indexOf(current) >= 0 ? reflectNext(current, s) : null;
+      if (next) {
+        const n = document.createElement("div");
+        n.className = "mnx-recall-next mnx-tone-" + REFLECT_TONE[current];
+        n.setAttribute("role", "status");
+        const t = document.createElement("span"); t.className = "mnx-recall-next-txt"; t.textContent = next.text;
+        n.appendChild(t);
+        (next.acts || []).filter(Boolean).forEach(([label, fn]) => {
+          const a = document.createElement("button"); a.type = "button"; a.className = "mnx-recall-act"; a.textContent = label;
+          a.addEventListener("click", onUserClick(fn));
+          n.appendChild(a);
+        });
+        box.appendChild(n);
+      }
+    }
+    draw();
     const headEl = panel.querySelector(".mnx-phead");
-    if (headEl && headEl.nextSibling) panel.insertBefore(row, headEl.nextSibling);
-    else panel.appendChild(row);
+    if (headEl && headEl.nextSibling) panel.insertBefore(box, headEl.nextSibling);
+    else panel.appendChild(box);
   }
   // Rating a question is not answering it. Rating one from an old block you're
   // reviewing used to create a record dated NOW, which put it on today's count,
@@ -3896,7 +4289,6 @@
     const e = trackerLog.answered[key] || (trackerLog.answered[key] = { ts: null, slug, qid, src: "rating" });
     if (conf) e.conf = conf; else delete e.conf;
     saveLog();
-    if (conf === "guessed") toast("Noted — a right answer you weren't sure of counts as weak.");
   }
 
   // How ready are you for THIS question? The panel already knows which cards

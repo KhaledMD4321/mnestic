@@ -44,9 +44,10 @@ def _stub_anki():
 
 # ---------------------------------------------------------------- fake Anki
 class Card(object):
-    def __init__(self, cid, note, did, queue=-1):
+    def __init__(self, cid, note, did, queue=-1, ord=0):
         self.id, self._note, self.did, self.odid, self.queue = cid, note, did, 0, queue
         self.type, self.ivl, self.lapses = 0, 0, 0
+        self.nid, self.ord = note.id, ord
 
     def note(self):
         return self._note
@@ -56,7 +57,7 @@ class Note(object):
     def __init__(self, col, nid, tags, fields, model="Cloze", ncards=1, did=1):
         self.col, self.id, self.tags, self._f, self.mod = col, nid, list(tags), dict(fields), 0
         self.model = model
-        self._cards = [Card(nid * 10 + i, self, did) for i in range(ncards)]
+        self._cards = [Card(nid * 10 + i, self, did, ord=i) for i in range(ncards)]
 
     def keys(self):
         return list(self._f.keys())
@@ -174,6 +175,10 @@ class Col(object):
         return [n.id for n in self.notes.values() if any(self._match(n, t) for t in terms)]
 
     def find_cards(self, q):
+        terms = [t for t in q.replace("(", " ").replace(")", " ").split() if t.upper() != "OR"]
+        if terms and all(t.lower().startswith("cid:") for t in terms):     # exactly those cards
+            want = {int(i) for t in terms for i in t[4:].split(",") if i.isdigit()}
+            return [c.id for n in self.notes.values() for c in n.cards() if c.id in want]
         return [c.id for nid in self.find_notes(q) for c in self.notes[nid].cards()]
 
     def get_note(self, nid):
@@ -393,6 +398,18 @@ def main():
     check("a copy carries the delete marker and no ankihub_id",
           "Mnestic::Copy" in copy.tags and copy["ankihub_id"] == "", copy.tags)
     check("the original is untouched by a copy", col.notes[2].tags == ["#AK_Step1_v12::#UWorld::Step::2128"])
+
+    # ---- cardStats: read-only; says which note and which cloze each card is ----
+    st = D("cardStats", {"queries": [qid_query(2128)]})[0]
+    n1 = sorted((r["nid"], r["ord"]) for r in st if r["nid"] == 1)
+    check("cardStats names each card's note and cloze number (the card test needs them)",
+          n1 == [(1, 0), (1, 1), (1, 2)] and all("suspended" in r for r in st), st)
+    # the card test unsuspends exactly the cloze you missed, by card id
+    c2 = col.notes[1].cards()[1]
+    out = D("unsuspend", {"queries": ["cid:%d" % c2.id]})
+    check("unsuspend by card id unlocks that one card, not its siblings",
+          out[0]["cids"] == [c2.id] and [c.queue for c in col.notes[1].cards()] == [-1, 0, -1], out)
+    col.notes[1].cards()[1].queue = -1                 # back to suspended for the checks below
 
     # ---- unsuspend: only question-id searches ----
     for bad in ("deck:*", "", "is:suspended", "-tag:marked", "tag:marked", "*", "(deck:*)",

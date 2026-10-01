@@ -1371,6 +1371,137 @@ function listenFree(server, from) {
       await ctx.unroute("https://cdn.coursology-qbank.com/**");
     }
 
+    // Copy for AI: the question in parts -- stem, lettered choices, which you
+    // picked, which is correct -- and never the block's navigation around it.
+    // The markup is Coursology's (live, 2026-10-01): div.group/choice rows, a
+    // red fa-xmark on a wrong pick, a fa-check on the answer, the picked
+    // radio's dot inside its <button>, and an "Incorrect · Correct answer E" box.
+    {
+      mock.reset();
+      await ctx.grantPermissions(["clipboard-read", "clipboard-write"], { origin: "https://coursology-qbank.com" });
+      const choice = (L, text, pct, opts) => `<div class="group/choice relative flex">
+          ${opts.right ? '<svg class="svg-inline--fa fa-check text-lime-500" data-icon="check"></svg>' : ""}
+          ${opts.wrong ? '<svg class="svg-inline--fa fa-xmark text-red-500" data-icon="xmark"></svg>' : ""}
+          <div><button id="r${L}" disabled>${opts.picked ? "<div></div>" : ""}</button><label>${L}.</label></div>
+          <div><span><div>${text}</div></span><p>(${pct}%)</p></div></div>`;
+      const nav = Array.from({ length: 40 }, (_, i) => `<div>${i + 1}</div>`).join("");
+      const html = page(`
+        <aside>${nav}</aside>
+        <header><div>Item 20 of 40</div><div class="question-header">Question Id: 4211</div><div>Mark</div><div>Previous</div><div>Next</div></header>
+        <main>
+          <div id="question-text"><p>A 56-year-old man has crushing chest pain and then shortness of breath that worsens lying flat. Which histologic finding is most likely in his lungs?</p></div>
+          <div class="choices">
+            ${choice("A", "Fat globules in the pulmonary arterioles", 2, {})}
+            ${choice("B", "Focal necrosis of the alveolar walls", 5, {})}
+            ${choice("C", "Neutrophil-rich fluid filling the alveoli", 9, { wrong: true, picked: true })}
+            ${choice("D", "Hemosiderin-laden macrophages", 43, {})}
+            ${choice("E", "Engorged capillaries and acellular pink alveolar fluid", 39, { right: true })}
+          </div>
+          <div class="result"><p class="text-red-500">Incorrect</p><p>Correct answer</p><p>E</p></div>
+          <div id="question-explanation" style="min-height:420px;padding:12px">
+            <div>Explanation:</div><button>Consult AI Tutor</button>
+            <p>Left ventricular failure after a myocardial infarction raises pulmonary venous pressure and causes pulmonary edema.</p>
+          </div>
+        </main>
+        <footer><div>Test ID: 1883996777</div><div>REVIEW - Block Time Elapsed: 01:26:32</div></footer>`);
+      const p = await openAt(html);
+      await p.waitForSelector("#mnx-resources .mnx-split-main", { timeout: 12000 });
+      const label = await p.textContent("#mnx-resources .mnx-split-main");
+      await p.evaluate(() => navigator.clipboard.writeText(""));
+      await p.locator("#mnx-resources .mnx-split-main").click();
+      await p.waitForTimeout(600);
+      const t = (await p.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, "\n");
+      check("1.5", "Copy for AI: one click copies the full-review prompt with the question in parts",
+        /Copy for AI · Full review/.test(label) && /^You are an expert USMLE tutor/.test(t) &&
+        /=== QUESTION \(USMLE Step 1\) ===\nA 56-year-old man has crushing chest pain/.test(t) &&
+        /C\. Neutrophil-rich fluid filling the alveoli {3}← my answer/.test(t) &&
+        /E\. Engorged capillaries and acellular pink alveolar fluid {3}← correct answer/.test(t) &&
+        /Result: incorrect/.test(t) && /Why my answer was wrong/.test(t) &&
+        /=== EXPLANATION \(from the question bank\) ===\nLeft ventricular failure/.test(t), t.slice(0, 160).replace(/\n/g, " / "));
+      check("1.5", "…without the block's navigation, the qbank's name, the percentages or the link",
+        !/Item 20 of 40|^\d{1,2}$|Test ID|Block Time|Consult AI Tutor|coursology|https?:|\(9%\)/im.test(t), t.match(/Item 20 of 40|^\d{1,2}$|Test ID|Block Time|Consult AI Tutor|coursology|https?:|\(9%\)/im));
+      // ▾ lists the presets; picking one copies with it at once; ★ makes it the one click
+      await p.locator("#mnx-resources .mnx-split-caret").click();
+      await p.waitForSelector("#mnx-ai-menu", { timeout: 3000 });
+      const items = await p.evaluate(() => Array.from(document.querySelectorAll("#mnx-ai-menu .mnx-aim-label")).map((e) => e.textContent));
+      await p.locator("#mnx-ai-menu .mnx-aim-item", { hasText: "High-yield points" }).click();
+      await p.waitForTimeout(500);
+      const hy = (await p.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, "\n");
+      const closed = await p.evaluate(() => !document.getElementById("mnx-ai-menu"));
+      check("1.5", "▾ offers the five prompts, and one copies with its own brief",
+        items.join("|") === "Full review|Why I got it wrong|Compare the choices|High-yield points|Quiz me" &&
+        /^Arrange the high-yield points/.test(hy) && closed, items.join("|"));
+      await p.locator("#mnx-resources .mnx-split-caret").click();
+      await p.waitForSelector("#mnx-ai-menu", { timeout: 3000 });
+      await p.locator("#mnx-ai-menu .mnx-aim-row", { hasText: "Quiz me" }).locator(".mnx-aim-star").click();
+      await p.keyboard.press("Escape");
+      await p.waitForTimeout(300);
+      const label2 = await p.textContent("#mnx-resources .mnx-split-main");
+      const ext = await ctx.newPage();
+      await ext.goto(`chrome-extension://${extId}/popup.html`);
+      await ext.waitForTimeout(600);
+      const stored = await ext.evaluate(() => new Promise((r) => chrome.storage.local.get({ aiPreset: null }, r)));
+      const sel = await ext.evaluate(() => document.getElementById("aiPresetSel").value);
+      await ext.evaluate(() => new Promise((r) => chrome.storage.local.set({ aiPreset: null }, r)));
+      await ext.close();
+      check("1.5", "★ makes a prompt the one-click default, and the popup shows it",
+        /Copy for AI · Quiz me/.test(label2) && stored.aiPreset === "quiz" && sel === "quiz", label2 + " | " + JSON.stringify(stored) + " | " + sel);
+
+      // "How did that go?" follows the result on the page: a wrong answer asks
+      // why, each reason brings one next step, and it never blocks anything.
+      await p.reload({ waitUntil: "domcontentloaded" });
+      await p.waitForSelector("#mnx-resources .mnx-recall", { timeout: 12000 });
+      const ask = await p.evaluate(() => ({
+        lbl: document.querySelector("#mnx-resources .mnx-recall-lbl").textContent,
+        opts: Array.from(document.querySelectorAll("#mnx-resources .mnx-recall-btn")).map((b) => b.textContent),
+        next: !!document.querySelector("#mnx-resources .mnx-recall-next")
+      }));
+      check("1.5", "a wrong answer asks why you missed it (optional: no next step until you pick)",
+        ask.lbl === "Why did you miss it?" && ask.opts.join("|") === "Didn't know it|Misread / missed a clue|Knew it, reasoned wrong|Torn between 2" && !ask.next,
+        JSON.stringify(ask));
+      await p.locator("#mnx-resources .mnx-recall-btn", { hasText: "Torn between 2" }).click();
+      await p.waitForTimeout(200);
+      const next = await p.evaluate(() => {
+        const n = document.querySelector("#mnx-resources .mnx-recall-next");
+        return n && { text: n.querySelector(".mnx-recall-next-txt").textContent, acts: Array.from(n.querySelectorAll(".mnx-recall-act")).map((a) => a.textContent),
+                      on: (document.querySelector("#mnx-resources .mnx-recall-btn.on") || {}).textContent };
+      });
+      await p.evaluate(() => navigator.clipboard.writeText(""));
+      await p.locator("#mnx-resources .mnx-recall-act", { hasText: "Compare the choices" }).click();
+      await p.waitForTimeout(500);
+      const cmp = (await p.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, "\n");
+      check("1.5", "…\"Torn between 2\" points to comparing the choices, and the copy carries how it went",
+        !!next && next.on === "Torn between 2" && /separates the two choices/.test(next.text) && next.acts[0] === "Copy for AI: Compare the choices" &&
+        /^Go through every answer choice/.test(cmp) && /How it went: I was torn between two choices/.test(cmp), JSON.stringify(next) + " | " + cmp.slice(0, 60));
+      await p.locator("#mnx-resources .mnx-recall-btn", { hasText: "Torn between 2" }).click();
+      await p.waitForTimeout(200);
+      const cleared = await p.evaluate(() => !document.querySelector("#mnx-resources .mnx-recall-btn.on") && !document.querySelector("#mnx-resources .mnx-recall-next"));
+      check("1.5", "…and tapping it again clears it", cleared);
+      await p.close();
+
+      // A right answer asks how sure you were; Narrowed to 2 is stored for the half credit.
+      const rightHtml = html
+        .replace('<svg class="svg-inline--fa fa-xmark text-red-500" data-icon="xmark"></svg>', "")
+        .replace('<button id="rC" disabled><div></div></button>', '<button id="rC" disabled></button>')
+        .replace('<button id="rE" disabled></button>', '<button id="rE" disabled><div></div></button>')
+        .replace('<p class="text-red-500">Incorrect</p>', '<p class="text-lime-500">Correct</p>');
+      const p2 = await openAt(rightHtml);
+      await p2.waitForSelector("#mnx-resources .mnx-recall", { timeout: 12000 });
+      const ask2 = await p2.evaluate(() => ({ lbl: document.querySelector("#mnx-resources .mnx-recall-lbl").textContent,
+        opts: Array.from(document.querySelectorAll("#mnx-resources .mnx-recall-btn")).map((b) => b.textContent) }));
+      await p2.locator("#mnx-resources .mnx-recall-btn", { hasText: "Narrowed to 2" }).click();
+      await p2.waitForTimeout(300);
+      const half = await p2.evaluate(() => (document.querySelector("#mnx-resources .mnx-recall-next-txt") || {}).textContent || "");
+      const ext2 = await ctx.newPage();
+      await ext2.goto(`chrome-extension://${extId}/popup.html`);
+      const rec = await ext2.evaluate(() => new Promise((r) => chrome.storage.local.get({ akTrackerV2: null }, (c) => r(c.akTrackerV2 && c.akTrackerV2.answered["usmle1 4211"]))));
+      await ext2.close();
+      check("1.5", "a right answer asks how sure you were, and Narrowed to 2 is kept (counts as half)",
+        ask2.lbl === "How sure were you?" && ask2.opts.join("|") === "Knew it|Narrowed to 2|Guessed" && /Counts as half/.test(half) &&
+        !!rec && rec.conf === "narrowed", JSON.stringify(ask2) + " | " + JSON.stringify(rec));
+      await p2.close();
+    }
+
     // Upgrading from 1.3: its log keyed days by local-midnight milliseconds.
     // The popup must read that history as calendar days (and the content
     // script rewrites it once as v3), with nothing lost.

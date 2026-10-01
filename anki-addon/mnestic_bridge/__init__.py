@@ -384,6 +384,73 @@ def op_write_media(args):
         return safe
 
 
+def _win32_to_front(hwnd):
+    """Windows only gives the foreground to the app you last used -- here, the
+    web browser you clicked in -- so a plain activateWindow() just flashes
+    Anki in the taskbar. Joining the foreground window's input queue for a
+    moment is the documented way to be allowed to take it. If Windows still
+    says no, the window is at least put on top of the others (topmost, then
+    straight back to normal) so it's in front of you."""
+    import ctypes
+    from ctypes import wintypes
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    user32.GetForegroundWindow.restype = wintypes.HWND
+    user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+    user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+    user32.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
+    user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+    user32.BringWindowToTop.argtypes = [wintypes.HWND]
+    user32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
+    user32.IsIconic.argtypes = [wintypes.HWND]
+    user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
+                                    ctypes.c_int, ctypes.c_int, ctypes.c_uint]
+    SW_RESTORE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW = 9, 0x0002, 0x0001, 0x0040
+    HWND_TOPMOST, HWND_NOTOPMOST = wintypes.HWND(-1), wintypes.HWND(-2)
+
+    hwnd = wintypes.HWND(hwnd)
+    if user32.IsIconic(hwnd):
+        user32.ShowWindow(hwnd, SW_RESTORE)
+    fg = user32.GetForegroundWindow()
+    if fg == hwnd.value:
+        return
+    fg_thread = user32.GetWindowThreadProcessId(fg, None) if fg else 0
+    me = kernel32.GetCurrentThreadId()
+    attached = bool(fg_thread and fg_thread != me and user32.AttachThreadInput(me, fg_thread, True))
+    try:
+        user32.BringWindowToTop(hwnd)
+        user32.SetForegroundWindow(hwnd)
+    finally:
+        if attached:
+            user32.AttachThreadInput(me, fg_thread, False)
+    if user32.GetForegroundWindow() != hwnd.value:
+        flags = SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW
+        user32.SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, flags)
+        user32.SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, flags)
+
+
+def _bring_to_front(win):
+    """Show an Anki window in front of you: restored if minimised, raised, and
+    focused where the system allows it. Never fails the request over it."""
+    try:
+        from aqt.qt import Qt
+
+        state = win.windowState()
+        if state & Qt.WindowState.WindowMinimized:
+            win.setWindowState(state & ~Qt.WindowState.WindowMinimized)
+        win.show()
+        win.raise_()
+        win.activateWindow()
+    except Exception:
+        pass
+    if os.name == "nt":
+        try:
+            _win32_to_front(int(win.winId()))
+        except Exception:
+            pass
+
+
 def op_open_browser(args):
     # Read-only: it fills Anki's own search box. The popup's topic search sends
     # free text here, so this is capped rather than scoped.
@@ -391,7 +458,7 @@ def op_open_browser(args):
     if query is not None and (not isinstance(query, str) or len(query) > MAX_QUERY_LEN):
         raise Exception("the search is too long")
     browser = aqt.dialogs.open("Browser", mw)
-    browser.activateWindow()
+    _bring_to_front(browser)
     if query:
         try:
             browser.form.searchEdit.lineEdit().setText(query)
@@ -456,6 +523,8 @@ def op_card_stats(args):
                 continue
             rows.append({
                 "cid": cid,
+                "nid": c.nid,
+                "ord": c.ord,             # which cloze (c1 = 0): the flashcard test's card
                 "type": c.type,
                 "ivl": c.ivl,
                 "lapses": c.lapses,

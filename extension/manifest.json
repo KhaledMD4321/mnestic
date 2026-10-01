@@ -47,6 +47,7 @@
                 "lib/tags.js",
                 "lib/weak.js",
                 "lib/cards.js",
+                "lib/ai.js",
                 "content.js"
             ],
             "run_at": "document_idle"

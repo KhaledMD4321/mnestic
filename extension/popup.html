@@ -174,11 +174,12 @@
   <p class="hint">Opens Anki's Browser with matching AnKing Step cards — for a tough topic you want to drill.</p>
 
   <hr>
-  <div class="row" style="margin-bottom:4px"><span>AI prompt <span class="muted" style="font-size:10px">for “Copy for AI”</span></span></div>
-  <div id="aiPresets" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px"></div>
-  <textarea id="aiPrompt" rows="4"
+  <div class="row" style="margin-bottom:6px"><label for="aiPresetSel">Copy for AI — one click uses</label>
+    <select id="aiPresetSel" style="font:inherit;font-size:12px;padding:3px 6px;border:1px solid #cfd6dd;border-radius:6px;color:inherit;background:transparent;max-width:52%"></select></div>
+  <textarea id="aiPrompt" rows="3" aria-label="My own AI prompt (optional)"
+    placeholder="My own prompt (optional) — it appears as “My own prompt” in the ▾ menu next to Copy for AI."
     style="width:100%;box-sizing:border-box;font:inherit;font-size:12px;padding:6px 8px;border:1px solid #cfd6dd;border-radius:6px;color:inherit;background:transparent;resize:vertical;line-height:1.4"></textarea>
-  <p class="hint">Prepended when you click <b>🤖 Copy for AI</b> on a question. Leave empty for the raw question.</p>
+  <p class="hint">Copies the question, your answer, the correct one and the explanation, with the prompt. Pick another prompt from <b>▾</b> next to the button. Nothing is sent anywhere — you paste it into your own assistant.</p>
 
   <hr>
   <div class="row">
@@ -235,6 +236,7 @@
 
   <script src="lib/dates.js"></script>
   <script src="lib/tracker.js"></script>
+  <script src="lib/ai.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

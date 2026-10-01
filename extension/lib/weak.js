@@ -23,24 +23,33 @@
 
   // rows: [{qid, ...}], key: the column to group by,
   // missed(row): did you get it wrong (incl. omitted/guessed), guessed(row): optional
+  // opts.credit(row): how much a right answer counts, 0..1 (default 1) -- a
+  //   right answer you narrowed to two counts as half: you had a coin flip left.
   function aggregate(rows, key, missed, guessed, opts) {
     opts = opts || {};
     const k = opts.k != null ? opts.k : K, minN = opts.minN != null ? opts.minN : MIN_N;
+    const credit = (r) => {
+      if (missed(r)) return 0;
+      const c = opts.credit ? +opts.credit(r) : 1;
+      return c >= 0 && c <= 1 ? c : 1;
+    };
     const total = rows.length;
-    const correctAll = rows.filter((r) => !missed(r)).length;
+    const correctAll = rows.reduce((s, r) => s + credit(r), 0);
     const p = total ? correctAll / total : 0;
     const map = new Map();
     rows.forEach((r) => {
       const name = String(r[key] || "").trim() || "—";
       let g = map.get(name);
-      if (!g) { g = { name, total: 0, wrong: 0, guessed: 0, wrongQids: [] }; map.set(name, g); }
+      if (!g) { g = { name, total: 0, wrong: 0, guessed: 0, half: 0, correct: 0, wrongQids: [] }; map.set(name, g); }
       g.total++;
+      const c = credit(r);
+      g.correct += c;
       if (missed(r)) { g.wrong++; g.wrongQids.push(r.qid); }
+      else if (c < 1) g.half++;
       if (guessed && guessed(r)) g.guessed++;
     });
     const out = Array.from(map.values());
     out.forEach((g) => {
-      g.correct = g.total - g.wrong;
       g.acc = g.total ? g.correct / g.total : 0;
       g.smoothed = (g.correct + k * p) / (g.total + k);
       g.few = g.total < minN;

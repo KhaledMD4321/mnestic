@@ -26,3 +26,26 @@ test("text that looks like cloze syntax can't break the card", () => {
   assert.equal((r.text.match(/\}\}/g) || []).length, 1, "only the cloze's own closing braces remain");
   assert.equal(r.text.replace(/​/g, ""), "{{c1::Na+/K+::ATPase and }} braces}}", "it still reads the same");
 });
+
+// ---- the flashcard test reads cards back ----
+const TEXT = "{{c1::Omalizumab}} binds {{c2::free IgE::antibody class}} and {{c1::lowers}} {{c3::FcεRI}} expression";
+
+test("a note's cloze numbers, once each, in order: one test card each", () => {
+  assert.deepEqual(C.clozeOrdinals(TEXT), [1, 2, 3]);
+  assert.deepEqual(C.clozeOrdinals("No clozes here"), []);
+  assert.deepEqual(C.clozeOrdinals("{{c3::a}} {{c1::b}} {{c3::c}}"), [1, 3]);
+});
+
+test("the front hides only the asked cloze (as its hint when it has one)", () => {
+  assert.equal(C.clozeSide(TEXT, 1, false),
+    '<span class="cloze">[…]</span> binds free IgE and <span class="cloze">[…]</span> FcεRI expression');
+  assert.equal(C.clozeSide(TEXT, 2, false),
+    'Omalizumab binds <span class="cloze">[antibody class]</span> and lowers FcεRI expression');
+});
+
+test("the back reveals the asked cloze and marks it", () => {
+  assert.equal(C.clozeSide(TEXT, 2, true),
+    'Omalizumab binds <span class="cloze">free IgE</span> and lowers FcεRI expression');
+  assert.equal(C.clozeAnswer(TEXT, 1), "Omalizumab … lowers");
+  assert.equal(C.clozeAnswer(TEXT, 3), "FcεRI");
+});

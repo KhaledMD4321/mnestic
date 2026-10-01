@@ -235,24 +235,40 @@ async function findTopic() {
 topicGo.addEventListener("click", findTopic);
 topicInput.addEventListener("keydown", (e) => { if (e.key === "Enter") findTopic(); });
 
-// ---- AI prompt (prepended to "🤖 Copy for AI") ----
+// ---- Copy for AI: the one-click prompt, and your own (lib/ai.js) ----
+// The text the prompt box used to come pre-filled with. A stored prompt equal
+// to it isn't "your own" -- see Ai.hasOwnPrompt.
 const AI_DEFAULT = "I'm studying for the USMLE. Below is a question with its answer choices and explanation. Explain the correct answer and why each other option is wrong, then give me the single highest-yield fact to remember. Be concise.";
-const AI_PRESETS = [
-  ["Explain", AI_DEFAULT],
-  ["Differentiate", "I'm studying for the USMLE. For the question below, focus on how to tell the correct answer apart from the tempting distractors — what specific feature rules each one in or out. Be concise."],
-  ["One-liner", "Give me one high-yield sentence to remember from the question below."],
-  ["Simplify", "Explain the question below like I'm a beginner: the core concept in plain language, then the takeaway. Be concise."],
-];
+const Ai = window.Mnx.ai;
 const aiPromptEl = document.getElementById("aiPrompt");
-const aiPresetsEl = document.getElementById("aiPresets");
-function saveAiPrompt() { chrome.storage.local.set({ aiPrompt: aiPromptEl.value }); }
-AI_PRESETS.forEach(([label, text]) => {
-  const b = document.createElement("button");
-  b.type = "button"; b.className = "chip"; b.textContent = label;
-  b.addEventListener("click", () => { aiPromptEl.value = text; saveAiPrompt(); });
-  aiPresetsEl.appendChild(b);
+const aiSel = document.getElementById("aiPresetSel");
+let aiStoredPreset = null;
+function fillAiSelect() {
+  const own = Ai.hasOwnPrompt(aiPromptEl.value, AI_DEFAULT);
+  const list = Ai.PRESETS.slice();
+  if (own) list.push(Ai.CUSTOM);
+  aiSel.replaceChildren();
+  list.forEach((p) => {
+    const o = document.createElement("option");
+    o.value = p.key; o.textContent = p.label; o.title = p.hint;
+    aiSel.appendChild(o);
+  });
+  aiSel.value = Ai.defaultPreset(aiStoredPreset, aiPromptEl.value, AI_DEFAULT);
+}
+function saveAiPrompt() {
+  chrome.storage.local.set({ aiPrompt: aiPromptEl.value });
+  fillAiSelect();
+}
+chrome.storage.local.get({ aiPrompt: null, aiPreset: null }, (c) => {
+  const stored = c.aiPrompt == null ? "" : c.aiPrompt;
+  aiPromptEl.value = Ai.hasOwnPrompt(stored, AI_DEFAULT) ? stored : "";
+  aiStoredPreset = c.aiPreset || null;
+  fillAiSelect();
 });
-chrome.storage.local.get({ aiPrompt: AI_DEFAULT }, (c) => { aiPromptEl.value = c.aiPrompt == null ? AI_DEFAULT : c.aiPrompt; });
+aiSel.addEventListener("change", () => {
+  aiStoredPreset = aiSel.value;
+  chrome.storage.local.set({ aiPreset: aiSel.value });
+});
 aiPromptEl.addEventListener("change", saveAiPrompt);
 aiPromptEl.addEventListener("blur", saveAiPrompt);
 
