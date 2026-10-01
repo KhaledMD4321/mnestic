@@ -1504,6 +1504,15 @@ function listenFree(server, from) {
       await p2.waitForSelector("#mnx-resources .mnx-recall", { timeout: 12000 });
       const ask2 = await p2.evaluate(() => ({ lbl: document.querySelector("#mnx-resources .mnx-recall-lbl").textContent,
         opts: Array.from(document.querySelectorAll("#mnx-resources .mnx-recall-btn")).map((b) => b.textContent) }));
+      // B-09: rating a question is not answering it -- its answered time must not move
+      const recOf = async () => {
+        const x = await ctx.newPage();
+        await x.goto(`chrome-extension://${extId}/popup.html`);
+        const r = await x.evaluate(() => new Promise((res) => chrome.storage.local.get({ akTrackerV2: null }, (c) => res(c.akTrackerV2 && c.akTrackerV2.answered["usmle1 4211"]))));
+        await x.close();
+        return r || {};
+      };
+      const tsBefore = (await recOf()).ts == null ? null : (await recOf()).ts;
       await p2.locator("#mnx-resources .mnx-recall-btn", { hasText: "Narrowed to 2" }).click();
       await p2.waitForTimeout(300);
       const half = await p2.evaluate(() => (document.querySelector("#mnx-resources .mnx-recall-next-txt") || {}).textContent || "");
@@ -1511,6 +1520,8 @@ function listenFree(server, from) {
       await ext2.goto(`chrome-extension://${extId}/popup.html`);
       const rec = await ext2.evaluate(() => new Promise((r) => chrome.storage.local.get({ akTrackerV2: null }, (c) => r(c.akTrackerV2 && c.akTrackerV2.answered["usmle1 4211"]))));
       await ext2.close();
+      check("1.4", "B-09: rating a question never dates it as answered today (its answered time is unchanged)",
+        !!rec && (rec.ts == null ? null : rec.ts) === tsBefore, "before " + tsBefore + " after " + (rec && rec.ts));
       check("1.5", "a right answer asks how sure you were, and Narrowed to 2 is kept (counts as half)",
         ask2.lbl === "How sure were you?" && ask2.opts.join("|") === "Knew it|Narrowed to 2|Guessed" && /Counts as half/.test(half) &&
         !!rec && rec.conf === "narrowed", JSON.stringify(ask2) + " | " + JSON.stringify(rec));
