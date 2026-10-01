@@ -483,6 +483,7 @@ docs/                    the guides, release runbook, store copy, release notes
 
 ```bash
 npm ci --ignore-scripts          # the pinned test tooling (playwright-core)
+npx playwright-core install chromium   # once, the browser that version expects
 npm test                         # unit tests + add-on import, guard and bridge-security tests + listing limits
 npm run test:adapters            # every site adapter still parses its pages
 npm run test:e2e                 # the real extension, in a real browser, against a mock Anki

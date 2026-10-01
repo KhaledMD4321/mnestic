@@ -36,7 +36,7 @@ every push. None of them needs Anki running.
 
 ```bash
 npm ci --ignore-scripts           # the pinned test tooling (playwright-core)
-npx playwright install chromium   # once per machine
+npx playwright-core install chromium   # once per machine; matches the pinned version
 npm test                          # unit tests + add-on checks + listing limits
 npm run test:adapters             # every site adapter still parses its pages
 npm run test:e2e                  # the real extension, driven in a real browser

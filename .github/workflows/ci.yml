@@ -23,9 +23,11 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: unit tests, add-on guards and bridge security, store listing limits
         run: npm test
+      # The browser must match the pinned playwright-core (package.json):
+      # plain "npx playwright install" fetches the newest build instead.
       - name: site adapters (headless Chromium)
         run: |
-          npx playwright install --with-deps chromium
+          npx playwright-core install --with-deps chromium
           npm run test:adapters
 
   e2e:
@@ -40,5 +42,5 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright-core install --with-deps chromium
       - run: xvfb-run --auto-servernum npm run test:e2e
