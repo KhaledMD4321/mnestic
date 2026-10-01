@@ -151,8 +151,8 @@ top of the question**. No new tab, no flipping through the book.
 | **S** | Sketchy |
 | **P** | Physeo |
 | **O** | OME |
-| **E** | Extra — the images in your cards' Extra field |
-| **A** | Additional Resources |
+| **E** | Extra — the whole field (text and images), card by card |
+| **A** | Additional Resources — the whole field, card by card |
 
 **← →** flip pages (the qbank question behind never moves), click a thumbnail to
 jump, **Esc** closes. The keys only work after you answer.
@@ -165,8 +165,10 @@ jump, **Esc** closes. The keys only work after you answer.
 
 ### 3. Your AnKing cards — preview, unsuspend, open in Anki
 
-- **👁 Preview** — the card exactly as Anki shows it, answer revealed, with its
-  Extra notes. **Next** shows the other cards for the question.
+- **👁 Preview** — the whole card, answer revealed: Text, Extra, Additional
+  Resources and your Missed Questions notes open, every other filled field
+  (First Aid, Sketchy, Physeo…) one click away. **Next** shows the other cards
+  for the question, most specific to it first.
 - **Unsuspend N** — one click and this question's suspended cards are in your
   Anki reviews.
 - **Anki** (next to the Question Id), or press **D** — Anki's Browse window opens
