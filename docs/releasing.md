@@ -31,15 +31,31 @@ find out.
 
 ## 1. Verify
 
-All four must be green. None of them needs Anki running except the last.
+All of these must be green, and CI (`.github/workflows/ci.yml`) runs them on
+every push. None of them needs Anki running.
 
 ```bash
-python scripts/check-addon.py     # the add-on can actually IMPORT
-python scripts/check-listing.py   # the store copy fits the store's limits
-python scripts/guard-test.py      # the destructive ops refuse what they should
-node scripts/adapter-test.js      # every site adapter still parses its pages
-node scripts/e2e-test.js          # the real extension, driven in a real browser
+npm ci --ignore-scripts           # the pinned test tooling (playwright-core)
+npx playwright install chromium   # once per machine
+npm test                          # unit tests + add-on checks + listing limits
+npm run test:adapters             # every site adapter still parses its pages
+npm run test:e2e                  # the real extension, driven in a real browser
 ```
+
+`npm test` runs, in order:
+
+```bash
+node --test "test/unit/*.test.js"  # dates (incl. DST), tracker, matching, tags, weak areas, cloze text
+python scripts/check-addon.py      # the add-on can actually IMPORT
+python scripts/guard-test.py       # the destructive ops refuse what they should
+python scripts/bridge-test.py      # the bridge's HTTP layer and every write op's limits
+python scripts/check-listing.py    # the store copy fits the store's limits
+```
+
+To check that a new test really catches the bug it was written for, run it
+against the previous release: `MNX_EXT=<old extension folder> npm run test:e2e`
+for the extension, `MNX_ADDON_DIR=<folder holding the old mnestic_bridge>
+python scripts/bridge-test.py` for the add-on.
 
 `check-listing.py` catches the failure nothing else can: a listing field one
 character over its limit, which no test and no amount of proof-reading finds --

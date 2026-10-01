@@ -352,8 +352,8 @@ Select any text in the explanation and a floating **✚ Make card** chip appears
 
 For the fact a question taught you that no existing card covers.
 
-> **Known issue:** in the current store version (**1.3.1**), *Create card* does
-> nothing. It's fixed and ships with the next update, **1.3.2**.
+> **Known issue:** in store version **1.3.1**, *Create card* does nothing.
+> It's fixed in **1.4.0**.
 
 ![Select explanation text, click Make card, make a cloze, and attach the question as its source](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/05-make-a-card.gif)
 

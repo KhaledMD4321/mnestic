@@ -1,6 +1,6 @@
 # Mnestic — Privacy Policy
 
-_Last updated: 2026-09-15_
+_Last updated: 2026-10-01_
 
 **Mnestic does not collect, transmit, sell, or share any personal data.** It has
 no backend server, no analytics, no accounts, and no ads.
@@ -19,6 +19,10 @@ Anki collection, entirely on your own computer.
 - **Question-bank images.** When you choose to attach a question's own image to a
   card, the extension fetches that image from the question bank's image server so
   it can be saved into your card. The image is used only to build your card.
+- **Images inside your cards.** A card preview shows images from your own Anki
+  media folder only. If a card's HTML points at an image on another website,
+  Mnestic does **not** load it (it shows a placeholder), so that website can't
+  learn your address or that you viewed the card.
 
 ## What it stores
 
@@ -30,10 +34,22 @@ leaves your device, and there is nowhere for it to be sent.
 | Your settings | Step, theme, how to save missed questions, deck names, toggles, your AI prompt |
 | Your study-pace log | Which questions you answered and when, how they went, and the qbank totals it read — this is what draws the tracker |
 | Which resource rows you open | So the panel can put the ones you use at the top |
-| Where a moved card came from | Saving a question in *move* mode takes the card out of its home deck; this is what lets **Remove from Missed Qs** put it back |
+| What each save did | For each card you save to Missed Qs: which question it came from, the deck it lived in, and which of its cards the save unsuspended — this is what lets **Remove from Missed Qs** undo exactly that save |
+| Chapters you pick | So the next save suggests the chapter you'd choose |
+| The question bank's subject/system for questions you've reviewed | Read off the results page, to suggest the matching chapter when you save |
 | Your pairing code | The code that lets the extension talk to your own Anki |
 
 Uninstalling the extension removes all of it.
+
+## What it writes into your Anki collection
+
+Only what you ask for: the notes you type into a card's **Missed Questions**
+field, images you attach, cards you make, and Mnestic's own tags —
+`Mnestic::Missed…`, `Mnestic::QID::<question id>` (which question a card was
+saved from or made for), `Mnestic::Made`, `Mnestic::Copy`, and
+`AnkiHub_Protect::Missed_Questions`. Your collection is yours: if you use Anki's
+own sync (AnkiWeb), these are synced like any other change you make in Anki.
+Mnestic itself sends nothing anywhere.
 
 ## What it does NOT do
 

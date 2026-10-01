@@ -25,7 +25,8 @@ page you're already on, and a local companion add-on on `127.0.0.1`.
 - binds to **loopback only** (`127.0.0.1`) — it is never reachable from your
   network;
 - requires a **per-machine pairing code** on every request except a bare
-  liveness `ping`, compared with a timing-safe comparison;
+  liveness `ping` (which names the add-on and nothing else), compared with a
+  timing-safe comparison;
 - rejects any request whose `Origin` is a website — the origin's **host is
   compared exactly** (a prefix test would accept look-alikes such as
   `http://127.0.0.1.attacker.tld`), and only `chrome-extension://` and loopback
@@ -33,14 +34,52 @@ page you're already on, and a local companion add-on on `127.0.0.1`.
 - rejects any request whose **`Host` header isn't loopback**, which blocks
   DNS-rebinding attacks, and validates the same on `OPTIONS` before answering a
   preflight or granting Private Network Access;
+- decides on the **headers alone, before reading the body**: a refused request,
+  a missing or negative `Content-Length`, or a body over 32 MB is answered at
+  once and the connection closed, and a connection that goes quiet is dropped
+  after 30 seconds — so no request can make Anki buffer or wait indefinitely;
 - resolves media filenames with `basename` only, so a crafted filename can't
-  escape the media folder.
+  escape the media folder, and stores only image files (at most 24 MB each).
+
+**A pairing code can only do what Mnestic does.** The code proves a request
+comes from Mnestic, but anything that learned it (malware, a leaked screenshot,
+clipboard history) could send the same requests. So every write is limited, in
+the add-on, to exactly what the extension needs:
+- the only tags it adds are its own (`Mnestic::Missed…`, `Mnestic::QID::<id>`,
+  `Mnestic::Made`) and `AnkiHub_Protect::Missed_Questions`; the only field it
+  writes to on an existing note is **Missed Questions**, and only by
+  **appending** — it never overwrites a field;
+- searches that change cards (unsuspend, filtered decks, removing its tags) may
+  only select by question-id tag, by Mnestic's own tags or by explicit note/card
+  ids — never `deck:*`, a negation, or an empty search — and an unsuspend may
+  touch at most 3,000 cards, checked before anything changes;
+- moving cards takes at most 50 notes per request and never into a filtered
+  deck; it builds and rebuilds only filtered decks named "Mnestic…";
+- it **deletes only notes it created**: a note must carry the marker tag
+  `copyNote` writes and must not be AnkiHub-managed, at most 100 per request —
+  and no request can add that marker to any other note, or blank its
+  `ankihub_id`. Removing tags is limited to tags under `Mnestic::`, so no
+  request can strip `marked`, `leech`, an AnKing tag, or the `AnkiHub_Protect`
+  tag guarding notes you typed.
+
+Before 1.4 the note-update operation accepted any tag and any field, so two
+requests with the code could delete an arbitrary note (tag it as a Mnestic copy,
+blank its `ankihub_id`, then delete it). `scripts/bridge-test.py` replays that
+attack against the add-on on every test run.
+
+What a stolen code can still do: read your collection, re-file or untag notes
+Mnestic itself saved, and delete the copies Mnestic made. Rotate the code from
+**Tools → Mnestic Bridge → Issue a new pairing code…** whenever it may have been
+seen, and paste the new one into the extension.
 
 **Card HTML is treated as untrusted.** Note fields are HTML, and Anki users
 import shared decks from strangers. Mnestic never assigns note HTML to
 `innerHTML`. It parses it inertly with `DOMParser` and rebuilds it from a strict
 tag/attribute allowlist, dropping every event handler, `<script>`/`<iframe>`,
-and `javascript:`/non-image `data:` URL.
+`class` (which could borrow the question bank's own styles), and any
+`javascript:`/non-image `data:` URL. **Images on other websites are never
+loaded** in a card preview — Mnestic shows a placeholder instead, so a shared
+deck can't learn your address or when you viewed a card.
 
 **Every link built from a deck is scheme-checked.** Resource links (Sketchy,
 First Aid, …) are resolved against the page and accepted only if they are
@@ -50,22 +89,23 @@ where the anchor is built.
 
 **Only real user input reaches your collection.** Mnestic's UI lives in the
 page's DOM, which the page's own scripts can also touch. Every control that can
-talk to Anki requires a trusted event, so a compromised page cannot drive it
-with synthetic clicks or keystrokes.
+talk to Anki — and every way of adding an image (paste, drop, file picker) —
+requires a trusted event, so a compromised page cannot drive it with synthetic
+clicks, keystrokes, pastes or drops. An end-to-end test clicks every Mnestic
+control from page script and checks that nothing reaches Anki. What a page *can*
+still do is read Mnestic's panel and dialogs while they are open, and edit a
+dialog's fields before you press its button; isolating them from the page is
+planned.
+
+**The background worker forwards only known requests.** It checks who is
+asking: the part of Mnestic running inside the question-bank page may only use
+the operations its features need, and the popup only its own, smaller set. Any
+other operation is refused before it reaches Anki.
 
 **The image fetcher is not an open proxy.** The background worker will only
 fetch https images from a supported question bank's own domain — the same short
 list the manifest grants host permissions for — and only if the response is an
-image.
-
-**The bridge cannot delete your cards.** It has exactly one delete operation,
-for undoing a *Make a copy* save, and it refuses any note that is not a copy
-Mnestic itself created: the note must carry Mnestic's own marker tag and must
-not be AnkiHub-managed. Removing a tag is limited the same way — the add-on
-will only take off tags under `Mnestic::`, so no request can strip `marked`,
-`leech`, an AnKing tag, or the `AnkiHub_Protect` tag guarding notes you typed.
-Both limits live in the add-on rather than in the extension that calls it,
-because the add-on is what a request actually reaches.
+image of at most 15 MB.
 
 **Each site adapter only reads.** Support for a new question bank adds selectors
 and page heuristics, never new privileges: the extension still runs only on the

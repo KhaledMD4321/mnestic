@@ -128,8 +128,9 @@ page and, right under the explanation, shows:
 - **The AnKing cards tagged with this question** — how many, and how they stand
   (new, young, mature, suspended).
 - **Every resource those cards point to** — First Aid, Sketchy, B&B, OME, Bootcamp,
-  Physeo, Pixorize… one line each, with its image count and its key. **Click a
-  row** to see the exact chapters your cards tag; the most-tagged come first.
+  Physeo, Pixorize… one line each, with the number of **chapters** your cards tag
+  there and its image key (hover the key to see how many images it opens).
+  **Click a row** to see those chapters; the most-tagged come first.
 - **How did that go?** — *Knew it*, *Guessed* or *No idea*. A right answer you only
   guessed still counts as weak.
 
@@ -203,8 +204,8 @@ For the fact a question taught you that no card covers:
 3. Highlight a word and click **Make cloze** — it becomes `{{c1::…}}`.
 4. **Create card.** The question's id and link go on the card as its source.
 
-> **Known issue:** in the current store version (**1.3.1**), *Create card* does
-> nothing. It's fixed and ships with the next update, **1.3.2**.
+> **Known issue:** in store version **1.3.1**, *Create card* does nothing.
+> It's fixed in **1.4.0**.
 
 ![Select explanation text, click Make card, make a cloze, and attach the question as its source](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/05-make-a-card.gif)
 

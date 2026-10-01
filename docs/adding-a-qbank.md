@@ -1,8 +1,11 @@
 # Adding another question bank
 
 Mnestic's matching logic is the same everywhere: read the question's id off the
-page, search Anki for `tag:#AK_Step<n>_v*::#UWorld::*::<qid>`. Only the DOM
-differs. So supporting a new bank means writing **one adapter object** — no
+page, search Anki for the precise AnKing tag shapes
+`tag:#AK_Step<n>_v*::#UWorld::Step::<qid>` and `…::#UWorld::<qid>` (built by
+`qidQuery` in `extension/lib/match.js`). The old `::#UWorld::*::<qid>` wildcard
+also matches COMLEX ids, which collide with UWorld ones, so it only runs when
+the user asks for a broader search. Only the DOM differs. So supporting a new bank means writing **one adapter object** — no
 feature code changes.
 
 Prerequisite: the bank must expose the **same question ids the AnKing deck is
@@ -35,10 +38,11 @@ list it in `SITES`. The full contract is in the comment above `SITES`:
 | `panelAnchor()` | where the resource panel mounts; `null` floats it |
 | `contentRoot()` | stem + choices + explanation, for "Copy for AI" |
 | `toolbar()` | results-page button host; `null` floats it |
-| `resultRows()` | usually just `return genericResultRows();` |
+| `resultRows()` | usually just `return genericResultRows();` — only ever called when `isResultsPage()` is true |
 | `stepFromUrl()` | `1`/`2`/`3`, or `null` to use the popup's Step selector |
-| `blockSlug()` | key for the tracker's per-qbank totals |
-| `inTest()`, `isResultsPage()` | which view we're on |
+| `blockSlug()` | key for the tracker's per-qbank totals; the tracker reads a dashboard only when this isn't `"default"` |
+| `questionSource()` | `"uworld"`, `"other"` or `"unknown"` — a bank of NON-UWorld questions on the same site returns `"other"`, and is never searched |
+| `inTest()`, `isResultsPage()` | which view we're on. Make `isResultsPage()` strict (a results URL, or a table with an `ID` column): the results toolbar and every "Anki: …" button depend on it |
 
 **Prefer shape over class names.** Sites that ship generated class names
 (`css-1x2y3z`) break fixed selectors on every release. Look for a visible
