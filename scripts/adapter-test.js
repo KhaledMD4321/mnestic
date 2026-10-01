@@ -17,7 +17,13 @@ const fs = require("fs");
 const path = require("path");
 
 const EXE = process.env.MNX_CHROME || undefined;   // undefined -> playwright's own chromium
-const CONTENT = fs.readFileSync(path.join(__dirname, "..", "extension", "content.js"), "utf8");
+// Every content script the manifest injects, in its order: content.js relies
+// on the lib/ modules loaded before it.
+const EXT_DIR = path.join(__dirname, "..", "extension");
+const MANIFEST = JSON.parse(fs.readFileSync(path.join(EXT_DIR, "manifest.json"), "utf8"));
+const CONTENT = MANIFEST.content_scripts[0].js
+  .map((f) => fs.readFileSync(path.join(EXT_DIR, f), "utf8"))
+  .join("\n;\n");
 
 const CHROME_STUB = `
   window.__mnxListeners = [];

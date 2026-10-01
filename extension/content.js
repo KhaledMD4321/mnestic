@@ -26,17 +26,47 @@
   const PANEL_ID = "mnx-resources";
   const OVERLAY_ID = "mnx-overlay";
   const SUMMARY_ID = "mnx-summary";
-  const ANKING_VER = "v*"; // matches any AnKing version
+  // Pure logic, loaded before this file (see manifest) and unit-tested on its
+  // own: calendar days, tracker math, matching/ranking, tag parsing, weak
+  // areas, cloze text.
+  const { dates: Dt, tracker: Trk, match: Mt, tags: Tg, weak: Wk, cards: Cd } = globalThis.Mnx;
+  const { safeQid, safeQidOrNull, qidQuery, qidQueryLoose } = Mt;
 
   // ---------- talk to Anki via the background worker (the Mnestic Bridge) ----------
+  // Rejects with an Error that also carries `code` (see background.js), so a
+  // caller can tell "Anki is closed" from "not paired" from "timed out". It
+  // stringifies to the bare message, as the plain strings it replaced did.
+  function bridgeError(message, code) {
+    const e = new Error(String(message || "unknown error"));
+    e.code = code || "anki";
+    e.toString = () => e.message;
+    return e;
+  }
   function bridge(op, args) {
     return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage({ type: "bridge", op, args: args || {} }, resp => {
-        if (chrome.runtime.lastError) return reject(chrome.runtime.lastError.message);
-        if (!resp || !resp.ok) return reject((resp && resp.error) || "unknown error");
-        resolve(resp.data);
-      });
+      try {
+        chrome.runtime.sendMessage({ type: "bridge", op, args: args || {} }, resp => {
+          // The extension was reloaded or updated under this tab: its old
+          // content script can no longer reach the worker.
+          if (chrome.runtime.lastError) return reject(bridgeError(chrome.runtime.lastError.message, "reload"));
+          if (!resp || !resp.ok) return reject(bridgeError(resp && resp.error, resp && resp.code));
+          resolve(resp.data);
+        });
+      } catch (e) {
+        reject(bridgeError(String(e), "reload"));
+      }
     });
+  }
+  // What to tell someone when a call to Anki fails. Never a stack trace.
+  function bridgeFailure(e) {
+    const code = e && e.code;
+    if (code === "offline") return "Anki isn't running, or the Mnestic Bridge add-on isn't installed.";
+    if (code === "auth") return "Mnestic isn't paired with this Anki. Open the Mnestic popup and paste the pairing code.";
+    if (code === "timeout") return "Anki didn't answer in time. It may be busy (syncing, or a dialog is open).";
+    if (code === "old-addon") return "Update the Mnestic Bridge add-on in Anki (Tools → Add-ons → Check for Updates).";
+    if (code === "reload") return "Mnestic was updated. Reload this page to reconnect.";
+    if (code === "refused") return "Anki refused that request (" + ((e && e.message) || "") + ").";
+    return "Anki reported an error: " + ((e && e.message) || e);
   }
   // Step (1/2/3) for the AnKing tag. Prefer the step baked into the Coursology
   // URL (/qbanks/usmle2/...) so it follows you across Step 1/2/3 automatically;
@@ -52,21 +82,22 @@
     }
     return (n >= 1 && n <= 3) ? n : null;
   }
-  // The step the CURRENT question actually matched on. The popup's Step selector
-  // and the URL are both only guesses — what matters is which step's tags the
-  // deck really has for this id, and every follow-up call (open in Anki, card
-  // status, unsuspend) must use the same one.
-  let currentSv = null;
+  // The step a question actually matched on is part of its session (Q.sv,
+  // below). The popup's Step selector and the URL are only guesses — what
+  // matters is which step's tags the deck really has for this id, and every
+  // follow-up call (open in Anki, card status, unsuspend) must use the same one.
   let stepBySlug = {};
   chrome.storage.local.get({ mnxStepBySlug: {} }, c => { stepBySlug = c.mnxStepBySlug || {}; });
-  async function svForQuestion() {
-    if (currentSv != null) return currentSv;
-    try { return await getSv(); } catch (e) { return 1; }
-  }
   // Find the notes for a question, trying the likeliest step first and falling
   // back to the others. Before this, a Step 2 student whose URL didn't say so
   // got "No AnKing resources found" on every single question, with no clue why.
-  async function resolveNotes(qid) {
+  //
+  // Only the PRECISE tag shapes are tried here. UWorld question ids don't repeat
+  // across Steps (checked against a full AnKing deck), so finding one under
+  // Step 2 is the same question. The old "::*::" wildcard is different: it also
+  // matches COMLEX ids, which DO collide -- so it only runs when you ask for a
+  // broader search (broad = true), and the panel then says the match is approximate.
+  async function resolveNotes(qid, broad) {
     const slug = currentQbankSlug();
     let detected = 1;
     try { detected = await getSv(); } catch (e) {}
@@ -79,18 +110,21 @@
         chrome.storage.local.set({ mnxStepBySlug: stepBySlug });
       }
     };
-    for (const build of [qidQuery, qidQueryLoose]) {
+    const builders = broad ? [qidQuery, qidQueryLoose] : [qidQuery];
+    for (const build of builders) {
       for (const sv of order) {
+        const query = build(qid, sv);
         let nids;
-        try { nids = await bridge("searchNotes", { query: build(qid, sv) }); }
+        try { nids = await bridge("searchNotes", { query }); }
         catch (e) { return { nids: [], sv: detected, error: e, tried: order }; }
         if (nids && nids.length) {
           remember(sv);
-          return { nids, sv, error: null, tried: order, loose: build === qidQueryLoose };
+          return { nids, sv, query, error: null, tried: order, detected,
+                   otherStep: sv !== detected, loose: build === qidQueryLoose };
         }
       }
     }
-    return { nids: [], sv: detected, error: null, tried: order };
+    return { nids: [], sv: detected, query: qidQuery(qid, detected), error: null, tried: order, detected, broad: !!broad };
   }
   function getSv() {
     const urlStep = detectStepFromUrl();
@@ -114,6 +148,14 @@
   // purpose — every qbank we've seen either renders a real <table> with an "ID"
   // header column, or a list of rows starting with a status icon + the number —
   // so a new adapter can usually just reuse this.
+  //
+  // Only ever called on a page the adapter says IS a results page (see the
+  // main loop). It used to run everywhere, and its row fallback read any
+  // <li> or row that began with a number as a question id: an explanation's
+  // "5-alpha reductase…" bullet, or the scores ("55%") in Coursology's list of
+  // previous tests, which a click could then send to Anki as question ids.
+  // The fallback now takes table-like rows only, and only ones carrying a
+  // right/wrong mark.
   function genericResultRows() {
     const rows = [];
     const seen = new Set();
@@ -132,9 +174,10 @@
       });
     }
     if (rows.length) { dlog("resultRows via table", rows.length); return rows; }
-    document.querySelectorAll('[role="row"], tr, mat-row, li').forEach(tr => {
-      const m = ((tr.textContent || "").trim()).match(/^[✓✔✗✕×x]?\s*(\d{1,6})\b/);
-      if (m) push(m[1], rowIsWrong(tr, tr), rowIsMarked(tr));
+    document.querySelectorAll('[role="row"], tr, mat-row').forEach(tr => {
+      if (tr.closest("[id^='mnx-']")) return;
+      const m = ((tr.textContent || "").trim()).match(/^[✓✔✗✕×x]?\s*(\d{1,6})(?![\d%.,])\b/);
+      if (m && rowHasOutcome(tr)) push(m[1], rowIsWrong(tr, tr), rowIsMarked(tr));
     });
     dlog("resultRows via fallback", rows.length);
     return rows;
@@ -206,6 +249,15 @@
     },
     // Per-qbank key for the tracker's dashboard totals.
     blockSlug() { const m = location.pathname.match(/\/qbanks\/([^/]+)/i); return m ? m[1].toLowerCase() : "default"; },
+    // Coursology also hosts banks that are NOT UWorld's questions -- NBME
+    // forms, self-assessments, other publishers -- on the same site. AnKing only
+    // tags UWorld ids, so a number from one of those banks could only ever
+    // match an unrelated card. Those banks are skipped and the panel says why.
+    questionSource() {
+      const slug = this.blockSlug();
+      if (/nbme|uwsa|self[-_]?assess|mehlman|amboss|kaplan|truelearn|mrcp|plab|free[-_]?120|comlex|shelf/i.test(slug)) return "other";
+      return slug === "default" ? "unknown" : "uworld";
+    },
     inTest() { return /\/qbanks\//i.test(location.pathname); },
     isResultsPage() { return /\/results\b/i.test(location.pathname); },
     isDashboard() { return /welcome|dashboard|performance|home/i.test(location.pathname); },
@@ -378,11 +430,14 @@
       return null;
     },
     blockSlug() { return "uworld"; },
+    questionSource() { return "uworld"; },
     // UWorld's test player is its own view; be permissive rather than guess a path.
     inTest() { return true; },
+    // A results URL, or a table with an "ID" column -- never "some row starts
+    // with a number", which a question's own explanation can satisfy.
     isResultsPage() {
       if (/result|review|performance/i.test(location.pathname + location.search)) return true;
-      return genericResultRows().length > 0;
+      return !!findIdColumn();
     },
     isDashboard() { return /courseapp|dashboard|performance|home|welcome/i.test(location.pathname); },
     expandsResults: false,           // .cbt-nav-btn items are numbered — never click one
@@ -446,6 +501,14 @@
       const m = location.search.match(/[?&]qBankId=(\d+)/i);
       return m ? "medpark-" + m[1] : "medpark";
     },
+    // MedPark labels UWorld questions "UW Id". Its other banks (AMBOSS,
+    // Mehlman) don't use that label, and their numbers aren't UWorld ids.
+    questionSource() {
+      const h = document.querySelector(MP.header);
+      const t = (h && h.textContent) || "";
+      if (/UW\s*Id/i.test(t)) return "uworld";
+      return /\b(?:AMB|AMBOSS|Mehlman|MLman)\b/i.test(t) ? "other" : "unknown";
+    },
     inTest() { return !!document.querySelector(MP.page); },
     isResultsPage() { return /\/results\b/i.test(location.pathname); },
     isDashboard() { return /dashboard|welcome|performance|app/i.test(location.pathname); },
@@ -474,7 +537,11 @@
   //                              already handles both common table shapes
   //   stepFromUrl()              1/2/3, or null to fall back to the popup
   //   blockSlug()                key for the tracker's per-qbank totals
-  //   inTest(), isResultsPage()  which view we're on
+  //   questionSource()           "uworld" | "other" | "unknown" -- only
+  //                              UWorld ids can match AnKing's tags; "other"
+  //                              banks are not searched at all
+  //   inTest(), isResultsPage()  which view we're on. isResultsPage() gates
+  //                              resultRows(): rows are never read elsewhere
   //   isDashboard()              where the qbank prints its Used/Total totals
   //   expandsResults             opt in to clicking a 10/25/50/100 page-size
   //                              control — ONLY where no other numbered button
@@ -500,6 +567,12 @@
     if (row && row.querySelector(".fa-times, .fa-xmark, .fa-circle-xmark, i.text-danger, [class*='incorrect']")) return true;
     if (/^\s*[✗✕×]/.test(((cell || row).textContent || ""))) return true;
     return WRONG_CLASS_RE.test((row && row.className) || "");
+  }
+  // A results row says how the question went: a check or a cross.
+  function rowHasOutcome(row) {
+    if (rowIsWrong(row, row)) return true;
+    if (row.querySelector(".fa-check, .fa-circle-check, [class*='correct'], .text-success")) return true;
+    return /^\s*[✓✔]/.test(row.textContent || "");
   }
   function rowIsMarked(row) {
     // flag (Coursology) / star (UWorld) / bookmark — whichever the site uses
@@ -696,6 +769,10 @@
       background:var(--mnx-surface-2);border:1px solid var(--mnx-border);border-radius:var(--mnx-r-xs);
       user-select:all;overflow-wrap:anywhere}
     #${PANEL_ID} .mnx-note{font-size:12px;color:var(--mnx-muted);padding:9px 13px;border-top:1px solid var(--mnx-border);background:var(--mnx-surface-2)}
+    #${PANEL_ID} .mnx-msg-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:9px}
+    #${PANEL_ID} .mnx-msg-actions .mnx-msg-why{margin-top:0}
+    #${PANEL_ID} .mnx-match-note{font-size:12px;color:var(--mnx-muted);padding:8px 13px;border-bottom:1px solid var(--mnx-border);background:var(--mnx-surface-2)}
+    #${PANEL_ID} .mnx-match-note.mnx-approx{color:var(--mnx-warn-txt);font-weight:600;background:color-mix(in srgb,var(--mnx-warn) 10%,var(--mnx-surface))}
 
     /* ---- collapsible resource rows ----------------------------------------
        A whole AnKing card can carry 100+ tagged chapters. Showing them all at
@@ -775,6 +852,7 @@
     #${OVERLAY_ID} .mnx-x{border:none;background:transparent;font-size:26px;line-height:1;cursor:pointer;color:var(--mnx-muted);padding:0 6px;border-radius:var(--mnx-r-xs);transition:background .12s,color .12s}
     #${OVERLAY_ID} .mnx-x:hover{color:var(--mnx-text);background:var(--mnx-surface-2)}
     #${OVERLAY_ID} .mnx-ovl-img{display:block;width:100%;height:auto;margin:0 0 12px;border-radius:var(--mnx-r-xs)}
+    #${OVERLAY_ID} .mnx-ovl-missing{font-size:12.5px;color:var(--mnx-warn-txt);margin:0 0 10px}
     /* multi-page overlay: pager in the header, filmstrip underneath */
     #${OVERLAY_ID} .mnx-ovl-nav{display:flex;align-items:center;gap:10px;margin-left:auto;margin-right:12px}
     #${OVERLAY_ID} .mnx-ovl-count{font-size:12.5px;font-weight:600;color:var(--mnx-muted);font-variant-numeric:tabular-nums;min-width:44px;text-align:center}
@@ -839,13 +917,22 @@
 
     /* modal system (preview / save / make card / breakdown) */
     #mnx-md-overlay{position:fixed;inset:0;background:rgba(10,14,30,.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:2147483647;display:flex;align-items:flex-start;justify-content:center;padding:6vh 0;font-family:var(--mnx-font)}
-    #mnx-md-overlay .mnx-md{background:var(--mnx-surface);color:var(--mnx-text);width:min(560px,92vw);max-height:84vh;overflow:auto;border-radius:var(--mnx-r);box-shadow:var(--mnx-shadow);border:1px solid var(--mnx-border);animation:mnx-pop .24s cubic-bezier(.2,.8,.3,1) both}
-    #mnx-md-overlay .mnx-md-head{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--mnx-border)}
+    #mnx-md-overlay .mnx-md{background:var(--mnx-surface);color:var(--mnx-text);width:min(560px,92vw);max-height:84vh;overflow:hidden;display:flex;flex-direction:column;border-radius:var(--mnx-r);box-shadow:var(--mnx-shadow);border:1px solid var(--mnx-border);animation:mnx-pop .24s cubic-bezier(.2,.8,.3,1) both}
+    /* header and footer stay put; only the body scrolls, so the main button is
+       never below the fold of a laptop screen */
+    #mnx-md-overlay .mnx-md-head{flex:none;display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--mnx-border)}
     #mnx-md-overlay .mnx-md-head b{font-size:15px;font-weight:700;letter-spacing:-.01em;color:var(--mnx-ink)}
     #mnx-md-overlay .mnx-md-x{border:none;background:transparent;font-size:22px;line-height:1;cursor:pointer;color:var(--mnx-muted);width:28px;height:28px;border-radius:var(--mnx-r-xs);transition:background .12s,color .12s}
     #mnx-md-overlay .mnx-md-x:hover{color:var(--mnx-text);background:var(--mnx-surface-2)}
-    #mnx-md-overlay .mnx-md-body{padding:16px 18px}
-    #mnx-md-overlay .mnx-md-foot{display:flex;justify-content:flex-end;gap:8px;padding:14px 18px;border-top:1px solid var(--mnx-border)}
+    #mnx-md-overlay .mnx-md-body{padding:16px 18px;overflow:auto;flex:1 1 auto;min-height:0}
+    #mnx-md-overlay .mnx-md-foot{flex:none;display:flex;justify-content:flex-end;gap:8px;padding:14px 18px;border-top:1px solid var(--mnx-border);background:var(--mnx-surface)}
+    #mnx-md-overlay .mnx-saved{margin-top:4px}
+    #mnx-md-overlay .mnx-saved-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--mnx-border);font-size:12.5px}
+    #mnx-md-overlay .mnx-saved-x{flex:none;border:none;background:none;color:var(--mnx-bad-txt);font:600 12px var(--mnx-font);cursor:pointer;padding:2px 4px;border-radius:var(--mnx-r-xs)}
+    #mnx-md-overlay .mnx-saved-x:hover{text-decoration:underline}
+    #mnx-md-overlay .mnx-saved-x:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
+    #mnx-md-overlay .mnx-pick-hint{font-style:normal;color:var(--mnx-muted);font-size:11.5px}
+    #mnx-md-overlay .mnx-dup{color:var(--mnx-warn-txt);font-weight:600}
     #mnx-md-overlay .mnx-md-btn{border:none;border-radius:var(--mnx-r-sm);padding:9px 17px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--mnx-font);transition:transform .16s,filter .16s,background .16s}
     #mnx-md-overlay .mnx-md-btn:active{transform:scale(.985)}
     #mnx-md-overlay .mnx-md-btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
@@ -884,6 +971,7 @@
     #mnx-md-overlay .mnx-md-prev{font-size:13.5px;line-height:1.55}
     #mnx-md-overlay .mnx-md-prev img{max-width:100%;height:auto;display:block;margin:8px 0;border-radius:var(--mnx-r-xs)}
     #mnx-md-overlay .mnx-md-prev .cloze{color:var(--mnx-accent);font-weight:700}
+    #mnx-md-overlay .mnx-remote-img{display:inline-block;font-size:11.5px;color:var(--mnx-muted);border:1px dashed var(--mnx-border);border-radius:var(--mnx-r-xs);padding:2px 7px;margin:4px 0}
     #mnx-md-overlay .mnx-prev-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
     #mnx-md-overlay .mnx-prev-count{font-size:12.5px;font-weight:700;color:var(--mnx-ink);font-variant-numeric:tabular-nums}
     #mnx-md-overlay .mnx-img-drop{border:1.5px dashed var(--mnx-border);border-radius:var(--mnx-r-sm);padding:14px;text-align:center;font-size:12px;color:var(--mnx-muted);cursor:pointer;background:var(--mnx-surface-2);transition:border-color .14s,color .14s,background .14s}
@@ -912,6 +1000,7 @@
     #mnx-md-overlay .mnx-brk-row{display:grid;grid-template-columns:1fr auto;gap:5px 12px;align-items:center;padding:11px 0;border-top:1px solid var(--mnx-border)}
     #mnx-md-overlay .mnx-brk-row:first-of-type{border-top:none}
     #mnx-md-overlay .mnx-brk-name{font-size:13px;font-weight:600;color:var(--mnx-text)}
+    #mnx-md-overlay .mnx-brk-few{display:inline-block;margin-left:8px;font-size:10.5px;font-weight:600;color:var(--mnx-muted);background:var(--mnx-surface-2);border:1px solid var(--mnx-border);border-radius:var(--mnx-r-pill);padding:0 7px;vertical-align:1px}
     #mnx-md-overlay .mnx-brk-pct{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
     #mnx-md-overlay .mnx-brk-bar{grid-column:1/2;height:8px;border-radius:var(--mnx-r-pill);background:var(--mnx-surface-2);overflow:hidden}
     #mnx-md-overlay .mnx-brk-fill{height:100%;border-radius:var(--mnx-r-pill);transition:width .5s cubic-bezier(.2,.7,.3,1)}
@@ -1116,8 +1205,11 @@
   function questionListData() {
     const live = parseQuestionList();
     if (live && live.length) { qlistCache = { path: location.pathname, rows: live }; return live; }
-    if (qlistCache && qlistCache.path === location.pathname) return qlistCache.rows;
-    return null;
+    return qlistCached();
+  }
+  // What captureQuestionList already read, without scanning the page again.
+  function qlistCached() {
+    return (qlistCache && qlistCache.path === location.pathname) ? qlistCache.rows : null;
   }
   function resultData() { return questionListData() || SITE.resultRows(); }
   function collectAll() { return resultData().map(r => r.qid); }
@@ -1145,17 +1237,40 @@
     }
     return null;
   }
+  // The results table's rows with their Subject/System/Topic. The table can't
+  // tell an OMITTED question from a correct one (neither has a cross), so
+  // when the Question List has been opened its status is merged in -- and
+  // `omittedKnown` says whether that happened, so the breakdown can say so.
   function blockRows() {
     const loc = findResultColumns();
     if (!loc) return [];
     const cell = (tr, i) => { const c = i != null ? tr.children[i] : null; return c ? (c.textContent || "").trim() : ""; };
+    const list = qlistCached();
+    const status = new Map((list || []).map(r => [r.qid, r]));
     const out = []; const seen = new Set();
     loc.rows.forEach(tr => {
       const idCell = tr.children[loc.idx.id]; if (!idCell) return;
       const m = (idCell.textContent || "").match(/\d+/); if (!m || seen.has(m[0])) return; seen.add(m[0]);
-      out.push({ qid: m[0], wrong: rowIsWrong(tr, idCell), subject: cell(tr, loc.idx.subject), system: cell(tr, loc.idx.system), topic: cell(tr, loc.idx.topic) });
+      const st = status.get(m[0]);
+      out.push({ qid: m[0], wrong: rowIsWrong(tr, idCell) || !!(st && st.wrong), omitted: !!(st && st.omitted),
+                 subject: cell(tr, loc.idx.subject), system: cell(tr, loc.idx.system), topic: cell(tr, loc.idx.topic) });
     });
+    out.omittedKnown = !!list;
     return out;
+  }
+  // What the qbank says each question was about, kept with the question in the
+  // tracker, so "Save to Missed Qs" can later suggest the chapter matching the
+  // question's own system.
+  function rememberQuestionMeta(rows) {
+    const slug = currentQbankSlug();
+    let changed = false;
+    rows.forEach(r => {
+      if (!r.system && !r.subject) return;
+      const key = slug + " " + r.qid;
+      const e = trackerLog.answered[key] || (trackerLog.answered[key] = { ts: null, slug, qid: r.qid, src: "results" });
+      if (e.sys !== r.system || e.subj !== r.subject) { e.sys = r.system || ""; e.subj = r.subject || ""; changed = true; }
+    });
+    if (changed) saveLog();
   }
   // One definition of "missed", used by the breakdown, the buttons and the
   // accuracy figures alike: anything you didn't get right.
@@ -1166,17 +1281,10 @@
     const e = trackerLog.answered[currentQbankSlug() + " " + qid];
     return !!(e && (e.conf === "guessed" || e.conf === "noidea"));
   }
+  // Weakest first, by smoothed accuracy, with groups too small to judge ranked
+  // last (lib/weak.js explains the arithmetic).
   function aggregateBy(rows, key) {
-    const map = new Map();
-    rows.forEach(r => {
-      const name = (r[key] || "").trim() || "—";
-      let g = map.get(name); if (!g) { g = { name, total: 0, wrong: 0, wrongQids: [] }; map.set(name, g); }
-      g.total++; if (isMissed(r)) { g.wrong++; g.wrongQids.push(r.qid); }
-    });
-    const arr = Array.from(map.values());
-    arr.forEach(g => { g.correct = g.total - g.wrong; g.acc = g.total ? g.correct / g.total : 0; });
-    arr.sort((a, b) => a.acc - b.acc || b.total - a.total);   // weakest first
-    return arr;
+    return Wk.aggregate(rows, key, isMissed, r => wasGuessed(r.qid)).groups;
   }
   // Text, not a bar — so the text-safe variants, which are darker in the light
   // theme. The fill colours read 2.83 to 4.09 against our own surfaces.
@@ -1193,7 +1301,7 @@
       seg = document.createElement("div"); seg.className = "mnx-seg"; seg.style.marginBottom = "8px";
       dims.forEach(([k, label]) => {
         const b = document.createElement("button"); b.type = "button"; b.textContent = label; if (k === key) b.className = "on";
-        b.addEventListener("click", () => { key = k; Array.from(seg.children).forEach(c => c.classList.remove("on")); b.classList.add("on"); render(); });
+        b.addEventListener("click", onUserClick(() => { key = k; Array.from(seg.children).forEach(c => c.classList.remove("on")); b.classList.add("on"); render(); }));
         seg.appendChild(b);
       });
       m.body.appendChild(seg);
@@ -1201,6 +1309,12 @@
     const sub = document.createElement("div"); sub.className = "mnx-brk-sub";
     const list = document.createElement("div");
     m.body.appendChild(sub); m.body.appendChild(list);
+    const why = document.createElement("div"); why.className = "mnx-md-hint"; why.style.marginTop = "12px";
+    why.textContent = "Ranked by accuracy adjusted for how many questions each has, so one unlucky question " +
+      "doesn't outrank a real weak spot. Groups with fewer than " + Wk.MIN_N + " questions are listed last. " +
+      "Guessed and “no idea” answers count as missed." +
+      (rows.omittedKnown ? "" : " Omitted questions count as correct here — open the test's Question List once to count them as missed.");
+    m.body.appendChild(why);
     let shownGroups = [];
     function render() {
       const groups = aggregateBy(rows, key);
@@ -1212,15 +1326,23 @@
       groups.forEach(g => {
         const row = document.createElement("div"); row.className = "mnx-brk-row";
         const name = document.createElement("div"); name.className = "mnx-brk-name"; name.textContent = g.name;
+        if (g.few) {
+          const few = document.createElement("span"); few.className = "mnx-brk-few"; few.textContent = "few questions";
+          few.title = "Only " + g.total + " question" + (g.total === 1 ? "" : "s") + " — too few to call it a weak area yet";
+          name.appendChild(few);
+        }
         const pct = document.createElement("div"); pct.className = "mnx-brk-pct"; pct.textContent = Math.round(g.acc * 100) + "%"; pct.style.color = accColor(g.acc);
+        pct.title = "Raw " + Math.round(g.acc * 100) + "% · adjusted " + Math.round(g.smoothed * 100) + "% (used for the order)";
         const bar = document.createElement("div"); bar.className = "mnx-brk-bar";
         const fill = document.createElement("div"); fill.className = "mnx-brk-fill"; fill.style.width = Math.round(g.acc * 100) + "%"; fill.style.background = accColor(g.acc); bar.appendChild(fill);
         const meta = document.createElement("div"); meta.className = "mnx-brk-meta";
-        const cnt = document.createElement("span"); cnt.className = "mnx-brk-count"; cnt.textContent = g.correct + "/" + g.total; meta.appendChild(cnt);
+        const cnt = document.createElement("span"); cnt.className = "mnx-brk-count";
+        cnt.textContent = g.correct + "/" + g.total + (g.guessed ? " · " + g.guessed + " guessed" : "");
+        meta.appendChild(cnt);
         if (g.wrongQids.length) {
           const open = document.createElement("button"); open.type = "button"; open.className = "mnx-brk-open";
           open.textContent = "Open " + g.wrongQids.length + " missed";
-          open.addEventListener("click", () => runBrowse(g.wrongQids));
+          open.addEventListener("click", onUserClick(() => runBrowse(g.wrongQids)));
           meta.appendChild(open);
         }
         row.appendChild(name); row.appendChild(pct); row.appendChild(bar); row.appendChild(meta);
@@ -1233,10 +1355,7 @@
     // by hand. This takes the three worst groups that actually have misses and
     // sends the lot to Anki in one go — the drill you'd have assembled yourself.
     function drillWeakest() {
-      const weak = shownGroups
-        .filter(g => g.wrongQids.length)
-        .sort((a, b) => a.acc - b.acc)
-        .slice(0, 3);
+      const weak = Wk.weakest(shownGroups, 3);
       if (!weak.length) { toast("No missed questions to drill in this block."); return; }
       const seen = new Set(); const qids = [];
       weak.forEach(g => g.wrongQids.forEach(q => { if (!seen.has(q)) { seen.add(q); qids.push(q); } }));
@@ -1259,7 +1378,6 @@
   function buildTagQuery(qids, sv) {
     return qids.filter(q => safeQidOrNull(q)).map(q => qidQuery(q, sv)).join(" OR ");
   }
-  const ANKI_DOWN = "Couldn't reach Anki. Make sure it's open and the Mnestic Bridge add-on is installed.";
   const HY_LEVELS = ["HighYield", "RelativelyHighYield"];
   function runBrowse(qids) {
     if (!qids.length) { toast("No matching questions found on this page."); return; }
@@ -1270,7 +1388,7 @@
       if (!query) { toast("Couldn't read the question ids on this page."); return; }
       if (easyOn) { easyUnsuspend(query); return; }
       if (hyOn) { browseHighYield(query); return; }
-      bridge("openBrowser", { query }).catch(e => toast(ANKI_DOWN + " (" + e + ")"));
+      bridge("openBrowser", { query }).catch(e => toast(bridgeFailure(e)));
     });
   }
   // High Yield Only (Browse): resolve the exact high-yield card ids, then open
@@ -1282,8 +1400,8 @@
       if (!cards.length) { toast("None of these matched a card in your deck yet."); return; }
       const cids = cards.filter(c => HY_LEVELS.includes(c.yield)).map(c => c.cid).filter(x => x != null);
       if (!cids.length) { toast("No high-yield cards among these questions."); return; }
-      bridge("openBrowser", { query: "cid:" + cids.join(",") }).catch(e => toast(ANKI_DOWN + " (" + e + ")"));
-    }).catch(e => toast(ANKI_DOWN + " (" + e + ")"));
+      bridge("openBrowser", { query: "cid:" + cids.join(",") }).catch(e => toast(bridgeFailure(e)));
+    }).catch(e => toast(bridgeFailure(e)));
   }
   // Easy mode: count matches, confirm with the locked number, then unsuspend.
   function easyUnsuspend(query) {
@@ -1300,9 +1418,9 @@
         bridge("unsuspend", params).then(r2 => {
           const n = (r2 && r2[0] && r2[0].unlocked) || 0;
           toast("Added " + n + " card" + (n === 1 ? "" : "s") + " to your reviews.");
-        }).catch(e => toast(ANKI_DOWN + " (" + e + ")"));
+        }).catch(e => toast(bridgeFailure(e)));
       });
-    }).catch(e => toast(ANKI_DOWN + " (" + e + ")"));
+    }).catch(e => toast(bridgeFailure(e)));
   }
   function showConfirm(matched, locked, onYes) {
     const old = document.getElementById("mnx-confirm"); if (old) old.remove();
@@ -1324,7 +1442,9 @@
     const cancel = document.createElement("button"); cancel.className = "mnx-cf-btn mnx-cf-cancel"; cancel.textContent = "Cancel";
     cancel.addEventListener("click", close);
     const ok = document.createElement("button"); ok.className = "mnx-cf-btn mnx-cf-ok"; ok.textContent = "Unlock " + locked;
-    ok.addEventListener("click", () => { close(); onYes(); });
+    // The page could click this for you the moment it appears; only a real
+    // click unlocks cards.
+    ok.addEventListener("click", onUserClick(() => { close(); onYes(); }));
     btns.appendChild(cancel); btns.appendChild(ok);
     box.appendChild(h); box.appendChild(body); box.appendChild(btns);
     o.appendChild(box);
@@ -1404,27 +1524,65 @@
   };
   function emptyFiles() { const o = {}; for (const k in IMG_SOURCES) o[k] = []; return o; }
   function emptyUris() { const o = {}; for (const k in IMG_SOURCES) o[k] = null; return o; }
-  let lastQid = null;
-  let buildingQid = null;
-  let currentFiles = emptyFiles();
-  let cachedUris = emptyUris();
-  let currentNotes = [];          // AnKing notes matched to the current QID (for preview / save)
-  const dedupe = a => Array.from(new Set(a));
+
+  // ---- one question at a time ----------------------------------------------
+  // Everything the page knows about the question on screen lives in ONE object,
+  // replaced whole when the question changes. Each await in a build checks it
+  // is still the current one before it writes anything.
+  //
+  // Before, this state was five separate globals. A slow answer from Anki for
+  // question A, landing after you'd moved to B, painted A's cards and resources
+  // onto B -- and Save, Preview and the image keys then acted on A's notes.
+  //
+  //   qid, gen     which question, and which attempt at building it
+  //   sv, query    the step and the exact search that matched (follow-up calls
+  //                reuse them, so they always agree with what the panel shows)
+  //   notes        matched notes, most specific first
+  //   files, uris  image filenames per overlay key, and their loaded data
+  //   ready        the panel for this question is fully built
+  let Q = null;
+  let qGen = 0;
+  function newSession(qid) {
+    Q = { qid, gen: ++qGen, sv: null, query: null, found: null, notes: [], files: emptyFiles(),
+          uris: emptyUris(), missing: {}, ready: false, building: false, retries: 0 };
+    return Q;
+  }
+  const isLive = s => !!s && s === Q;
 
   // The review player prints "Question Id: NNNNN" in its header. We read that to
   // key every per-question feature (resource panel, overlay, copy buttons). The
   // scopes in SITE.headerSel are tried first (cheaper), then document.body.
+  //
+  // On Coursology the id has no dedicated element, so this used to read the
+  // whole page's text several times a second. The element that held it last
+  // time is checked first; the full scan only runs when that element is gone.
+  let qidEl = null;
+  function qidFromText(text) {
+    for (const re of SITE.qidRe) { const m = (text || "").match(re); if (m) return m[1]; }
+    return null;
+  }
   function findQid() {
     // An adapter can read the id straight out of a dedicated element; the
     // header + regex scan below is the fallback for when that element moves.
     if (SITE.findQid) {
       try { const v = SITE.findQid(); if (v) return v; } catch (e) {}
     }
+    // Still attached AND still shown: a hidden copy of the previous question
+    // left in the DOM must never answer for the one on screen.
+    if (qidEl && qidEl.isConnected && qidEl.getClientRects().length) {
+      const v = qidFromText(qidEl.textContent);
+      if (v) return v;
+    }
+    qidEl = null;
     for (const sel of SITE.headerSel) {
       const el = document.querySelector(sel);
       if (!el) continue;
-      const text = el.textContent || "";
-      for (const re of SITE.qidRe) { const m = text.match(re); if (m) return m[1]; }
+      const v = qidFromText(el.textContent);
+      if (v) {
+        if (el !== document.body) qidEl = el;
+        else { const small = qidLabelEl(); if (small && qidFromText(small.textContent) === v) qidEl = small; }
+        return v;
+      }
     }
     return null;
   }
@@ -1432,38 +1590,6 @@
   // (so we never spoil an unanswered one) and only once a QID is on the page.
   function isAnswered() {
     return SITE.isReviewing() && !!findQid();
-  }
-  function cleanSeg(s) {
-    return s
-      .replace(/^[!*\s]+/, "")        // leading ! or * markers
-      .replace(/^\d+[_\-.]\s*/, "")   // leading number prefix: 03_  06-  1.
-      .replace(/_/g, " ")
-      .trim();
-  }
-  function isNoiseSeg(s) {
-    return /^\^/.test(s)                  // tracking tags: ^physeo_image_update, ^Missing_image
-        || /retired/i.test(s)             // ##_Retired_Lessons
-        || /old[\s_]*version/i.test(s)    // [OLD VERSION]
-        || /\[old/i.test(s)
-        || /alt[_\s]*tagging/i.test(s)    // 03_Neoplasia_Alt_Tagging
-        || /^pathoma\s*20\d{2}/i.test(s)  // Pathoma2018 (old edition)
-        || /^20\d{2}$/.test(s);           // a bare old-edition year
-  }
-  function tagPaths(tags, needles) {
-    const arr = (Array.isArray(needles) ? needles : [needles]).map(s => s.toLowerCase());
-    const out = [];
-    for (const t of (tags || [])) {
-      const tl = t.toLowerCase();
-      if (!arr.some(nd => tl.includes(nd))) continue;
-      const seg = t.split("::");
-      const rest = seg.slice(2);                  // chapters after #AK_Step1_v12::<resource>
-      if (!rest.length || rest.some(isNoiseSeg)) continue;
-      let cleaned = rest.map(cleanSeg).filter(Boolean);
-      if (cleaned.length > 1 && /^extra$/i.test(cleaned[cleaned.length - 1])) cleaned.pop();
-      if (!cleaned.length) continue;
-      out.push(cleaned.slice(-3));               // keep the last 3 segments
-    }
-    return out;
   }
   // Resolve a field by name, case-insensitively, so capitalization/spacing drift
   // across AnKing deck versions still matches.
@@ -1497,7 +1623,7 @@
       if (!f || !f.value) return;
       const doc = parser.parseFromString(f.value, "text/html");
       doc.querySelectorAll("img[src]").forEach(img => {
-        const src = safeUrl(img.getAttribute("src"), true);   // media filename or data: image
+        const src = safeMediaSrc(img.getAttribute("src"));    // media filename or data: image
         if (src) out.push(src);
       });
     });
@@ -1511,21 +1637,37 @@
     if (ext === "svg") return "image/svg+xml";
     return "image/png";
   }
-  async function fetchImages(files) {
-    const uris = [];
-    for (const fn of files) {
-      try {
-        const b64 = await bridge("readMedia", { filename: fn });
-        if (b64) uris.push("data:" + mimeFor(fn) + ";base64," + b64);
-      } catch (e) { /* skip a file we can't fetch */ }
+  // items: [{fn, card}] -> {pages: [{uri, card}], missing}. Three requests at a
+  // time instead of one after another, so a six-page topic opens in a third of
+  // the time. A file your collection doesn't have is COUNTED, not silently
+  // dropped, so the overlay can say "2 images are missing" instead of quietly
+  // showing four of six. A data: image already in the field is used as is.
+  async function fetchImages(items, isCurrent) {
+    const out = new Array(items.length);
+    let missing = 0, next = 0;
+    async function worker() {
+      while (next < items.length) {
+        const i = next++, it = items[i];
+        if (isCurrent && !isCurrent()) return;
+        if (/^data:/i.test(it.fn)) { out[i] = { uri: it.fn, card: it.card }; continue; }
+        try {
+          const b64 = await bridge("readMedia", { filename: it.fn });
+          if (b64) out[i] = { uri: "data:" + mimeFor(it.fn) + ";base64," + b64, card: it.card };
+          else missing++;
+        } catch (e) { missing++; }
+      }
     }
-    return uris;
+    await Promise.all([worker(), worker(), worker()]);
+    return { pages: out.filter(Boolean), missing };
   }
-  function ensurePanel() {
+  // `s` stamps the panel with the question it shows (data-qid), so a panel can
+  // always be checked against the question on the page.
+  function ensurePanel(s) {
     let panel = document.getElementById(PANEL_ID);
-    if (panel) { panel.classList.toggle("mnx-dark", darkMode); return panel; }
+    if (panel) { panel.classList.toggle("mnx-dark", darkMode); if (s) panel.dataset.qid = s.qid; return panel; }
     panel = document.createElement("div");
     panel.id = PANEL_ID;
+    if (s) panel.dataset.qid = s.qid;
     if (darkMode) panel.classList.add("mnx-dark");
     const anchor = SITE.panelAnchor();
     if (anchor) anchor.appendChild(panel);
@@ -1673,38 +1815,109 @@
       td.appendChild(g);
     }
   }
-  function renderRows(qid, rows, msg, found) {
-    const panel = ensurePanel();
+  function msgBox(lines) {
+    const n = document.createElement("div"); n.className = "mnx-msg";
+    lines.forEach((l, i) => {
+      const d = document.createElement("div");
+      if (i) d.className = "mnx-msg-why";
+      d.textContent = l;
+      n.appendChild(d);
+    });
+    return n;
+  }
+  function msgButton(label, fn) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "mnx-pbtn mnx-msg-btn";
+    b.textContent = label; b.addEventListener("click", onUserClick(fn));
+    return b;
+  }
+  // While Anki answers. A slow lookup used to leave nothing on screen at all,
+  // which looks exactly like "no cards".
+  function renderLoading(s) {
+    if (!isLive(s)) return;
+    const panel = ensurePanel(s);
+    panel.replaceChildren(msgBox(["Looking up this question's cards in Anki…"]));
+    ensureVisible();
+  }
+  // Anki couldn't be asked. Each cause gets its own words, and the panel tries
+  // again on its own (and on a click) instead of staying red until you change
+  // question -- the old dead end when Anki was opened after the answer.
+  function renderFailure(s, err) {
+    if (!isLive(s)) return;
+    const panel = ensurePanel(s);
     panel.replaceChildren();
-    addPanelHeader(qid);
-    if (msg) {
-      const n = document.createElement("div"); n.className = "mnx-msg"; n.textContent = msg; panel.appendChild(n); ensureVisible(); return;
+    const box = msgBox([bridgeFailure(err)]);
+    const code = err && err.code;
+    if (code !== "reload" && code !== "refused") {
+      const row = document.createElement("div"); row.className = "mnx-msg-actions";
+      row.appendChild(msgButton("Retry", () => rebuild(s.qid)));
+      if (s.retryIn) {
+        const t = document.createElement("span"); t.className = "mnx-msg-why";
+        t.textContent = "Trying again in " + Math.round(s.retryIn / 1000) + "s.";
+        row.appendChild(t);
+      }
+      box.appendChild(row);
     }
-    if (!rows || !rows.length) {
+    panel.appendChild(box);
+    ensureVisible();
+  }
+  function renderRows(s, rows, msg, found) {
+    if (!isLive(s)) return;
+    const qid = s.qid;
+    const panel = ensurePanel(s);
+    panel.replaceChildren();
+    addPanelHeader(s);
+    if (msg) {
+      panel.appendChild(msgBox(Array.isArray(msg) ? msg : [msg])); ensureVisible(); return;
+    }
+    if (!s.notes.length) {
       // "Nothing found" used to be a dead end. Say which steps were searched and
       // what the query was, so the cause is obvious: untagged deck, renumbered
       // qbank, or an id this deck simply doesn't cover.
-      const n = document.createElement("div"); n.className = "mnx-msg";
       const tried = (found && found.tried && found.tried.length) ? found.tried : null;
-      const line = document.createElement("div");
-      line.textContent = "No AnKing cards are tagged with question id " + qid +
-        (tried ? " (searched Step " + tried.join(", ") + ")." : ".");
-      n.appendChild(line);
-      const why = document.createElement("div");
-      why.className = "mnx-msg-why";
-      why.textContent = "Either your deck doesn't tag this question, or this qbank renumbered it.";
-      n.appendChild(why);
+      const n = msgBox([
+        "No AnKing cards are tagged with question id " + qid +
+          (tried ? " (searched Step " + tried.join(", ") + ")." : "."),
+        found && found.broad
+          ? "A broader search found nothing either."
+          : "Either your deck doesn't tag this question, or this qbank renumbered it."
+      ]);
       const q = document.createElement("code");
       q.className = "mnx-msg-q";
-      q.textContent = safeQidOrNull(qid)
-        ? qidQuery(qid, (found && found.sv) || 1)
-        : "(no usable question id on this page)";
+      q.textContent = safeQidOrNull(qid) ? qidQuery(qid, (found && found.sv) || 1) : "(no usable question id on this page)";
       n.appendChild(q);
       const hint = document.createElement("div");
       hint.className = "mnx-msg-why";
       hint.textContent = "Paste that into Anki's Browse to check it yourself.";
       n.appendChild(hint);
+      if (found && !found.broad && safeQidOrNull(qid)) {
+        const row = document.createElement("div"); row.className = "mnx-msg-actions";
+        row.appendChild(msgButton("Broader search", () => rebuild(qid, true)));
+        const t = document.createElement("span"); t.className = "mnx-msg-why";
+        t.textContent = "Also tries looser tag shapes. It can find unrelated cards (COMLEX ids), and says so.";
+        row.appendChild(t);
+        n.appendChild(row);
+      }
       panel.appendChild(n); ensureVisible(); return;
+    }
+    // Say how the match was made whenever it wasn't the plain, exact one.
+    if (found && (found.loose || found.otherStep)) {
+      const note = document.createElement("div");
+      note.className = "mnx-match-note" + (found.loose ? " mnx-approx" : "");
+      note.textContent = found.loose
+        ? "Approximate match: found with a broad tag search, which can include unrelated questions (e.g. COMLEX ids). Check the cards before saving."
+        : "Matched through your deck's Step " + found.sv + " tags (this page looked like Step " + found.detected + ").";
+      panel.appendChild(note);
+    }
+    if (!rows || !rows.length) {
+      // Cards matched, but none of them carries a resource tag or field. This
+      // used to fall into the "no cards are tagged" message above -- untrue,
+      // and it hid the Preview / Save buttons' reason to exist.
+      panel.appendChild(msgBox([
+        s.notes.length + (s.notes.length === 1 ? " card matches" : " cards match") + " this question, but " +
+          (s.notes.length === 1 ? "it carries no" : "none of them carries") + " First Aid, Sketchy or other resource tags.",
+        "Preview and Save to Missed Qs still work."
+      ]));
+      ensureVisible(); return;
     }
     // Most-opened resources first, then the deck's own order. Ties keep the
     // original order so the list doesn't reshuffle on every question.
@@ -1714,13 +1927,13 @@
       .map(x => x.row);
 
     for (const row of ordered) {
-      panel.appendChild(buildResourceRow(row));
+      panel.appendChild(buildResourceRow(row, s));
     }
     ensureVisible();
   }
 
   // One collapsed resource: a summary you can scan, a body you opt into.
-  function buildResourceRow(row) {
+  function buildResourceRow(row, s) {
     const sec = document.createElement("section");
     sec.className = "mnx-r";
 
@@ -1764,7 +1977,10 @@
       kb.type = "button";
       kb.className = "mnx-r-key";
       kb.textContent = key;
-      kb.title = "Show these images over the question (or press " + key + ")";
+      const nImg = (s && s.files[key] || []).length;
+      kb.title = nImg
+        ? "Show " + nImg + " " + row.R.label + " image" + (nImg === 1 ? "" : "s") + " over the question (or press " + key + ")"
+        : "No " + row.R.label + " images on these cards";
       kb.setAttribute("aria-label", "Show " + row.R.label + " images");
       // The images were keyboard-only, which also meant the shortcuts toggle
       // could never switch F/S/P/O off without hiding the feature entirely.
@@ -1793,12 +2009,12 @@
     if (openResources.has(row.R.label)) setOpen(true, false);   // restore what you had open
     return sec;
   }
-  function addImageHint() {
+  function addImageHint(s) {
     const panel = document.getElementById(PANEL_ID);
-    if (!panel) return;
+    if (!panel || !isLive(s)) return;
     // Each row now shows its own key badge, so this is a nudge, not a legend.
     let any = false;
-    for (const k in IMG_SOURCES) if (currentFiles[k] && currentFiles[k].length) { any = true; break; }
+    for (const k in IMG_SOURCES) if (s.files[k] && s.files[k].length) { any = true; break; }
     let txt = any
       ? (kbShortcuts ? "Press a resource's key, or click it, for its images · Esc closes"
                      : "Click a resource's key for its images · Esc closes")
@@ -1810,25 +2026,75 @@
     n.textContent = txt;
     panel.appendChild(n);
   }
-  async function buildTable(qid) {
-    currentFiles = emptyFiles();
-    cachedUris = emptyUris();
-    currentNotes = [];
+  function sourceOf() {
+    try { return SITE.questionSource ? SITE.questionSource() : "unknown"; } catch (e) { return "unknown"; }
+  }
+  // Start over on a question: a new session, so anything still in flight for
+  // the old one is ignored when it lands. `broad` = the user asked for the
+  // looser tag search.
+  function rebuild(qid, broad, retries) {
+    const s = newSession(qid);
+    s.broad = !!broad;
+    s.retries = retries || 0;
+    buildTable(s);
+    return s;
+  }
+  // Anki closed, busy or still loading a profile usually sorts itself out, so
+  // try again on a widening schedule while you stay on the question. A refused
+  // pairing code doesn't -- that waits for you (pasting a code retries at once).
+  const RETRY_STEPS = [3000, 8000, 15000, 30000, 60000];
+  function buildFailed(s, err) {
+    if (!isLive(s)) return;
+    const code = err && err.code;
+    const auto = code === "offline" || code === "timeout" || code === "anki";
+    s.retryIn = auto && s.retries < RETRY_STEPS.length ? RETRY_STEPS[s.retries] : 0;
+    renderFailure(s, err);
+    if (s.retryIn) {
+      setTimeout(() => { if (isLive(s)) rebuild(s.qid, s.broad, s.retries + 1); }, s.retryIn);
+    }
+  }
+  async function buildTable(s) {
     hideOverlay();
-
-    currentSv = null;
-    const found = await resolveNotes(qid);
-    if (found.error) {
-      renderRows(qid, null, "Couldn't reach Anki. Make sure it's open and the Mnestic Bridge add-on is installed. (" + found.error + ")");
+    s.building = true;
+    try { await buildSession(s); }
+    catch (e) { buildFailed(s, bridgeError(String(e), "anki")); }
+    finally { s.building = false; }
+  }
+  async function buildSession(s) {
+    const qid = s.qid;
+    if (sourceOf() === "other") {
+      s.ready = true;
+      renderRows(s, null, [
+        "This question bank isn't UWorld's, so AnKing's UWorld tags can't be matched to its questions.",
+        "Copy for AI and Make card still work here."
+      ]);
       return;
     }
-    const nids = found.nids;
-    currentSv = found.sv;
-    if (!nids.length) { renderRows(qid, [], null, found); return; }
+    renderLoading(s);
+    const found = await resolveNotes(qid, s.broad);
+    if (!isLive(s)) return;                                   // you moved on
+    if (found.error) { buildFailed(s, found.error); return; }
+    s.found = found; s.sv = found.sv; s.query = found.query;
+    if (!found.nids.length) { s.ready = true; renderRows(s, [], null, found); return; }
     let notes;
-    try { notes = await bridge("noteInfo", { notes: nids }); }
-    catch (e) { renderRows(qid, null, "Anki error: " + e); return; }
-    currentNotes = notes || [];
+    try { notes = await bridge("noteInfo", { notes: found.nids }); }
+    catch (e) { buildFailed(s, e); return; }
+    if (!isLive(s)) return;                                   // you moved on
+    // Most specific to THIS question first (lib/match.js): it decides the
+    // first card in Preview, the default in Save, and the order of the images.
+    s.notes = Mt.rankNotes(notes || []);
+    const ranked = s.notes;
+
+    // Image pages per overlay key, in note order, each remembering which card
+    // it came from. Worked out before the rows so each key badge can say how
+    // many images it opens.
+    for (const key of Object.keys(IMG_SOURCES)) {
+      const items = [], seen = new Set();
+      ranked.forEach((note, i) => fieldImages(note, IMG_SOURCES[key].fields).forEach(fn => {
+        if (!seen.has(fn)) { seen.add(fn); items.push({ fn, card: i + 1 }); }
+      }));
+      s.files[key] = items;
+    }
 
     const rows = [];
     for (const R of RESOURCES) {
@@ -1838,10 +2104,10 @@
       // as important as one tagged on all of them. Count the cards behind each
       // chapter and lead with what this question is most about.
       const byPath = new Map();
-      for (const note of notes) {
+      for (const note of ranked) {
         fieldAnchors(note, R.fields).forEach(l => links.push(l));
         const seenHere = new Set();                    // count a chapter once per card
-        tagPaths(note.tags, R.tag).forEach(segs => {
+        Tg.tagPaths(note.tags, R.tag).forEach(segs => {
           const key = segs.join(" > ").toLowerCase().replace(/[^a-z0-9> ]+/g, "").replace(/\s+/g, " ").trim();
           if (seenHere.has(key)) return;
           seenHere.add(key);
@@ -1854,18 +2120,19 @@
       const ulinks = links.filter(l => !seen.has(l.href) && seen.add(l.href));
       if (ulinks.length || paths.length) rows.push({ R, links: ulinks, paths });
     }
-    renderRows(qid, rows);
-
-    for (const key of Object.keys(IMG_SOURCES)) {
-      const fnames = [];
-      for (const note of notes) fieldImages(note, IMG_SOURCES[key].fields).forEach(f => fnames.push(f));
-      currentFiles[key] = dedupe(fnames);
-    }
-    addImageHint();
+    s.ready = true;
+    renderRows(s, rows, null, found);
+    addImageHint(s);
     ensureVisible();
-    if (esOn) addExpectedLine(qid);
-    prefetchImages(qid);
+    if (esOn) addExpectedLine(s);
+    prefetchImages(s);
   }
+  // Pasting a pairing code (or changing the port) in the popup should bring a
+  // panel that couldn't reach Anki back without waiting for a retry.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !(changes.bridgeToken || changes.bridgePort)) return;
+    if (Q && !Q.ready && !Q.building) rebuild(Q.qid, Q.broad);
+  });
 
   // Image bytes used to be fetched only when you pressed the key, one readMedia
   // round-trip per page — so the first F on a five-page First Aid topic stalled.
@@ -1875,22 +2142,30 @@
   // Deliberately only the CURRENT question: a whole block's images would be
   // hundreds of megabytes of data: URLs held in the page.
   const PREFETCH_BUDGET = 24 * 1024 * 1024;   // ~24MB of base64, then stop
-  let prefetchToken = 0;
-  async function prefetchImages(qid) {
-    const token = ++prefetchToken;
+  async function prefetchImages(s) {
     const keys = Object.keys(IMG_SOURCES)
-      .filter(k => (currentFiles[k] || []).length && !cachedUris[k])
+      .filter(k => (s.files[k] || []).length && !s.uris[k])
       .sort((a, b) => (resourceUses[IMG_SOURCES[b].label] || 0) - (resourceUses[IMG_SOURCES[a].label] || 0));
     let held = 0;
     for (const k of keys) {
-      if (token !== prefetchToken || lastQid !== qid) return;   // moved on
-      if (held > PREFETCH_BUDGET) return;
-      let uris;
-      try { uris = await fetchImages(currentFiles[k]); } catch (e) { continue; }
-      if (token !== prefetchToken || lastQid !== qid) return;   // moved on mid-fetch
-      cachedUris[k] = uris;
-      for (const u of uris) held += u.length;
+      if (!isLive(s) || held > PREFETCH_BUDGET) return;      // moved on, or enough held
+      const res = await loadKey(s, k);
+      if (!isLive(s)) return;
+      for (const p of res.pages) held += p.uri.length;
     }
+  }
+  // One load per key per question, shared by the prefetch and a key press, so
+  // pressing F mid-prefetch waits for the same requests instead of repeating them.
+  // The result is stored on THIS question's session only.
+  function loadKey(s, k) {
+    if (s.uris[k]) return Promise.resolve(s.uris[k]);
+    if (!s.loading) s.loading = {};
+    if (!s.loading[k]) {
+      s.loading[k] = fetchImages(s.files[k] || [], () => isLive(s))
+        .then(res => { if (isLive(s)) s.uris[k] = res; return res; })
+        .catch(() => ({ pages: [], missing: (s.files[k] || []).length }));
+    }
+    return s.loading[k];
   }
 
   // ---------- image overlay (modal with X / backdrop / Esc) ----------
@@ -1929,16 +2204,35 @@
     const n = document.createElement("div"); n.textContent = msg; dlg.appendChild(n);
     o.appendChild(dlg);
   }
-  function renderOverlay(o, key, label) {
+  // res: {pages: [{uri, card}], missing} from fetchImages.
+  function renderOverlay(o, key, label, res) {
     o.dataset.key = key; o.style.display = "flex"; o.replaceChildren();
     o._mnxPage = null;
+    o.setAttribute("role", "dialog");
+    o.setAttribute("aria-modal", "true");
+    o.setAttribute("aria-label", label + " images");
     const dlg = document.createElement("div"); dlg.className = "mnx-dialog";
     const head = buildHead(o, label, key);
     dlg.appendChild(head);
-    const uris = cachedUris[key] || [];
+    const pages = (res && res.pages) || [];
+    const uris = pages.map(p => p.uri);
+    const missing = (res && res.missing) || 0;
+    const cards = new Set(pages.map(p => p.card));
+    // Pages from more than one card say which card each came from -- a topic
+    // spread over nine notes is easier to follow knowing where you are in it.
+    const fromCard = i => (cards.size > 1 && pages[i]) ? " · card " + pages[i].card : "";
+    if (missing) {
+      const n = document.createElement("div"); n.className = "mnx-ovl-missing";
+      n.textContent = missing + " image" + (missing === 1 ? " is" : "s are") +
+        " missing from your Anki media folder. Syncing, or Tools → Check Media in Anki, usually brings " +
+        (missing === 1 ? "it" : "them") + " back.";
+      dlg.appendChild(n);
+    }
 
     if (!uris.length) {
-      const n = document.createElement("div"); n.textContent = "(couldn't load images)"; dlg.appendChild(n);
+      const n = document.createElement("div");
+      n.textContent = missing ? "None of these images could be loaded." : "(couldn't load images)";
+      dlg.appendChild(n);
       o.appendChild(dlg); return;
     }
     if (uris.length === 1) {
@@ -1980,7 +2274,7 @@
       idx = (i + uris.length) % uris.length;
       img.src = uris[idx];
       img.alt = label + " page " + (idx + 1) + " of " + uris.length;
-      count.textContent = (idx + 1) + " / " + uris.length;
+      count.textContent = (idx + 1) + " / " + uris.length + fromCard(idx);
       thumbEls.forEach((t, k) => t.classList.toggle("on", k === idx));
       stage.scrollTop = 0;
     }
@@ -1998,15 +2292,19 @@
     if (existing && existing.style.display === "flex" && existing.dataset.key === key) {
       hideOverlay(); return; // same key hides it
     }
-    if (!lastQid) return;
-    const files = currentFiles[key] || [];
+    const s = Q;
+    if (!s || !s.ready) return;
+    const files = s.files[key] || [];
     if (!files.length) { toast("No " + src.label + " image for this question."); return; }
     const o = ensureOverlay();
-    if (!cachedUris[key]) {
-      renderOverlayMessage(o, src.label, key, "Loading...");
-      cachedUris[key] = await fetchImages(files);
-    }
-    renderOverlay(o, key, src.label);
+    if (s.uris[key]) { renderOverlay(o, key, src.label, s.uris[key]); return; }
+    renderOverlayMessage(o, src.label, key, "Loading…");
+    const res = await loadKey(s, key);
+    // The question changed while the images loaded: they belong to the old
+    // one, so close rather than show them over the new question.
+    if (!isLive(s)) { if (o.dataset.key === key) hideOverlay(); return; }
+    if (o.style.display !== "flex" || o.dataset.key !== key) return;   // closed, or another key opened
+    renderOverlay(o, key, src.label, res);
   }
   // While OUR overlay is open, the keys that drive it must not also reach the
   // qbank. preventDefault() only cancels the browser's own default action --
@@ -2045,31 +2343,60 @@
   //
   // Once we act on a key we claim it outright: capture phase on window, then
   // stopImmediatePropagation, so the qbank never also acts on it.
+  // Which letter was pressed. The letter typed, when it is a Latin letter --
+  // so AZERTY/QWERTZ users get the key printed on their keyboard. Otherwise the
+  // PHYSICAL key: with an Arabic (or any non-Latin) layout active the F key
+  // types "ب", and matching only the typed character made every shortcut dead.
+  function shortcutLetter(e) {
+    const k = e.key || "";
+    if (k.length === 1 && /[a-z]/i.test(k)) return k.toUpperCase();
+    const m = /^Key([A-Z])$/.exec(e.code || "");
+    return m ? m[1] : "";
+  }
+  function isHelpKey(e) {
+    return e.key === "?" || e.key === "؟" || (e.code === "Slash" && e.shiftKey);   // ? / Arabic ؟
+  }
+  // Typing somewhere? Read the REAL target: an event from inside a web
+  // component's shadow root reaches window retargeted to the component, so
+  // e.target looked like a plain element and "f" typed into its text box
+  // opened First Aid.
+  function typingInto(e) {
+    const path = typeof e.composedPath === "function" ? e.composedPath() : [];
+    const t = path[0] || e.target;
+    if (!t || t.nodeType !== 1) return false;
+    const tag = (t.tagName || "").toLowerCase();
+    return tag === "input" || tag === "textarea" || tag === "select" || !!t.isContentEditable;
+  }
+  const SHORTCUT_LETTERS = new Set(Object.keys(IMG_SOURCES).concat(["G", "Q", "V", "D"]));
   window.addEventListener("keydown", e => {
     if (!e.isTrusted) return;            // page script must not drive the shortcuts
-    const k = (e.key || "").toLowerCase();
     const claim = () => { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); };
-    if (k === "escape") {
+    if (e.key === "Escape") {
       const su = document.getElementById(SUMMARY_ID);
       if (su && su.style.display === "flex") { closeSummary(); claim(); }
       return;
     }
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
-    const tgt = e.target;
-    const tag = ((tgt && tgt.tagName) || "").toLowerCase();
-    if (tag === "input" || tag === "textarea" || tag === "select" || (tgt && tgt.isContentEditable)) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+    if (typingInto(e)) return;
     if (document.getElementById("mnx-md-overlay")) return;   // a dialog is open — don't hijack keys
     if (!kbShortcuts) return;            // the toggle turns ALL of them off; overlays stay a click away
-    if (!lastQid || !isAnswered()) return;
-    if (e.key === "?") { showShortcutHelp(); claim(); return; }
-    if (k.length !== 1) return;
-    const up = k.toUpperCase();
-    const qid = lastQid;
-    if (IMG_SOURCES[up]) { showImages(up); claim(); }                                                   // F/S/P/O/E/A image overlays
-    else if (up === "G") { openMakeCardDialog(String((window.getSelection && window.getSelection()) || "")); claim(); }   // make card
-    else if (up === "Q") { copyFullQuestion(qid); claim(); }                                            // copy for AI
-    else if (up === "V") { openSaveDialog(qid); claim(); }                                              // save to Missed Qs
-    else if (up === "D") { openInAnki(qid); claim(); }                                                  // open in Anki
+    // Only for the question whose panel is up. Between a question changing and
+    // the next tick noticing, Q still describes the OLD one; the page's own id
+    // is checked so a key in that second can't act on it.
+    const s = Q;
+    if (!s || !s.ready || !isAnswered() || findQid() !== s.qid) return;
+    const up = shortcutLetter(e);
+    const ours = isHelpKey(e) || SHORTCUT_LETTERS.has(up);
+    if (!ours) return;
+    claim();
+    if (e.repeat) return;                // holding a key down must not flicker the overlay open and shut
+    const qid = s.qid;
+    if (isHelpKey(e)) showShortcutHelp();
+    else if (IMG_SOURCES[up]) showImages(up);                                                             // F/S/P/O/E/A image overlays
+    else if (up === "G") openMakeCardDialog(String((window.getSelection && window.getSelection()) || "")); // make card
+    else if (up === "Q") copyFullQuestion(qid);                                                           // copy for AI
+    else if (up === "V") openSaveDialog(s);                                                                // save to Missed Qs
+    else if (up === "D") openInAnki(s);                                                                    // open in Anki
   }, true);
   // small keyboard cheatsheet (press ?)
   function showShortcutHelp() {
@@ -2102,7 +2429,7 @@
   // FEATURE 2b - card preview, copy-Q, and "Save to Missed Qs"
   // The review-page note-taking workflow: read the card, copy the question, or
   // duplicate the matched card into a chapter deck with your note appended.
-  // Uses currentNotes (set by buildTable) + the bridge write actions.
+  // Uses the question session Q (set by buildTable) + the bridge write actions.
   // ============================================================
   const MISSED_TAG = "Mnestic::Missed";
   // AnkiHub overwrites a managed note's fields on a deck update unless the field
@@ -2128,21 +2455,31 @@
   const SAFE_TAGS = new Set(["B","STRONG","I","EM","U","S","STRIKE","SUB","SUP","BR","P","DIV","SPAN",
     "UL","OL","LI","TABLE","THEAD","TBODY","TFOOT","TR","TD","TH","CAPTION","COL","COLGROUP",
     "H1","H2","H3","H4","H5","H6","BLOCKQUOTE","CODE","PRE","HR","IMG","A","FONT","SMALL","BIG","CENTER","DL","DT","DD"]);
+  // No "class": card HTML sits inside the qbank's page, where a class like
+  // "fixed inset-0" means something to the SITE's stylesheet -- a card could
+  // have laid itself over the page. Only our own "cloze" survives.
   const SAFE_ATTRS = {
-    "*": ["class", "title", "dir", "lang"],
+    "*": ["title", "dir", "lang"],
     IMG: ["src", "alt", "width", "height"],
     A: ["href", "target"],
     TD: ["colspan", "rowspan"], TH: ["colspan", "rowspan"],
     COL: ["span"], COLGROUP: ["span"],
     FONT: ["color", "size", "face"]
   };
-  // Allow only inert URLs. Images may be an Anki media filename or a data: image
-  // (we inline media as data: ourselves); links may not be javascript:/data:.
-  function safeUrl(value, allowDataImage) {
+  // An image source Mnestic will load: an Anki media filename (which we then
+  // inline from your own collection) or a data: image. Anything with a scheme
+  // or a host -- https://, //cdn…, file: -- is refused. A remote image would be
+  // fetched the moment a preview opened, telling whoever serves it your address
+  // and that you just looked at that card.
+  function safeMediaSrc(value) {
     const s = String(value || "").replace(/[\x00-\x1f\x7f]/g, "").trim();
-    if (/^(?:javascript|vbscript|file)\s*:/i.test(s)) return null;
-    if (/^data\s*:/i.test(s)) return allowDataImage && /^data:image\/(png|jpe?g|gif|webp|avif|bmp);base64,/i.test(s) ? s : null;
+    if (!s) return null;
+    if (/^data\s*:/i.test(s)) return /^data:image\/(png|jpe?g|gif|webp|avif|bmp);base64,/i.test(s) ? s : null;
+    if (/^[a-z][a-z0-9+.-]*\s*:/i.test(s) || s.indexOf("//") === 0 || s.indexOf("\\\\") === 0) return null;
     return s;
+  }
+  function isRemoteSrc(value) {
+    return /^\s*(?:https?:)?\/\//i.test(String(value || ""));
   }
   // Resource links (Sketchy / B&B / … videos) must resolve to a plain web URL.
   // Resolving against the page also normalises relative and protocol-relative
@@ -2163,19 +2500,31 @@
         if (node.nodeType !== 1) return;                       // drop comments etc.
         const tag = node.tagName.toUpperCase();
         if (!SAFE_TAGS.has(tag)) { walk(node, dest); return; } // unknown tag: keep its text, drop the tag
+        if (tag === "IMG" && isRemoteSrc(node.getAttribute("src"))) {
+          const note = document.createElement("span");
+          note.className = "mnx-remote-img";
+          note.textContent = "[remote image not loaded]";
+          note.title = "This card links an image on another website. Mnestic doesn't load it, so that site can't see you viewing the card.";
+          dest.appendChild(note);
+          return;
+        }
         const el = document.createElement(tag);
         const allowed = SAFE_ATTRS["*"].concat(SAFE_ATTRS[tag] || []);
         Array.prototype.forEach.call(node.attributes, attr => {
           const name = attr.name.toLowerCase();
           if (name.indexOf("on") === 0) return;                // never an event handler
+          if (name === "class") {                              // our own cloze styling only
+            if (/(^|\s)cloze(\s|$)/.test(attr.value)) el.className = "cloze";
+            return;
+          }
           if (allowed.indexOf(name) === -1) return;
           let val = attr.value;
-          if (name === "src" || name === "href") {
-            val = safeUrl(val, name === "src");
-            if (val === null) return;
-          }
+          if (name === "src") val = safeMediaSrc(val);
+          else if (name === "href") val = safeLinkUrl(val);
+          if (val === null) return;
           el.setAttribute(name, val);
         });
+        if (tag === "IMG" && !el.getAttribute("src")) return;  // nothing safe to show
         if (tag === "A") { el.setAttribute("rel", "noopener noreferrer nofollow"); el.setAttribute("target", "_blank"); }
         walk(node, el);
         dest.appendChild(el);
@@ -2228,17 +2577,40 @@
   }
 
   // ---- generic modal ----
+  // A real dialog for assistive tech: labelled, modal, focus moved in and kept
+  // in (Tab cycles inside it), and handed back to where it was on close.
+  const FOCUSABLE = "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])";
+  let modalSeq = 0;
   function buildModal(titleText, onClose) {
     const old = document.getElementById("mnx-md-overlay"); if (old) old.remove();
+    const before = document.activeElement;
     const ov = document.createElement("div"); ov.id = "mnx-md-overlay";
     ov.classList.toggle("mnx-dark", darkMode);
-    const onKey = e => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
-    function close() { document.removeEventListener("keydown", onKey, true); ov.remove(); if (onClose) { try { onClose(); } catch (e) {} } }
+    const onKey = e => {
+      if (e.key === "Escape") { e.stopPropagation(); close(); return; }
+      if (e.key !== "Tab") return;
+      const items = Array.from(md.querySelectorAll(FOCUSABLE)).filter(el => el.offsetParent !== null);
+      if (!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && (document.activeElement === last || !md.contains(document.activeElement))) { e.preventDefault(); first.focus(); }
+    };
+    function close() {
+      document.removeEventListener("keydown", onKey, true);
+      ov.remove();
+      if (onClose) { try { onClose(); } catch (e) {} }
+      try { if (before && before.isConnected && before.focus) before.focus(); } catch (e) {}
+    }
     ov.addEventListener("click", e => { if (e.target === ov) close(); });
     const md = document.createElement("div"); md.className = "mnx-md";
+    const titleId = "mnx-md-title-" + (++modalSeq);
+    md.setAttribute("role", "dialog");
+    md.setAttribute("aria-modal", "true");
+    md.setAttribute("aria-labelledby", titleId);
     const head = document.createElement("div"); head.className = "mnx-md-head";
-    const b = document.createElement("b"); b.textContent = titleText;
-    const x = document.createElement("button"); x.className = "mnx-md-x"; x.textContent = "×"; x.addEventListener("click", close);
+    const b = document.createElement("b"); b.textContent = titleText; b.id = titleId;
+    const x = document.createElement("button"); x.className = "mnx-md-x"; x.textContent = "×";
+    x.setAttribute("aria-label", "Close"); x.addEventListener("click", close);
     head.appendChild(b); head.appendChild(x);
     const body = document.createElement("div"); body.className = "mnx-md-body";
     const foot = document.createElement("div"); foot.className = "mnx-md-foot";
@@ -2246,6 +2618,9 @@
     ov.appendChild(md);
     (document.body || document.documentElement).appendChild(ov);
     document.addEventListener("keydown", onKey, true);
+    // After the caller has filled it in; a dialog that focuses its own field
+    // (Make card's text box) keeps that.
+    setTimeout(() => { if (ov.isConnected && !md.contains(document.activeElement)) x.focus(); }, 0);
     return { ov, body, foot, close };
   }
   function mdButton(label, cls, onClick) {
@@ -2334,20 +2709,30 @@
       const t = document.createElement("div"); t.className = "mnx-img-thumb";
       const img = document.createElement("img"); img.src = rec.dataUrl;
       const x = document.createElement("button"); x.type = "button"; x.className = "mnx-img-x"; x.textContent = "×";
-      x.addEventListener("click", () => { const i = images.indexOf(rec); if (i >= 0) images.splice(i, 1); t.remove(); });
+      x.addEventListener("click", onUserClick(() => { const i = images.indexOf(rec); if (i >= 0) images.splice(i, 1); t.remove(); }));
       t.appendChild(img); t.appendChild(x); thumbs.appendChild(t);
     }
     function handlePaste(e) {
+      if (!e.isTrusted) return;                          // page script can forge a paste
       const items = (e.clipboardData && e.clipboardData.items) || [];
       let used = false;
       for (const it of items) { if (it.type && it.type.indexOf("image") === 0) { const f = it.getAsFile(); if (f) { addImageFile(f); used = true; } } }
       if (used) e.preventDefault();                       // don't also paste the filename as text
     }
-    drop.addEventListener("click", () => fileInput.click());
+    // Page script can build a DataTransfer of its own files and dispatch a drop
+    // or change event with it, so every way in requires a real user event.
+    drop.addEventListener("click", onUserClick(() => fileInput.click()));
     drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("mnx-img-over"); });
     drop.addEventListener("dragleave", () => drop.classList.remove("mnx-img-over"));
-    drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("mnx-img-over"); for (const f of (e.dataTransfer && e.dataTransfer.files) || []) addImageFile(f); });
-    fileInput.addEventListener("change", () => { for (const f of fileInput.files) addImageFile(f); fileInput.value = ""; });
+    drop.addEventListener("drop", e => {
+      e.preventDefault(); drop.classList.remove("mnx-img-over");
+      if (!e.isTrusted) return;
+      for (const f of (e.dataTransfer && e.dataTransfer.files) || []) addImageFile(f);
+    });
+    fileInput.addEventListener("change", e => {
+      if (e.isTrusted) for (const f of fileInput.files) addImageFile(f);
+      fileInput.value = "";
+    });
     // "From this question" — click a page image's thumbnail to attach it.
     // Only offered where the worker is actually allowed to fetch the qbank's
     // images; showing thumbnails that can only ever error is worse than not
@@ -2362,7 +2747,7 @@
         t.title = qi.inExpl ? "explanation figure" : "question image";
         const im = document.createElement("img"); im.src = qi.src; im.referrerPolicy = "no-referrer";
         t.appendChild(im);
-        t.addEventListener("click", async () => {
+        t.addEventListener("click", onUserClick(async () => {
           if (t.dataset.added || t.classList.contains("loading")) return;
           t.classList.add("loading");
           try {
@@ -2372,7 +2757,7 @@
             t.classList.add("added"); t.dataset.added = "1";
           } catch (e) { toast("Couldn't fetch that image (" + e + ")"); }
           t.classList.remove("loading");
-        });
+        }));
         strip.appendChild(t);
       });
       wrap.appendChild(qlbl); wrap.appendChild(strip);
@@ -2392,26 +2777,35 @@
 
   // Resolve Anki media filenames in a preview to inline data URIs (lazy + cached),
   // so card images show without a media server. Cheap: a few small fetches/card.
-  const mediaCache = {};
+  // A small least-recently-used cache: previews on question after question in
+  // one tab used to keep every image they ever showed, as data: URLs.
+  const MEDIA_CACHE_MAX = 60;
+  const mediaCache = new Map();
+  function cacheMedia(fn, uri) {
+    mediaCache.delete(fn);
+    mediaCache.set(fn, uri);
+    while (mediaCache.size > MEDIA_CACHE_MAX) mediaCache.delete(mediaCache.keys().next().value);
+  }
   async function resolveMediaImages(container, stillCurrent) {
     for (const img of Array.from(container.querySelectorAll("img"))) {
       const src = img.getAttribute("src") || "";
       if (/^(https?:|data:)/i.test(src)) continue;
       const fn = decodeURIComponent((src.split(/[\\/]/).pop() || "").split("?")[0]);
       if (!fn) { continue; }
-      let uri = mediaCache[fn];
+      let uri = mediaCache.get(fn);
       if (uri === undefined) {
         try { const b64 = await bridge("readMedia", { filename: fn }); uri = b64 ? ("data:" + mimeFor(fn) + ";base64," + b64) : null; }
         catch (e) { uri = null; }
-        mediaCache[fn] = uri;
       }
+      cacheMedia(fn, uri);
       if (stillCurrent && !stillCurrent()) return;        // user navigated away
       if (uri) img.src = uri; else img.remove();
     }
   }
 
   function openPreview(list, startIdx) {
-    list = (list && list.length) ? list : currentNotes;
+    const s = Q;
+    list = (list && list.length) ? list : ((s && s.notes) || []);
     if (!list.length) { toast("No card to preview."); return; }
     let idx = Math.min(Math.max(0, startIdx || 0), list.length - 1);
     const m = buildModal("Card preview");
@@ -2439,121 +2833,17 @@
       resolveMediaImages(content, () => idx === myIdx);   // inline the card's images
     }
     render();
-    m.foot.appendChild(mdButton("Open in Anki", "mnx-md-cancel", () => openInAnki(lastQid)));
+    m.foot.appendChild(mdButton("Open in Anki", "mnx-md-cancel", () => openInAnki(s)));
     m.foot.appendChild(mdButton("Close", "mnx-md-ok", m.close));
   }
 
-  // ---- Save to Missed Qs (duplicate card into a chapter deck + append note) ----
-  function deckLeaf(name) { const p = name.split("::"); return p[p.length - 1]; }
-  function akNormDeck(s) { return (s || "").toLowerCase().replace(/^\d+[_\-.\s]*/, "").replace(/[^a-z0-9]+/g, ""); }
-  // ---- where a card says it belongs -------------------------------------
-  // Read off a real v12 deck, the two Steps organise completely differently:
-  //   Step 1  #FirstAid::07_Cardiovascular::...     organ systems, numbered
-  //   Step 2  #Resources_by_rotation::IM|FM|Peds    rotations, NOT numbered
-  // A "first numbered segment" rule therefore found nothing useful on Step 2,
-  // and on both Steps it happily picked up #Low/HighYield::1-HighYield — a
-  // yield marker, not a chapter. So read the roots that actually carry chapters,
-  // best source first, and offer what we find rather than deciding for you.
-  const ROTATION_NAMES = {
-    im: "Internal Medicine", fm: "Family Medicine", peds: "Pediatrics",
-    obgyn: "ObGyn", psych: "Psychiatry", neuro: "Neurology",
-    surgery: "Surgery", em: "Emergency Medicine"
-  };
-  const CHAPTER_ROOTS = [
-    { root: "#Resources_by_rotation", from: "rotation", rotation: true },
-    { root: "!Shelf",                 from: "shelf",    rotation: true },
-    { root: "#FirstAid",              from: "First Aid" },
-    { root: "#B&B",                   from: "B&B" },
-    { root: "#Bootcamp",              from: "Bootcamp" },
-    { root: "#Physeo",                from: "Physeo" },
-    { root: "#SketchyIM",             from: "Sketchy" }
-  ];
-  // Some decks slot an edition between the resource and the chapter
-  // (#FirstAid::FA2024::07_Cardiovascular), others don't (#FirstAid::01_Biochem).
-  // Detect a year-bearing segment by character, so "FA2024" and "2023" are
-  // stepped over while a real chapter never is.
-  function isEditionSeg(seg) {
-    const t = String(seg || "");
-    let digits = 0, letters = 0;
-    for (let i = 0; i < t.length; i++) {
-      const c = t.charCodeAt(i);
-      if (c >= 48 && c <= 57) digits++;
-      else if ((c | 32) >= 97 && (c | 32) <= 122) letters++;
-    }
-    if (digits < 4 || letters > 4) return false;
-    for (let i = 0; i + 3 < t.length; i++) {
-      const a = t.charAt(i), b = t.charAt(i + 1);
-      if ((a === "1" && b === "9") || (a === "2" && b === "0")) {
-        const c3 = t.charCodeAt(i + 2), c4 = t.charCodeAt(i + 3);
-        if (c3 >= 48 && c3 <= 57 && c4 >= 48 && c4 <= 57) return true;
-      }
-    }
-    return false;
-  }
-  function chapterNoise(seg) {
-    if (!seg) return true;
-    if (seg.charAt(0) === "#") return true;             // #Cards_AnKing_Did etc
-    const l = seg.toLowerCase();
-    if (l.indexOf("highyield") >= 0 || l.indexOf("loweryield") >= 0) return true;
-    if (l.indexOf("lowyield") >= 0 || l.indexOf("retired") >= 0) return true;
-    if (l === "other" || l === "extra" || l === "misc" || l.indexOf("test") === 0) return true;
-    return isNoiseSeg(seg);
-  }
-  // Ranked chapters this question's cards agree on: [{name, from, n}].
-  function chapterCandidates(notes, sv) {
-    // Cards shared between Steps carry BOTH Steps' tags, so a Step 1 card can
-    // suggest a Step 2 rotation. Read the current Step's tags when the card has
-    // them, and rank organ-systems first on Step 1, rotations first on Step 2.
-    const step = sv || currentSv || 1;
-    const roots = CHAPTER_ROOTS.slice().sort((a, b) => {
-      const w = r => (step === 2 ? (r.rotation ? 0 : 1) : (r.rotation ? 1 : 0));
-      return w(a) - w(b);
-    });
-    const prefix = "#AK_Step" + step + "_";
-    const found = new Map();                            // name -> {name, from, n, rank}
-    (notes || []).forEach(note => {
-      const all = note.tags || [];
-      // Prefer this Step's tags, but if the card carries only a couple, fall
-      // back to all of them — better three choices than one.
-      const mine = all.filter(t => String(t).indexOf(prefix) === 0);
-      const tags = mine.length >= 3 ? mine : all;
-      const here = new Set();
-      tags.forEach(tag => {
-        const parts = String(tag).split("::");
-        roots.forEach((src, rank) => {
-          const i = parts.indexOf(src.root);
-          if (i < 0) return;
-          let at = i + 1;
-          if (isEditionSeg(parts[at])) at++;            // step over FA2024 etc
-          if (!parts[at]) return;
-          const raw = parts[at];
-          if (chapterNoise(raw)) return;
-          let name = cleanSeg(raw);
-          if (src.rotation) name = ROTATION_NAMES[name.toLowerCase()] || name;
-          if (!name || name.length < 2) return;
-          const key = rank + "|" + name.toLowerCase();
-          if (here.has(key)) return;                    // count once per card
-          here.add(key);
-          const e = found.get(key);
-          if (e) e.n++; else found.set(key, { name: name, from: src.from, n: 1, rank: rank });
-        });
-      });
-    });
-    const out = Array.from(found.values());
-    if (!out.length) return [];
-    out.sort((a, b) => (a.rank - b.rank) || (b.n - a.n) || a.name.localeCompare(b.name));
-    // drop duplicates of the same name coming from a weaker source
-    const seen = new Set();
-    return out.filter(c => {
-      const k = c.name.toLowerCase();
-      if (seen.has(k)) return false;
-      seen.add(k); return true;
-    }).slice(0, 4);
-  }
+  // ---- Save to Missed Qs ------------------------------------------------------
+  // Chapter detection and deck matching live in lib/tags.js (unit-tested).
+  const deckLeaf = Tg.deckLeaf;
   function guessDeck(candidates, note) {
     const tnorm = ((note && note.tags) || []).map(t => t.toLowerCase().replace(/[^a-z0-9]+/g, ""));
     for (const d of candidates) {
-      const leaf = akNormDeck(deckLeaf(d));
+      const leaf = Tg.normDeck(deckLeaf(d));
       if (leaf.length >= 4 && tnorm.some(t => t.includes(leaf))) return d;
     }
     return null;
@@ -2565,113 +2855,196 @@
       .split("\\").join("\\\\")
       .split('"').join('\\"');
   }
-  // Move mode takes a card out of its home deck. Undo has to put it back, and
-  // the only moment we know where "back" is, is the moment we move it -- so
-  // record it then. Capped, because this grows once per saved question.
-  const HOME_MAX = 1000;
-  function rememberHome(qid, from, to) {
-    if (!qid || !from) return;
-    chrome.storage.local.get({ akHome: {} }, (c) => {
-      const map = c.akHome && typeof c.akHome === "object" ? c.akHome : {};
-      map[String(qid)] = { from: from, to: to || "", at: Date.now() };
+  const isObj = v => !!v && typeof v === "object" && !Array.isArray(v);
+
+  // ---- what each save did, so undo can reverse exactly that ------------------
+  // Keyed by NOTE id: { qid, mode, from, to, unsuspended: [card ids], at }.
+  //
+  // 1.3 kept one record per QUESTION id. A note saved from two questions had
+  // its home deck recorded under one of them only, so undoing from the other
+  // untagged it and left the card stranded in Missed Qs. And saving
+  // unsuspended every card of every note on the question, which undo never put
+  // back. Now a save unsuspends only the note you chose, remembers exactly
+  // which cards that unlocked, and undo re-suspends just those.
+  const SAVES_KEY = "mnxSaves", SAVES_MAX = 2000;
+  function readSaves() {
+    return new Promise(r => chrome.storage.local.get({ [SAVES_KEY]: {}, akHome: {} }, c => r({
+      saves: isObj(c[SAVES_KEY]) ? c[SAVES_KEY] : {},
+      legacyHome: isObj(c.akHome) ? c.akHome : {}           // 1.3's per-question record
+    })));
+  }
+  function updateSaves(fn) {
+    return new Promise(r => chrome.storage.local.get({ [SAVES_KEY]: {} }, c => {
+      const map = isObj(c[SAVES_KEY]) ? c[SAVES_KEY] : {};
+      fn(map);
       const keys = Object.keys(map);
-      if (keys.length > HOME_MAX) {
+      if (keys.length > SAVES_MAX) {
         keys.sort((a, b) => (map[a].at || 0) - (map[b].at || 0))
-            .slice(0, keys.length - HOME_MAX)
-            .forEach((k) => delete map[k]);
+            .slice(0, keys.length - SAVES_MAX).forEach(k => delete map[k]);
       }
-      chrome.storage.local.set({ akHome: map });
+      chrome.storage.local.set({ [SAVES_KEY]: map }, r);
+    }));
+  }
+  function recordSave(noteId, rec) { return updateSaves(map => { map[String(noteId)] = Object.assign({ at: Date.now() }, rec); }); }
+  function forgetSave(noteId) { return updateSaves(map => { delete map[String(noteId)]; }); }
+  function forgetLegacyHome(qid) {
+    chrome.storage.local.get({ akHome: {} }, c => {
+      const map = isObj(c.akHome) ? c.akHome : {};
+      if (map[String(qid)]) { delete map[String(qid)]; chrome.storage.local.set({ akHome: map }); }
     });
   }
-  function readHome(qid) {
-    return new Promise((resolve) => {
-      chrome.storage.local.get({ akHome: {} }, (c) => {
-        const map = c.akHome && typeof c.akHome === "object" ? c.akHome : {};
-        resolve(map[String(qid)] || null);
-      });
-    });
+
+  // Which question(s) a saved note was saved from (its Mnestic::QID tags).
+  const QID_TAG_RE = /^Mnestic::QID::(\d+)$/i;
+  function savedQids(note) {
+    return (note.tags || []).map(t => (QID_TAG_RE.exec(String(t)) || [])[1]).filter(Boolean);
   }
-  function forgetHome(qid) {
-    chrome.storage.local.get({ akHome: {} }, (c) => {
-      const map = c.akHome && typeof c.akHome === "object" ? c.akHome : {};
-      delete map[String(qid)];
-      chrome.storage.local.set({ akHome: map });
+  function isSavedNote(note) { return (note.tags || []).some(t => /^mnestic::missed(::|$)/i.test(String(t))); }
+  function isCopyNote(note) { return (note.tags || []).some(t => String(t).toLowerCase() === COPY_TAG.toLowerCase()); }
+
+  // The saved notes that concern this question:
+  //   mine    saved FROM this question -- or saved before 1.4, when nothing
+  //           recorded which question a save came from
+  //   shared  saved from this question AND another one: undo here drops only
+  //           this question's link, and the note stays missed for the other
+  //   others  saved from a different question that happens to share the note.
+  //           Left alone: 1.3's undo untagged these too.
+  async function savedForQuestion(s) {
+    const out = { mine: [], shared: [], others: [] };
+    const q = s.query || qidQuery(s.qid, s.sv || 1);
+    const nids = (await bridge("searchNotes", { query: q + " (tag:" + MISSED_TAG + " OR tag:" + MISSED_TAG + "::*)" })) || [];
+    if (!nids.length) return out;
+    const notes = (await bridge("noteInfo", { notes: nids })) || [];
+    const id = safeQid(s.qid);
+    notes.filter(isSavedNote).forEach(n => {
+      const qs = savedQids(n);
+      if (!qs.length) out.mine.push(n);
+      else if (qs.indexOf(id) < 0) out.others.push(n);
+      else if (qs.length > 1) out.shared.push(n);
+      else out.mine.push(n);
     });
+    return out;
   }
 
   // ---- undo a save -----------------------------------------------------------
-  // Saving is three different things depending on the mode, so undoing it is
-  // three different things too. What it is NOT, in any mode, is a way to lose
-  // the notes someone typed: the Missed Questions field and the AnkiHub_Protect
-  // tag that guards it are left exactly as they are.
-  async function unsaveMissed(qid) {
-    const sv = await svForQuestion();
-    const base = qidQuery(qid, sv);
-    let copies = [];
-    try { copies = (await bridge("searchNotes", { query: base + " tag:" + COPY_TAG })) || []; }
-    catch (e) { copies = []; }
-    let originals = [];
-    try {
-      originals = (await bridge("searchNotes", {
-        query: base + " tag:" + MISSED_TAG + " -tag:" + COPY_TAG
-      })) || [];
-    } catch (e) { originals = []; }
-
-    if (!copies.length && !originals.length) return { nothing: true };
-
-    let deleted = 0, refused = 0, untagged = 0, movedBack = "";
-    if (copies.length) {
-      const r = await bridge("deleteNotes", { notes: copies });
-      deleted = (r && r.deleted) || 0;
-      refused = (r && r.refused && r.refused.length) || 0;
-    }
-    if (originals.length) {
-      const r = await bridge("removeTags", { notes: originals, tags: [MISSED_TAG] });
-      untagged = (r && r.updated) || 0;
-      // Put a moved card back only if it is still sitting where we put it.
+  // Reverses each note's own save: a copy is deleted (the add-on only ever
+  // deletes notes it created), a moved card goes back to where it lived -- if
+  // it is still where Mnestic put it -- and cards the save unsuspended are
+  // suspended again. What it never touches, in any mode: the notes you typed
+  // into Missed Questions, and the AnkiHub_Protect tag that guards them.
+  async function unsaveMissed(s, onlyNoteId) {
+    const found = await savedForQuestion(s);
+    const { saves, legacyHome } = await readSaves();
+    const id = safeQid(s.qid);
+    const out = { notes: 0, deleted: 0, refused: 0, movedBack: [], resuspended: 0, unlinked: 0, others: found.others.length };
+    let targets = found.mine.concat(found.shared);
+    if (onlyNoteId) targets = targets.filter(n => String(n.noteId) === String(onlyNoteId));
+    if (!targets.length) return Object.assign(out, { nothing: true });
+    for (const note of targets) {
+      const nid = note.noteId;
+      const rec = saves[String(nid)] || null;
+      const qs = savedQids(note);
+      if (qs.length > 1) {                                   // still missed from another question
+        await bridge("removeTags", { notes: [nid], tags: [Mt.qidTag(id)] });
+        out.unlinked++;
+        continue;
+      }
+      if (isCopyNote(note)) {
+        const r = await bridge("deleteNotes", { notes: [nid] });
+        out.deleted += (r && r.deleted) || 0;
+        out.refused += (r && r.refused && r.refused.length) || 0;
+        await forgetSave(nid);
+        continue;
+      }
+      // Before the missed tag goes: the add-on only re-suspends cards of a
+      // note that is still tagged missed.
+      if (rec && rec.unsuspended && rec.unsuspended.length) {
+        try {
+          const r = await bridge("suspend", { cards: rec.unsuspended });
+          out.resuspended += (r && r.suspended) || 0;
+        } catch (e) { if (!e || e.code !== "old-addon") throw e; }
+      }
+      await bridge("removeTags", { notes: [nid], tags: qs.length ? [MISSED_TAG, Mt.qidTag(id)] : [MISSED_TAG] });
+      out.notes++;
+      // Put a moved card back -- only if it is still where Mnestic put it.
       // Someone who has since filed it somewhere of their own keeps that.
-      const home = await readHome(qid);
+      const home = rec ? (rec.mode === "move" ? rec : null) : (!qs.length ? legacyHome[id] : null);
       if (home && home.from) {
-        let stillThere = originals;
+        let still = true;
         if (home.to) {
           try {
-            stillThere = (await bridge("searchNotes", {
-              query: base + ' "deck:' + searchLiteral(home.to) + '"'
-            })) || [];
-          } catch (e) { stillThere = []; }
+            still = ((await bridge("searchNotes", { query: "nid:" + nid + ' "deck:' + searchLiteral(home.to) + '"' })) || []).length > 0;
+          } catch (e) { still = false; }
         }
-        if (stillThere.length) {
-          try {
-            await bridge("setDeck", { notes: stillThere, deck: home.from });
-            movedBack = home.from;
-          } catch (e) {}
+        if (still) {
+          try { await bridge("setDeck", { notes: [nid], deck: home.from }); out.movedBack.push(home.from); } catch (e) {}
         }
-        forgetHome(qid);
       }
+      await forgetSave(nid);
     }
-    return { deleted, refused, untagged, movedBack };
+    if (!onlyNoteId) forgetLegacyHome(id);
+    return out;
+  }
+  function undoMessage(r) {
+    const bits = [];
+    if (r.notes) bits.push("untagged " + r.notes + (r.notes === 1 ? " note" : " notes"));
+    if (r.deleted) bits.push("deleted " + r.deleted + (r.deleted === 1 ? " copy" : " copies"));
+    if (r.movedBack.length) bits.push("moved " + (r.movedBack.length === 1 ? "it" : "them") + " back to " + deckLeaf(r.movedBack[0]));
+    if (r.resuspended) bits.push("re-suspended " + r.resuspended + (r.resuspended === 1 ? " card" : " cards"));
+    if (r.unlinked) bits.push(r.unlinked + (r.unlinked === 1 ? " note stays" : " notes stay") + " saved from another question");
+    let msg = bits.length ? "Removed from Missed Qs — " + bits.join(", ") + "." : "Removed from Missed Qs.";
+    // The add-on refuses to delete anything it did not create. Say so rather
+    // than reporting a clean undo that did not happen.
+    if (r.refused) msg += " " + r.refused + " note" + (r.refused === 1 ? " was" : "s were") + " left alone (not created by Mnestic).";
+    if (r.others) msg += " " + r.others + " note" + (r.others === 1 ? "" : "s") + " saved from other questions " + (r.others === 1 ? "was" : "were") + " left as they are.";
+    if (r.notes && !r.movedBack.length) msg += " Your notes in the card were kept.";
+    return msg;
   }
 
   function extraLabel(imgTags) {
     return imgTags.length ? (" + " + imgTags.length + " image" + (imgTags.length === 1 ? "" : "s")) : "";
   }
-  function openSaveDialog(qid) {
-    if (!currentNotes.length) { toast("No AnKing card matched this question to save."); return; }
+  // The qbank's System for a question, if a results page has told us.
+  function questionSystem(qid) {
+    const e = trackerLog.answered[currentQbankSlug() + " " + qid];
+    return (e && (e.sys || e.subj)) || "";
+  }
+  // Chapters you've picked before, to break ties the same way next time.
+  let chapterPicks = {};
+  chrome.storage.local.get({ mnxChapterPicks: {} }, c => { chapterPicks = isObj(c.mnxChapterPicks) ? c.mnxChapterPicks : {}; });
+  function rememberChapterPick(name) {
+    if (!name) return;
+    const k = String(name).toLowerCase();
+    chapterPicks[k] = (chapterPicks[k] || 0) + 1;
+    chrome.storage.local.set({ mnxChapterPicks: chapterPicks });
+  }
+
+  function openSaveDialog(s) {
+    s = s || Q;
+    if (!s || !s.notes.length) { toast("No AnKing card matched this question to save."); return; }
+    const qid = s.qid;
+    const notes = s.notes;                         // most specific first
     const m = buildModal("Save to Missed Qs — QID " + qid, () => document.removeEventListener("paste", pics.handlePaste));
-    let chosenNote = currentNotes[0];
+    let chosenNote = notes[0];
     const NEW_OPT = "➕ New deck…";
     let candidates = [];
 
-    // 1) card picker (only if several notes matched)
-    if (currentNotes.length > 1) {
+    // 1) card picker (only if several notes matched), best match first
+    if (notes.length > 1) {
       const lbl = document.createElement("label"); lbl.className = "mnx-md-lbl";
-      lbl.textContent = "Card (" + currentNotes.length + " matched)"; m.body.appendChild(lbl);
+      lbl.textContent = "Card (" + notes.length + " matched — most specific to this question first)"; m.body.appendChild(lbl);
       const pick = document.createElement("div"); pick.className = "mnx-pick";
-      currentNotes.forEach((note, i) => {
+      notes.forEach((note, i) => {
         const row = document.createElement("label");
         const r = document.createElement("input"); r.type = "radio"; r.name = "mnx-note"; r.checked = i === 0;
         r.addEventListener("change", () => { chosenNote = note; refreshDeckGuess(); });
         const span = document.createElement("span"); span.textContent = noteSnippet(note);
+        const ids = Mt.rankInfo(note).ids;
+        if (ids > 1) {
+          const hint = document.createElement("i"); hint.className = "mnx-pick-hint";
+          hint.textContent = " · tagged on " + ids + " questions";
+          span.appendChild(hint);
+        }
         row.appendChild(r); row.appendChild(span); pick.appendChild(row);
       });
       m.body.appendChild(pick);
@@ -2686,10 +3059,11 @@
     newInput.placeholder = "e.g. Missed Qs";
     newWrap.appendChild(newInput); m.body.appendChild(newWrap);
 
-    // 2b) chapter subdeck — one click, several options, never forced.
-    // Step 1 cards suggest an organ system, Step 2 cards a rotation; both offer
-    // whatever else their tags agree on, plus "no subdeck" and a free-text box.
-    const chapters = chapterCandidates(currentNotes);
+    // 2b) chapter subdeck — one click, several options, never forced. The
+    // question's own system (from the qbank's results page) and the chapters
+    // you've chosen before decide a tie; alphabetical order no longer does.
+    const system = questionSystem(qid);
+    const chapters = Tg.chapterCandidates(notes, s.sv || 1, { system, preferred: chapterPicks });
     let chapter = chapters.length ? chapters[0].name : null;
     let customChapter = "";
 
@@ -2709,7 +3083,8 @@
 
     function drawChips() {
       chips.replaceChildren();
-      const opts = chapters.map(c => ({ key: c.name, label: c.name, hint: c.from + (c.n > 1 ? " · ×" + c.n : "") }));
+      const opts = chapters.map(c => ({ key: c.name, label: c.name,
+        hint: c.from + (c.n > 1 ? " · ×" + c.n : "") + (c.system ? " · this question's system" : "") }));
       opts.push({ key: "__custom", label: "Custom…", hint: "" });
       opts.push({ key: null, label: "No subdeck", hint: "" });
       opts.forEach(o => {
@@ -2752,34 +3127,20 @@
       const rawLeaf = deckLeaf(path);
       // Compare normalised, so a deck already named "03_Respiratory" is
       // recognised as the Respiratory chapter and we don't append a second one.
-      const leaf = akNormDeck(rawLeaf);
+      const leaf = Tg.normDeck(rawLeaf);
       if (!leaf) return path;
-      const known = chapters.map(c => akNormDeck(c.name));
-      if (customChapter) known.push(akNormDeck(customChapter));
+      const known = chapters.map(c => Tg.normDeck(c.name));
+      if (customChapter) known.push(Tg.normDeck(customChapter));
       if (known.indexOf(leaf) >= 0) return path.slice(0, -(rawLeaf.length + 2));
       return path;
     }
-    // Prefer a subdeck you already have. Someone whose decks are named
-    // "01_Cardiology, 02_Renal, 03_Respiratory" must not end up with a second,
-    // parallel "Cardiology" next to them — match the existing leaf and use it.
-    function existingChapterDeck(base, chap) {
-      if (!base || !chap || !deckCache) return null;
-      const want = akNormDeck(chap);
-      if (want.length < 3) return null;
-      const prefix = base + "::";
-      for (const d of deckCache) {
-        if (d.indexOf(prefix) !== 0) continue;
-        if (d.slice(prefix.length).indexOf("::") >= 0) continue;   // direct children only
-        const leaf = akNormDeck(deckLeaf(d));
-        if (leaf === want || leaf.indexOf(want) >= 0 || want.indexOf(leaf) >= 0) return d;
-      }
-      return null;
-    }
+    // Prefer a subdeck you already have: "03_Respiratory" is reused rather than
+    // a parallel "Respiratory" created beside it.
     function targetDeck() {
       const base = baseDeck();
       if (!base) return "";
       if (!chapter) return base;
-      return existingChapterDeck(base, chapter) || (base + "::" + chapter);
+      return Tg.existingChapterDeck(deckCache, base, chapter) || (base + "::" + chapter);
     }
     function refreshDest() {
       const t = targetDeck();
@@ -2812,11 +3173,11 @@
     });
     if (deckCache) fillDecks(deckCache);
     else {
-      const o = document.createElement("option"); o.textContent = "Loading decks…"; sel.appendChild(o);
+      const o = document.createElement("option"); o.value = ""; o.textContent = "Loading decks…"; sel.appendChild(o);
       bridge("listDecks").then(d => { deckCache = d || []; fillDecks(deckCache); })
         .catch(e => { deckCache = deckCache || []; sel.replaceChildren();
           const oo = document.createElement("option"); oo.value = NEW_OPT; oo.textContent = NEW_OPT; sel.appendChild(oo);
-          newWrap.style.display = "block"; toast("Couldn't list decks (" + e + ")"); });
+          newWrap.style.display = "block"; toast("Couldn't list decks: " + bridgeFailure(e)); });
     }
 
     // 3) your note (pre-filled with any text you've selected on the page)
@@ -2831,11 +3192,11 @@
     m.body.appendChild(pics.el);
     document.addEventListener("paste", pics.handlePaste);   // removed on close (see buildModal onClose)
 
-    // 4) save — upload pasted images to Anki media, then copy the card
-    const savedNote = document.createElement("div");
-    savedNote.className = "mnx-md-dest";
-    savedNote.style.display = "none";
-    m.body.appendChild(savedNote);
+    // 4) what is already saved for this question
+    const savedBox = document.createElement("div");
+    savedBox.className = "mnx-saved";
+    savedBox.style.display = "none";
+    m.body.appendChild(savedBox);
 
     const modeNote = document.createElement("div");
     modeNote.className = "mnx-md-dest";
@@ -2850,10 +3211,9 @@
       const label = saveBtn.textContent;
       saveBtn.disabled = true; saveBtn.textContent = "Saving…";
       try {
-        // The deck list may still be in flight. Without it, existingChapterDeck
-        // can't match, and we'd create "Missed Qs::Respiratory" beside the
-        // user's own "Missed Qs::03_Respiratory" — the exact fragmentation this
-        // is meant to prevent. Wait for it, THEN resolve the target deck.
+        // The deck list may still be in flight. Without it, an existing
+        // "Missed Qs::03_Respiratory" can't be matched and we'd create a
+        // parallel "Missed Qs::Respiratory". Wait for it, THEN resolve the deck.
         if (deckCache === null) {
           try { deckCache = (await bridge("listDecks")) || []; } catch (e) { deckCache = []; }
         }
@@ -2866,16 +3226,6 @@
         const imgTags = await pics.upload(SITE.id + "-" + qid);
         let noteHtml = ta.value.trim() ? escapeHtml(ta.value.trim()).replace(/\n/g, "<br>") : "";
         if (imgTags.length) noteHtml += (noteHtml ? "<br>" : "") + imgTags.join("<br>");
-        // Three ways to keep a missed question, chosen in the popup:
-        //
-        //   move  the ORIGINAL card moves into the chapter subdeck. Real deck,
-        //         no duplicate, keeps its review history, and the note keeps its
-        //         ankihub_id so AnKing updates keep arriving.
-        //   tag   nothing moves; the note is tagged Mnestic::Missed::<chapter>,
-        //         which gives the same tree in Browse without touching decks.
-        //   copy  duplicate the note into the subdeck. A separate card that will
-        //         never receive AnKing updates again — offered, not the default.
-        const sv = await svForQuestion();
         // Anki splits tags on whitespace, and a chapter name comes from deck
         // tags we don't control — cleanSeg turns "_" into " ", so a segment
         // like "Cardio_marked_leech" would fan out into three tags and write
@@ -2883,30 +3233,44 @@
         const chapTag = chapter
           ? MISSED_TAG + "::" + String(chapter).split("::").join("_").replace(/\s+/g, "_")
           : MISSED_TAG;
-
-        // Already kept? Then this is a second note on the same question — append
-        // to what's there rather than making another of anything.
-        let existing = [];
-        try { existing = await bridge("searchNotes", { query: qidQuery(qid, sv) + " tag:" + MISSED_TAG }); }
-        catch (e) { existing = []; }
-
+        // Mnestic::QID::<id> records WHICH question this was missed on, so the
+        // missed list and undo work per question rather than per note.
+        const tags = [MISSED_TAG, chapTag, Mt.qidTag(qid)];
+        //   move  the ORIGINAL card moves into the chapter subdeck. Real deck,
+        //         no duplicate, keeps its review history, and the note keeps its
+        //         ankihub_id so AnKing updates keep arriving.
+        //   tag   nothing moves; the note is tagged Mnestic::Missed::<chapter>.
+        //   copy  duplicate the note into the subdeck. A separate card that will
+        //         never receive AnKing updates again — offered, not the default.
         let what;
         if (missedMode === "copy") {
+          let existing = [];
+          try { existing = (await bridge("searchNotes", { query: (s.query || qidQuery(qid, s.sv || 1)) + " tag:" + COPY_TAG })) || []; }
+          catch (e) { existing = []; }
           if (existing.length) {
-            if (noteHtml) await bridge("updateNote", { noteId: existing[0], fieldAppends: { "Missed Questions": noteHtml }, addTags: [PROTECT_TAG] });
+            // Already copied: add to that copy rather than make another.
+            if (noteHtml) await bridge("updateNote", { noteId: existing[0], fieldAppends: { "Missed Questions": noteHtml }, addTags: [PROTECT_TAG, Mt.qidTag(qid)] });
             what = noteHtml ? "Added your note" + extraLabel(imgTags) + " to the copy you already saved."
-                            : "You've already saved this question — nothing to add.";
+                            : "You've already saved a copy of this question — nothing to add.";
           } else {
-            const params = { noteId: chosenNote.noteId, deck, addTags: [MISSED_TAG, chapTag] };
+            const params = { noteId: chosenNote.noteId, deck, addTags: tags.slice() };
             if (noteHtml) { params.fieldAppends = { "Missed Questions": noteHtml }; params.addTags.push(PROTECT_TAG); }
-            await bridge("copyNote", params);
+            const res = await bridge("copyNote", params);
+            const copyId = (res && typeof res === "object") ? res.noteId : res;
+            if (copyId) await recordSave(copyId, { qid, mode: "copy", copyOf: chosenNote.noteId });
             what = "Saved a copy to " + deckLeaf(deck) + (noteHtml ? " with your note" + extraLabel(imgTags) + "." : ".");
           }
         } else {
-          const params = { noteId: chosenNote.noteId, addTags: [MISSED_TAG, chapTag] };
+          const params = { noteId: chosenNote.noteId, addTags: tags.slice() };
           if (noteHtml) { params.fieldAppends = { "Missed Questions": noteHtml }; params.addTags.push(PROTECT_TAG); }
           await bridge("updateNote", params);
-          try { await bridge("unsuspend", { queries: [qidQuery(qid, sv)] }); } catch (e) {}
+          // Unsuspend the card you chose -- not every card of every note on the
+          // question, as 1.3 did -- and keep the list so undo can put it back.
+          let unsuspended = [];
+          try {
+            const r = await bridge("unsuspend", { queries: ["nid:" + chosenNote.noteId] });
+            unsuspended = (r && r[0] && Array.isArray(r[0].cids)) ? r[0].cids : [];
+          } catch (e) {}
           if (missedMode === "move" && deck) {
             // The browser updates the extension on its own; the Anki add-on has
             // to be updated by hand. Someone can easily be running a new
@@ -2916,81 +3280,97 @@
             let res = null, tooOld = false;
             try { res = await bridge("setDeck", { notes: [chosenNote.noteId], deck }); }
             catch (err) {
-              if (/unknown op/i.test(String(err))) tooOld = true; else throw err;
+              if (err && err.code === "old-addon") tooOld = true; else throw err;
             }
             if (tooOld) {
+              await recordSave(chosenNote.noteId, { qid, mode: "tag", unsuspended });
               what = "Tagged it, but your Mnestic Bridge add-on is too old to move cards — " +
                      "update the add-on in Anki to use Move mode.";
             } else {
               const n = (res && res.moved) || 0;
               // res.from is the deck the card actually lived in. Only the add-on
               // knows it, and only right now -- after this it is gone.
-              if (res && res.from) rememberHome(qid, res.from, deck);
+              await recordSave(chosenNote.noteId, { qid, mode: "move", from: (res && res.from) || "", to: deck, unsuspended });
               what = "Moved " + n + (n === 1 ? " card" : " cards") + " to " + deckLeaf(deck) +
                 (noteHtml ? " with your note" + extraLabel(imgTags) + "." : ".");
             }
           } else {
+            await recordSave(chosenNote.noteId, { qid, mode: "tag", unsuspended });
             what = "Tagged " + chapTag + (noteHtml ? " and added your note" + extraLabel(imgTags) + "." : ".");
           }
         }
 
+        rememberChapterPick(chapter);
         chrome.storage.local.set({ akMissedDeck: baseDeck() });
         if (deckCache && !deckCache.includes(deck)) deckCache.push(deck);
         m.close();
         toast(what);
       } catch (e) {
         saveBtn.disabled = false; saveBtn.textContent = label;
-        toast("Couldn't save (" + e + ")");
+        toast("Couldn't save: " + bridgeFailure(e));
       }
     });
     // Saving by mistake used to be permanent: nothing in the extension could
     // take a question back out of Missed Qs, and the only fix was Anki's Browse
     // window. The button appears once we know there IS something to undo.
-    const undoBtn = mdButton("Remove from Missed Qs", "mnx-md-undo", async () => {
-      const label = undoBtn.textContent;
-      undoBtn.disabled = true; undoBtn.textContent = "Removing…";
+    async function runUndo(btn, onlyNoteId) {
+      const label = btn.textContent;
+      btn.disabled = true; btn.textContent = "Removing…";
       try {
-        const r = await unsaveMissed(qid);
+        const r = await unsaveMissed(s, onlyNoteId);
         if (r.nothing) { toast("This question isn't saved."); m.close(); return; }
-        const bits = [];
-        if (r.untagged) bits.push("untagged " + r.untagged + (r.untagged === 1 ? " card" : " cards"));
-        if (r.deleted) bits.push("deleted " + r.deleted + (r.deleted === 1 ? " copy" : " copies"));
-        if (r.movedBack) bits.push("moved it back to " + deckLeaf(r.movedBack));
-        let msg = bits.length ? "Removed from Missed Qs — " + bits.join(", ") + "." : "Removed from Missed Qs.";
-        // The add-on refuses to delete anything it did not create. Say so
-        // rather than reporting a clean undo that did not happen.
-        if (r.refused) msg += " " + r.refused + " note" + (r.refused === 1 ? " was" : "s were") +
-                              " left alone (not created by Mnestic).";
-        if (r.untagged && !r.movedBack) msg += " Your notes in the card were kept.";
         m.close();
-        toast(msg);
+        toast(undoMessage(r));
       } catch (e) {
-        undoBtn.disabled = false; undoBtn.textContent = label;
-        toast(/unknown op/i.test(String(e))
+        btn.disabled = false; btn.textContent = label;
+        toast(e && e.code === "old-addon"
           ? "Update the Mnestic Bridge add-on in Anki to undo a save."
-          : "Couldn't remove it (" + e + ")");
+          : "Couldn't remove it: " + bridgeFailure(e));
       }
-    });
+    }
+    const undoBtn = mdButton("Remove from Missed Qs", "mnx-md-undo", () => runUndo(undoBtn));
     undoBtn.style.display = "none";
     m.foot.appendChild(undoBtn);
     m.foot.appendChild(mdButton("Cancel", "mnx-md-cancel", m.close));
     m.foot.appendChild(saveBtn);
 
-    // Ask Anki whether this question is already saved. It is a round trip, so
-    // the dialog opens without waiting and the button joins it when the answer
-    // arrives -- the common case is a question that was never saved.
+    // What's already saved for this question. A round trip, so the dialog
+    // opens without waiting and this joins it when the answer arrives -- the
+    // common case is a question that was never saved.
     (async () => {
-      try {
-        const sv = await svForQuestion();
-        const hits = await bridge("searchNotes", {
-          query: qidQuery(qid, sv) + " tag:" + MISSED_TAG
+      let found;
+      try { found = await savedForQuestion(s); } catch (e) { return; }
+      if (!m.ov.isConnected) return;
+      const mine = found.mine.concat(found.shared);
+      if (!mine.length && !found.others.length) return;
+      savedBox.style.display = "";
+      if (mine.length) {
+        undoBtn.style.display = "";
+        const h = document.createElement("div"); h.className = "mnx-md-lbl";
+        h.textContent = "Already saved from this question";
+        savedBox.appendChild(h);
+        mine.forEach(n => {
+          const row = document.createElement("div"); row.className = "mnx-saved-row";
+          const t = document.createElement("span"); t.textContent = noteSnippet(n) + (isCopyNote(n) ? " (copy)" : "");
+          row.appendChild(t);
+          if (mine.length > 1) {
+            const b = document.createElement("button"); b.type = "button"; b.className = "mnx-saved-x";
+            b.textContent = "Remove"; b.title = "Remove only this card from Missed Qs";
+            b.addEventListener("click", onUserClick(() => runUndo(b, n.noteId)));
+            row.appendChild(b);
+          }
+          savedBox.appendChild(row);
         });
-        if (hits && hits.length && m.ov.isConnected) {
-          undoBtn.style.display = "";
-          savedNote.textContent = "Already in Missed Qs — saving again appends to your note.";
-          savedNote.style.display = "";
-        }
-      } catch (e) {}
+        const note = document.createElement("div"); note.className = "mnx-md-hint";
+        note.textContent = "Saving again adds to the card you pick; picking a different card saves that one too.";
+        savedBox.appendChild(note);
+      }
+      if (found.others.length) {
+        const o = document.createElement("div"); o.className = "mnx-md-hint";
+        o.textContent = found.others.length + " card" + (found.others.length === 1 ? " on this question is" : "s on this question are") +
+          " already in Missed Qs from another question. Removing here leaves " + (found.others.length === 1 ? "it" : "them") + " alone.";
+        savedBox.appendChild(o);
+      }
     })();
   }
 
@@ -2999,19 +3379,20 @@
     const b = document.createElement("button"); b.className = "mnx-pbtn " + (cls || ""); b.textContent = label;
     b.addEventListener("click", onUserClick(onClick)); return b;
   }
-  function addPanelHeader(qid) {
+  function addPanelHeader(s) {
     const panel = document.getElementById(PANEL_ID); if (!panel) return;
+    const qid = s.qid;
     const head = document.createElement("div"); head.className = "mnx-phead";
     head.appendChild(pbtn("🤖 Copy for AI", "", () => copyFullQuestion(qid)));   // full Q + your AI prompt
     head.appendChild(pbtn("📝 Copy explanation", "", () => copyExplanation()));  // for your notes
     head.appendChild(pbtn("✚ Make card", "", () => openMakeCardDialog(String((window.getSelection && window.getSelection()) || ""))));
-    if (currentNotes.length) {
-      head.appendChild(pbtn("👁 Preview", "", () => openPreview(currentNotes, 0)));
-      head.appendChild(pbtn("★ Save to Missed Qs", "mnx-save", () => openSaveDialog(qid)));
+    if (s.notes.length) {
+      head.appendChild(pbtn("👁 Preview", "", () => openPreview(s.notes, 0)));
+      head.appendChild(pbtn("★ Save to Missed Qs", "mnx-save", () => openSaveDialog(s)));
     }
     panel.appendChild(head);
     addConfidenceRow(qid);
-    if (currentNotes.length) addCardStatus(qid);
+    if (s.notes.length) addCardStatus(s);
   }
 
   // A question you got RIGHT by guessing is the highest-yield thing to review,
@@ -3034,6 +3415,7 @@
       const b = document.createElement("button");
       b.type = "button";
       b.className = "mnx-recall-btn mnx-recall-" + key + (current === key ? " on" : "");
+      b.setAttribute("aria-pressed", current === key ? "true" : "false");
       b.textContent = label; b.title = title;
       b.addEventListener("click", onUserClick(() => {
         setConfidence(qid, current === key ? null : key);
@@ -3046,10 +3428,13 @@
     if (headEl && headEl.nextSibling) panel.insertBefore(row, headEl.nextSibling);
     else panel.appendChild(row);
   }
+  // Rating a question is not answering it. Rating one from an old block you're
+  // reviewing used to create a record dated NOW, which put it on today's count,
+  // streak and pace. A question the panel never saw you answer stays undated.
   function setConfidence(qid, conf) {
     const slug = currentQbankSlug();
     const key = slug + " " + qid;
-    const e = trackerLog.answered[key] || (trackerLog.answered[key] = { ts: Date.now(), slug, qid });
+    const e = trackerLog.answered[key] || (trackerLog.answered[key] = { ts: null, slug, qid, src: "rating" });
     if (conf) e.conf = conf; else delete e.conf;
     saveLog();
     if (conf === "guessed") toast("Noted — a right answer you weren't sure of counts as weak.");
@@ -3058,7 +3443,7 @@
   // How ready are you for THIS question? The panel already knows which cards
   // match it; showing their state turns "here are your resources" into "here's
   // where you actually stand", and surfaces suspended cards you'd never see.
-  async function addCardStatus(qid) {
+  async function addCardStatus(s) {
     const panel = document.getElementById(PANEL_ID); if (!panel) return;
     const strip = document.createElement("div");
     strip.className = "mnx-cards";
@@ -3071,13 +3456,13 @@
     if (headEl && headEl.nextSibling) panel.insertBefore(strip, headEl.nextSibling);
     else panel.appendChild(strip);
 
-    const sv = await svForQuestion();
-    const query = qidQuery(qid, sv);
+    // The search that matched -- so these counts are about the cards on screen.
+    const query = s.query || qidQuery(s.qid, s.sv || 1);
     let m;
     try { m = (await bridge("cardMaturity", { queries: [query] }))[0]; }
     catch (e) { strip.remove(); return; }
+    if (!isLive(s)) { strip.remove(); return; }          // moved on while we waited
     if (!m || !m.total) { strip.remove(); return; }
-    if (lastQid !== qid) { strip.remove(); return; }       // moved on while we waited
 
     const SEGS = [
       ["mature", m.mature, "mature"],
@@ -3093,7 +3478,7 @@
       i.style.width = (100 * n / m.total) + "%";
       bar.appendChild(i);
     }
-    const parts = SEGS.filter(s => s[1]).map(s => s[1] + " " + s[2]);
+    const parts = SEGS.filter(x => x[1]).map(x => x[1] + " " + x[2]);
     txt.replaceChildren();
     const strong = document.createElement("b");
     strong.textContent = m.total + (m.total === 1 ? " card" : " cards");
@@ -3112,10 +3497,10 @@
           toast("Unsuspended " + m.suspended + (m.suspended === 1 ? " card" : " cards") + ".");
           btn.remove();
           const again = document.querySelector("#" + PANEL_ID + " .mnx-cards");
-          if (again) { again.remove(); addCardStatus(qid); }
+          if (again && isLive(s)) { again.remove(); addCardStatus(s); }
         } catch (e) {
           btn.disabled = false; btn.textContent = "Unsuspend " + m.suspended;
-          toast("Couldn't unsuspend: " + e);
+          toast("Couldn't unsuspend: " + bridgeFailure(e));
         }
       }));
       strip.appendChild(btn);
@@ -3125,13 +3510,11 @@
   // ============================================================
   // FEATURE 2c - make a NEW card (Cloze/Basic) from selected text
   // ============================================================
-  function nextClozeNum(s) { let n = 0, m; const re = /\{\{c(\d+)::/g; while ((m = re.exec(s))) n = Math.max(n, +m[1]); return n + 1; }
+  // Wrap the selection (or the whole text) in the next cloze. lib/cards.js
+  // keeps a selection containing "::" or "}}" from breaking the card.
   function clozeWrap(ta) {
-    const s = ta.value; let a = ta.selectionStart, b = ta.selectionEnd;
-    if (a === b) { a = 0; b = s.length; }                 // nothing selected -> cloze the whole line
-    if (a === b) return;
-    const n = nextClozeNum(s);
-    ta.value = s.slice(0, a) + "{{c" + n + "::" + s.slice(a, b) + "}}" + s.slice(b);
+    const r = Cd.wrapCloze(ta.value, ta.selectionStart, ta.selectionEnd);
+    if (r.wrapped) ta.value = r.text;
     ta.focus();
   }
   function sourceHtml(qid) {
@@ -3156,7 +3539,7 @@
     clozeTa.placeholder = "Highlight a word below, then “Make cloze”…";
     const clRow = document.createElement("div"); clRow.className = "mnx-inline";
     const clozeBtn = document.createElement("button"); clozeBtn.type = "button"; clozeBtn.className = "mnx-md-btn mnx-md-cancel"; clozeBtn.textContent = "Make cloze {{c}}";
-    clozeBtn.addEventListener("click", () => clozeWrap(clozeTa));
+    clozeBtn.addEventListener("click", onUserClick(() => clozeWrap(clozeTa)));
     const clHint = document.createElement("span"); clHint.className = "mnx-md-hint"; clHint.textContent = "Highlight the word to hide, then click.";
     clRow.appendChild(clozeBtn); clRow.appendChild(clHint);
     const exLbl = document.createElement("label"); exLbl.className = "mnx-md-lbl"; exLbl.textContent = "Extra (optional — hint / why)";
@@ -3176,8 +3559,8 @@
       segCloze.classList.toggle("on", c); segBasic.classList.toggle("on", !c);
       clozeView.style.display = c ? "block" : "none"; basicView.style.display = c ? "none" : "block";
     }
-    segCloze.addEventListener("click", () => setKind("cloze"));
-    segBasic.addEventListener("click", () => setKind("basic"));
+    segCloze.addEventListener("click", onUserClick(() => setKind("cloze")));
+    segBasic.addEventListener("click", onUserClick(() => setKind("basic")));
 
     const dlbl = document.createElement("label"); dlbl.className = "mnx-md-lbl"; dlbl.textContent = "Deck"; m.body.appendChild(dlbl);
     const sel = document.createElement("select"); m.body.appendChild(sel);
@@ -3203,7 +3586,7 @@
     else {
       const o = document.createElement("option"); o.value = ""; o.textContent = "Loading decks…"; sel.appendChild(o);
       bridge("listDecks").then(d => { deckCache = d || []; fillDecks(deckCache); })
-        .catch(e => { sel.replaceChildren(); const oo = document.createElement("option"); oo.value = NEW_OPT; oo.textContent = NEW_OPT; sel.appendChild(oo); newWrap.style.display = "block"; toast("Couldn't list decks (" + e + ")"); });
+        .catch(e => { sel.replaceChildren(); const oo = document.createElement("option"); oo.value = NEW_OPT; oo.textContent = NEW_OPT; sel.appendChild(oo); newWrap.style.display = "block"; toast("Couldn't list decks: " + bridgeFailure(e)); });
     }
 
     const pics = makeImagePicker("Images (optional — paste a screenshot or add files)");
@@ -3215,6 +3598,12 @@
     const srcTxt = document.createElement("span"); srcTxt.textContent = qid ? ("Add source (QID " + qid + " + link)") : "Add page link as source";
     srcWrap.appendChild(srcCb); srcWrap.appendChild(srcTxt); m.body.appendChild(srcWrap);
 
+    // Anki's own duplicate check: the same first field in the same note type.
+    // The first click that finds one asks; the second creates it anyway.
+    let allowDuplicate = false, uploaded = null;
+    const dupNote = document.createElement("div"); dupNote.className = "mnx-md-dest mnx-dup"; dupNote.style.display = "none";
+    dupNote.setAttribute("role", "status");
+    m.body.appendChild(dupNote);
     const saveBtn = mdButton("Create card", "mnx-md-ok", async () => {
       const deck = targetDeck();
       if (!deck) { toast("Pick or type a deck."); return; }
@@ -3226,12 +3615,18 @@
       } else if (!frontTa.value.trim() && !backTa.value.trim() && !pics.images.length) {
         toast("Add a front, back, or image."); return;
       }
+      const label = saveBtn.textContent;
       saveBtn.disabled = true; saveBtn.textContent = "Creating…";
       try {
-        const imgTags = await pics.upload("card-" + (qid || "x"));
+        // Uploaded once: asking "create anyway?" must not store the images twice.
+        const imgTags = uploaded || (uploaded = await pics.upload("card-" + (qid || "x")));
         const imgs = imgTags.join("<br>");
         const src = srcCb.checked ? ('<div style="font-size:12px;opacity:.7;margin-top:8px">' + sourceHtml(qid) + '</div>') : "";
-        const params = { deck, kind, addTags: ["Mnestic::Made"] };
+        // Linked to the question it came from, so it shows up with that
+        // question's cards the next time you see it.
+        const tags = ["Mnestic::Made"];
+        if (safeQidOrNull(qid)) tags.push(Mt.qidTag(qid));
+        const params = { deck, kind, addTags: tags, checkDuplicate: true, allowDuplicate };
         if (kind === "cloze") {
           params.text = escapeHtml(rawCloze).replace(/\n/g, "<br>");
           const parts = [extraTa.value.trim() ? escapeHtml(extraTa.value.trim()).replace(/\n/g, "<br>") : "", imgs].filter(Boolean);
@@ -3242,13 +3637,21 @@
           const parts = [escapeHtml(backTa.value.trim()).replace(/\n/g, "<br>"), imgs].filter(Boolean);
           params.back = parts.join("<br><br>") + src;
         }
-        await bridge("newNote", params);
+        const res = await bridge("newNote", params);
+        if (res && res.duplicate) {
+          allowDuplicate = true;
+          dupNote.textContent = "You already have a " + (res.model || kind) + " card with exactly this text. " +
+            "Click “Create anyway” to add a second one, or Cancel.";
+          dupNote.style.display = "";
+          saveBtn.disabled = false; saveBtn.textContent = "Create anyway";
+          return;
+        }
         chrome.storage.local.set({ akMakeDeck: deck });
         if (deckCache && !deckCache.includes(deck)) deckCache.push(deck);
         m.close();
         const extraMsg = imgTags.length ? (" (+" + imgTags.length + " image" + (imgTags.length === 1 ? "" : "s") + ")") : "";
         toast("Created a " + kind + " card in " + deckLeaf(deck) + extraMsg + ".");
-      } catch (e) { saveBtn.disabled = false; saveBtn.textContent = "Create card"; toast("Couldn't create (" + e + ")"); }
+      } catch (e) { saveBtn.disabled = false; saveBtn.textContent = label; toast("Couldn't create the card: " + bridgeFailure(e)); }
     });
     m.foot.appendChild(mdButton("Cancel", "mnx-md-cancel", m.close));
     m.foot.appendChild(saveBtn);
@@ -3318,7 +3721,7 @@
     btn.addEventListener("click", onUserClick(e => {
       e.preventDefault(); e.stopPropagation();
       const id = btn.dataset.qid || findQid();
-      if (id) openInAnki(id);
+      if (id) openInAnki(Q && Q.qid === id ? Q : id);
     }));
     const label = qidLabelEl();
     if (label) label.insertAdjacentElement("afterend", btn);
@@ -3332,24 +3735,33 @@
   // off the Welcome/Performance dashboard so "remaining" is summed automatically.
   // The popup reads this storage and renders Today / This week / Remaining.
   // ============================================================
-  const TRACKER_KEY = "akTrackerV2";
-  // answered  per-question detail (correctness, confidence) — our own observation
-  // totals     the qbank's own Used/Unused/Total, per bank
-  // daily      questions the qbank counted that we never saw, by day and bank
-  let trackerLog = { answered: {}, totals: {}, daily: {}, targets: { weekly: 0, daily: 0 } };
-  function normalizeLog(t) {
-    t = t || {};
-    return {
-      answered: (t.answered && typeof t.answered === "object") ? t.answered : {},
-      totals: (t.totals && typeof t.totals === "object") ? t.totals : {},
-      // Rebuilt key by key, so anything added here must be listed or it is
-      // silently dropped on the next page load.
-      daily: (t.daily && typeof t.daily === "object") ? t.daily : {},
-      targets: { weekly: (t.targets && +t.targets.weekly) || 0, daily: (t.targets && +t.targets.daily) || 0 }
-    };
+  const TRACKER_KEY = "akTrackerV2";   // the storage key; the log inside is v3 (lib/tracker.js)
+  // answered  per-question detail (correctness, confidence, system) — our own observation
+  // totals    the qbank's own Used/Unused/Total, per bank
+  // daily     questions the qbank counted that we never saw, by calendar day and bank
+  // undated   the same, when the counter moved across several days we can't tell apart
+  // snaps     one reading of the counter per bank per day, for the pace
+  let trackerLog = Trk.normalizeLog(null);
+  let logLoaded = false;
+  // Nothing is written until the stored log has been read, or an early write
+  // would replace it with this empty one.
+  function saveLog() {
+    if (!logLoaded) return;
+    try { chrome.storage.local.set({ [TRACKER_KEY]: trackerLog }); } catch (e) {}
   }
-  function saveLog() { try { chrome.storage.local.set({ [TRACKER_KEY]: trackerLog }); } catch (e) {} }
-  chrome.storage.local.get({ [TRACKER_KEY]: null }, c => { if (c[TRACKER_KEY]) trackerLog = normalizeLog(c[TRACKER_KEY]); });
+  chrome.storage.local.get({ [TRACKER_KEY]: null }, c => {
+    const stored = c[TRACKER_KEY];
+    trackerLog = Trk.normalizeLog(stored);
+    logLoaded = true;
+    if (stored && stored.v !== Trk.VERSION) saveLog();     // one-time upgrade of a 1.3 log
+  });
+  // Another qbank tab (or the popup) wrote the log: carry on from that, not
+  // from a stale copy that would overwrite it on our next save.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes[TRACKER_KEY] && changes[TRACKER_KEY].newValue) {
+      trackerLog = Trk.normalizeLog(changes[TRACKER_KEY].newValue);
+    }
+  });
 
   function currentQbankSlug() { try { return SITE.blockSlug() || "default"; } catch (e) { return "default"; } }
   // qid -> how many consecutive ticks we saw it UNANSWERED. Reviewing a finished
@@ -3382,12 +3794,15 @@
     if (changed) saveLog();
   }
 
-  // Record a question the first time it's answered (counted once, ever).
+  // Record a question the first time it's answered (counted once, ever). A
+  // question first seen in a results table or rated in review has a record
+  // with no date; watching it answered gives it one.
   function logAnswered(qid) {
     const slug = currentQbankSlug();
     const key = slug + " " + qid;
-    if (trackerLog.answered[key]) return;
-    trackerLog.answered[key] = { ts: Date.now(), slug, qid, sv: currentSv || undefined };
+    const e = trackerLog.answered[key];
+    if (e && e.ts) return;
+    trackerLog.answered[key] = Object.assign(e || { slug, qid }, { ts: Date.now(), sv: (Q && Q.sv) || undefined });
     saveLog();
   }
 
@@ -3395,6 +3810,11 @@
   let lastScrape = 0;
   function scrapeDashboardTotals() {
     if (!SITE.isDashboard()) return;
+    // A bank's OWN dashboard only. Coursology's home page shows totals across
+    // every bank; stored as a bank called "default", they made "remaining" jump
+    // depending on which page you'd opened last, and mixed banks into the pace.
+    const slug = currentQbankSlug();
+    if (slug === "default") return;
     const now = Date.now(); if (now - lastScrape < 4000) return; lastScrape = now;
     const bt = document.body ? (document.body.innerText || "") : "";
     const num = re => { const m = bt.match(re); return m ? parseInt(m[1].replace(/,/g, ""), 10) : null; };
@@ -3402,50 +3822,29 @@
     const used = num(/\bUsed Questions\s*([\d,]+)/i);
     const unused = num(/Unused Questions\s*([\d,]+)/i);
     if (total == null && used == null && unused == null) return;
-    const slug = currentQbankSlug();
     const prev = trackerLog.totals[slug] || {};
 
     // The panel only sees questions you actually review, so a timed block you
     // never opened used to leave no trace at all. The qbank's own "Used" count
     // can't miss one — so it decides HOW MANY, while our log keeps saying which
-    // ones and how they went. Anything the counter saw that we didn't is
-    // credited to today and marked inferred, so the number is honest about
-    // where it came from.
-    if (used != null && prev.used != null) {
-      if (used < prev.used) {
-        // Reset QBank (or a bank switch): re-baseline, never emit a negative day.
-      } else {
-        const delta = used - prev.used;
-        if (delta > 0) {
-          const live = countLiveAnswered(slug, prev.ts || 0, now);
-          const extra = Math.max(0, delta - live);
-          if (extra > 0) addInferred(slug, dayKeyOf(now), extra);
-        }
-      }
-    }
-    if (prev.total === total && prev.used === used && prev.unused === unused) return;
-    trackerLog.totals[slug] = { total, used, unused, ts: now };
-    saveLog();
-  }
-  function dayKeyOf(ms) { const d = new Date(ms); d.setHours(0, 0, 0, 0); return String(d.getTime()); }
-  function countLiveAnswered(slug, fromTs, toTs) {
-    let n = 0;
-    for (const k in trackerLog.answered) {
-      const e = trackerLog.answered[k];
-      if (!e || e.slug !== slug || !e.ts) continue;
-      if (e.ts > fromTs && e.ts <= toTs) n++;
-    }
-    return n;
-  }
-  function addInferred(slug, dayKey, n) {
-    if (!trackerLog.daily) trackerLog.daily = {};
-    const bank = trackerLog.daily[slug] || (trackerLog.daily[slug] = {});
-    bank[dayKey] = (bank[dayKey] || 0) + n;
+    // ones and how they went. What the counter saw that we didn't is credited
+    // to today only if the last reading was also today; otherwise it is kept
+    // undated (lib/tracker.js). 1.3 put a whole week of blocks on the day you
+    // happened to open the dashboard.
+    const credit = Trk.creditCounter(trackerLog, slug, prev, used, now);
+    const day = Dt.dayKey(now);
+    const snapBefore = (trackerLog.snaps[slug] || {})[day];
+    if (used != null) Trk.recordSnapshot(trackerLog, slug, day, used);
+    const snapChanged = used != null && snapBefore !== used;
+    const totalsChanged = !(prev.total === total && prev.used === used && prev.unused === unused);
+    if (totalsChanged) trackerLog.totals[slug] = { total, used, unused, ts: now };
+    if (totalsChanged || snapChanged || credit.kind === "dated" || credit.kind === "undated") saveLog();
   }
 
   // Called each main-loop tick: detect a fresh answer + keep totals current +
   // backfill correctness from any results table on screen.
   function trackerTick() {
+    if (!logLoaded) return;
     const qid = findQid();
     if (qid) {
       if (SITE.isReviewing()) {
@@ -3458,10 +3857,18 @@
     scrapeDashboardTotals();
     // Correctness used to be recorded only if you happened to open a results
     // page, so "% correct, last 7 days" was blank for anyone who doesn't. Take
-    // it from whatever the qbank is showing: the results table, or the cached
-    // Question List, whichever is available on this page.
-    const outcomes = SITE.isResultsPage() ? resultData() : questionListData();
-    if (outcomes && outcomes.length) backfillCorrectness(outcomes);
+    // it from whatever the qbank is showing: the results table, or the
+    // Question List already captured -- read from the cache off a results page,
+    // which used to scan every element on every page once a second.
+    if (SITE.isResultsPage()) {
+      const outcomes = resultData();
+      if (outcomes && outcomes.length) backfillCorrectness(outcomes);
+      const meta = blockRows();
+      if (meta.length) rememberQuestionMeta(meta);
+    } else {
+      const cached = qlistCached();
+      if (cached && cached.length) backfillCorrectness(cached);
+    }
   }
 
   // Auto-expand the results table to its largest page size (100) so the Anki
@@ -3498,9 +3905,13 @@
   let emptyTicks = 0;
 
   setInterval(() => {
-    const hasResults = SITE.resultRows().length > 0;
+    // Result rows are read on a results page and nowhere else (see
+    // genericResultRows): elsewhere the toolbar offered to send an
+    // explanation's numbered bullets, or a list of test scores, to Anki.
+    const onResults = SITE.isResultsPage();
+    const hasResults = onResults && SITE.resultRows().length > 0;
     emptyTicks = hasResults ? 0 : emptyTicks + 1;
-    let toolbar = SITE.toolbar();
+    let toolbar = onResults ? SITE.toolbar() : null;
     if (!toolbar && hasResults) toolbar = ensureFloatingToolbar();
     if (toolbar && !document.getElementById(BTN_HOST_ID)) addButtons(toolbar);
     if (emptyTicks > RESULTS_GRACE) {
@@ -3516,22 +3927,17 @@
 
     const answered = isAnswered();
     const qid = answered ? findQid() : null;
-    const ready = qid && answered;
-    if (ready) {
-      // The qbank can re-render the explanation under us (Coursology does when
-      // its question rail is toggled), taking the panel with it while the id
-      // stays the same -- so a missing panel is a reason to rebuild too.
-      const gone = !document.getElementById(PANEL_ID) && buildingQid !== qid;
-      if (qid !== lastQid || gone) {
-        lastQid = qid;
-        buildingQid = qid;
-        buildTable(qid).finally(() => { if (buildingQid === qid) buildingQid = null; });
+    if (qid && answered) {
+      if (!Q || Q.qid !== qid) {
+        rebuild(qid);                                    // a new question: a new session
+      } else if (!document.getElementById(PANEL_ID) && !Q.building) {
+        // The qbank can re-render the explanation under us (Coursology does when
+        // its question rail is toggled), taking the panel with it while the id
+        // stays the same -- so a missing panel is a reason to rebuild too.
+        rebuild(qid, Q.broad);
       }
     } else {
-      lastQid = null;
-      currentFiles = emptyFiles();
-      cachedUris = emptyUris();
-      currentNotes = [];
+      Q = null;                                          // anything still in flight is now stale
       const p = document.getElementById(PANEL_ID);
       if (p) p.remove();
       hideOverlay();
@@ -3543,41 +3949,7 @@
   // ============================================================
   const ES_GUESS = 0.2;   // 5-option MCQ guess floor
   const YIELD_W = { HighYield: 2.0, RelativelyHighYield: 1.6, "HighYield-temporary": 1.4, LowerYield: 0.8, LowYield: 0.5 };
-  // Matching a question id to AnKing tags, precisely.
-  //
-  // Read off a real v12 deck, #UWorld tags come in three shapes:
-  //     #AK_Step1_v12::#UWorld::Step::2108      the UWorld question id
-  //     #AK_Step1_v12::#UWorld::COMLEX::25217   a COMLEX id — a DIFFERENT exam
-  //     #AK_Step3_v12::#UWorld::122790          older/bare form, no namespace
-  //
-  // The old query was "::#UWorld::*::<id>", which was wrong twice over: the
-  // wildcard happily matched COMLEX ids (and those genuinely collide with Step
-  // ids — 8 of them in that deck), while the bare Step 3 form has no middle
-  // segment at all, so 1,896 Step 3 tags could never match anything.
-  // A question id reaches us from the page, and from here it goes into Anki
-  // search strings. Every adapter captures digits today; this makes that a
-  // property of the query builder rather than of each adapter, so a new site
-  // cannot widen a search (or a deletion) by returning something else.
-  function safeQid(qid) {
-    const digits = String(qid == null ? "" : qid).replace(/[^0-9]/g, "");
-    if (!digits || digits.length > 12) throw new Error("bad question id");
-    return digits;
-  }
-  // Where one bad id among many should not sink the whole action.
-  function safeQidOrNull(qid) {
-    try { return safeQid(qid); } catch (e) { return null; }
-  }
-  function qidQuery(qid, sv) {
-    const base = "tag:#AK_Step" + sv + "_" + ANKING_VER + "::#UWorld::";
-    const id = safeQid(qid);
-    return "(" + base + "Step::" + id + " OR " + base + id + ")";
-  }
-  // The original wildcard, kept only as a last resort so no deck that used to
-  // match stops matching — it can pull in other namespaces, so it is never tried
-  // before the precise forms above.
-  function qidQueryLoose(qid, sv) {
-    return "tag:#AK_Step" + sv + "_" + ANKING_VER + "::#UWorld::*::" + safeQid(qid);
-  }
+  // Question-id matching (safeQid, qidQuery, ...) lives in lib/match.js.
   // probability you know one card's fact right now (0..1)
   function cardMaturity(c) {
     if (c.type === 2) {                                // review card
@@ -3650,12 +4022,11 @@
     if (/answered\s+correctly/i.test(txt)) return true;
     return null;                                        // couldn't tell
   }
-  async function addExpectedLine(qid) {
-    const sv = await svForQuestion();
+  async function addExpectedLine(s) {
     let cards;
-    try { const r = await bridge("cardStats", { queries: [qidQuery(qid, sv)] }); cards = r && r[0]; }
+    try { const r = await bridge("cardStats", { queries: [s.query || qidQuery(s.qid, s.sv || 1)] }); cards = r && r[0]; }
     catch (e) { return; }
-    if (lastQid !== qid) return;                        // moved on while waiting
+    if (!isLive(s)) return;                             // moved on while waiting
     const panel = document.getElementById(PANEL_ID);
     if (!panel || document.getElementById("mnx-expected")) return;
     const d = prepFor(cards);
@@ -3673,18 +4044,24 @@
     if (esOn && !existing) {
       const b = document.createElement("button");
       b.id = ID; b.textContent = "Expected Score"; b.className = "review-button mnx-btn mnx-es";
-      b.addEventListener("click", () => computeSummary());
+      b.addEventListener("click", onUserClick(() => computeSummary()));
       host.appendChild(b);
     } else if (!esOn && existing) { existing.remove(); }
   }
-  function openInAnki(qid) { svForQuestion().then(sv => bridge("openBrowser", { query: qidQuery(qid, sv) }).catch(() => {})); }
+  // A session (the question on screen: its exact matched search) or a bare
+  // question id (a row of the expected-score list).
+  function openInAnki(target) {
+    const run = query => bridge("openBrowser", { query }).catch(e => toast(bridgeFailure(e)));
+    if (target && typeof target === "object") { run(target.query || qidQuery(target.qid, target.sv || 1)); return; }
+    getSv().then(sv => run(qidQuery(target, sv))).catch(() => {});
+  }
   async function computeSummary() {
     const items = resultData().map(r => ({ qid: r.qid, correct: !isMissed(r) }));
     if (!items.length) { toast("No questions found on this page."); return; }
     let sv; try { sv = await getSv(); } catch (e) { sv = 1; }
     let byQ;
     try { byQ = await bridge("cardStats", { queries: items.map(it => qidQuery(it.qid, sv)) }); }
-    catch (e) { toast("Couldn't reach Anki. Make sure it's open and the Mnestic Bridge add-on is installed. (" + e + ")"); return; }
+    catch (e) { toast(bridgeFailure(e)); return; }
     items.forEach((it, i) => {
       const d = prepFor(byQ[i]);
       it.detail = d;
@@ -3786,7 +4163,7 @@
       const left = document.createElement("span");
       left.textContent = "QID " + it.qid + "  \u00b7  " + Math.round(it.prep * 100) + "% prepared";
       const a = document.createElement("a"); a.href = "#"; a.textContent = "open in Anki";
-      a.addEventListener("click", e => { e.preventDefault(); openInAnki(it.qid); });
+      a.addEventListener("click", e => { e.preventDefault(); if (e.isTrusted) openInAnki(it.qid); });
       r.appendChild(left); r.appendChild(a);
       dlg.appendChild(r);
     });
@@ -3837,13 +4214,15 @@
     try { anchor = SITE.panelAnchor(); } catch (e) { err = String(e); }
     try { expl = SITE.explanationRoot(); } catch (e) { err = err || String(e); }
     try {
-      const r = SITE.resultRows();
+      // Read the way the toolbar reads them: only on a results page.
+      const r = SITE.isResultsPage() ? SITE.resultRows() : [];
       rows = r.length;
       sample = r.slice(0, 3).map(x => x.qid);   // ids only — no correctness
     } catch (e) { err = err || String(e); }
     return {
       version: chrome.runtime.getManifest().version,
       adapter: SITE.id,
+      source: sourceOf(),
       host: location.hostname,
       path: location.pathname,
       qid: findQid(),

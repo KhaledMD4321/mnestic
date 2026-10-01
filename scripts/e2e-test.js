@@ -15,7 +15,7 @@ const fs = require("fs");
 const os = require("os");
 const mock = require("./mock-bridge");
 
-const EXT = path.join(__dirname, "..", "extension");
+const EXT = process.env.MNX_EXT || path.join(__dirname, "..", "extension");   // MNX_EXT: test another build
 const SHOTS = process.argv.includes("--shots");
 const SHOT_DIR = path.join(__dirname, "..", "dist", "e2e");
 
@@ -380,7 +380,7 @@ function listenFree(server, from) {
       <tbody>${rowsHtml}</tbody></table>`);
     const p2 = await ctx.newPage();
     await p2.route("**/*", (r) => r.fulfill({ status: 200, contentType: "text/html", body: html }));
-    await p2.goto("https://coursology-qbank.com/qbanks/usmle1/dashboard/previous-tests",
+    await p2.goto("https://coursology-qbank.com/qbanks/usmle1/dashboard/performance/test/1883996777/results",
       { waitUntil: "domcontentloaded" });
     let ok = false;
     try { await p2.waitForSelector("#mnx-float-toolbar", { timeout: 12000 }); ok = true; } catch (e) {}
@@ -555,10 +555,9 @@ function listenFree(server, from) {
       !calls.some((c) => c.op === "setDeck") && !calls.some((c) => c.op === "copyNote") &&
       calls.some((c) => c.op === "updateNote"));
 
-    // copy: the old behaviour, still available.
-    // Both counters, not just copies: the move tests above marked this question
-    // saved, and "already saved" is what makes copy mode append instead.
-    mock.state.savedCopies = 0; mock.state.savedTagged = 0;
+    // copy: the old behaviour, still available. Start from a clean collection:
+    // the move tests above already saved this question.
+    mock.reset();
     calls = await run("copy", (p) => openAndSave(p, "note C"));
     check("coursology", "copy mode still makes a copy",
       calls.some((c) => c.op === "copyNote") && !calls.some((c) => c.op === "setDeck"));
@@ -567,7 +566,7 @@ function listenFree(server, from) {
     calls = await run("copy", (p) => openAndSave(p, "note D"));
     check("coursology", "copying a second time appends instead of duplicating",
       !calls.some((c) => c.op === "copyNote") && calls.some((c) => c.op === "updateNote"));
-    mock.state.savedCopies = 0; mock.state.savedTagged = 0;
+    mock.reset();
 
     // Saving before the deck list arrives must still reuse the existing
     // numbered subdeck, not create a parallel one.
@@ -614,7 +613,7 @@ function listenFree(server, from) {
     const undo = (p) => p.locator("#mnx-md-overlay .mnx-md-undo");
 
     // nothing saved: there is nothing to undo, so nothing is offered
-    mock.state.savedCopies = 0; mock.state.savedTagged = 0;
+    mock.reset();
     let p = await openModal("move");
     check("undo", "no Remove button on a question that was never saved",
       !(await undo(p).isVisible()));
@@ -622,7 +621,7 @@ function listenFree(server, from) {
 
     // move mode, the whole round trip: save it for real (which is the only
     // moment the home deck is knowable), then take it back out again.
-    mock.state.savedTagged = 0; mock.state.lastRemoveTags = null;
+    mock.reset();
     p = await openModal("move");
     await p.fill("#mnx-md-overlay textarea", "note for undo");
     await p.locator("#mnx-md-overlay .mnx-md-ok").last().click({ timeout: 6000 });
@@ -655,7 +654,7 @@ function listenFree(server, from) {
 
     // If someone has since filed the card somewhere of their own, undo unties
     // it from Missed Qs but leaves it where they put it.
-    mock.state.savedTagged = 0; mock.state.cardElsewhere = true;
+    mock.reset(); mock.state.cardElsewhere = true;
     p = await openModal("move");
     await p.fill("#mnx-md-overlay textarea", "note for undo 2");
     await p.locator("#mnx-md-overlay .mnx-md-ok").last().click({ timeout: 6000 });
@@ -674,7 +673,7 @@ function listenFree(server, from) {
       JSON.stringify(since.map((c) => c.op)));
 
     // copy mode: the copy is Mnestic's own, so undo removes it
-    mock.state.savedTagged = 0; mock.state.savedCopies = 1; mock.state.lastDeleted = null;
+    mock.reset(); mock.addCopy(mock.NOTE.noteId, null);   // a copy saved before 1.4
     p = await openModal("copy");
     before = mock.calls().length;
     await undo(p).click({ timeout: 6000 });
@@ -686,7 +685,7 @@ function listenFree(server, from) {
       JSON.stringify(del && del.args.notes));
 
     // a refusal from the add-on must reach the user, not be swallowed
-    mock.state.savedCopies = 1; mock.state.refuseDelete = true;
+    mock.reset(); mock.addCopy(mock.NOTE.noteId, null); mock.state.refuseDelete = true;
     p = await openModal("copy");
     await undo(p).click({ timeout: 6000 });
     await p.waitForTimeout(1200);
@@ -697,7 +696,7 @@ function listenFree(server, from) {
       /left alone/i.test(toastText), toastText.slice(0, 90));
 
     // an old add-on has neither op: say so instead of failing silently
-    mock.state.savedTagged = 1; mock.state.oldAddon = true;
+    mock.reset(); mock.markMissed(mock.NOTE.noteId, null); mock.state.oldAddon = true;
     p = await openModal("move");
     await undo(p).click({ timeout: 6000 });
     await p.waitForTimeout(1200);
@@ -707,7 +706,7 @@ function listenFree(server, from) {
     check("undo", "an out-of-date add-on is named as the reason",
       /update the mnestic bridge/i.test(oldToast), oldToast.slice(0, 90));
 
-    mock.state.savedCopies = 0; mock.state.savedTagged = 0;
+    mock.reset();
     await setCfg({ mnxMissedMode: "move" });
   }
   console.log("");
@@ -787,7 +786,7 @@ function listenFree(server, from) {
     const fd = mock.calls().filter((c) => c.op === "filteredDeck").slice(-1)[0];
     check("popup", "Study them builds a filtered deck from the missed tag",
       mock.calls().filter((c) => c.op === "filteredDeck").length > before &&
-      !!fd && /tag:Mnestic::Missed/.test(fd.args.search || ""),
+      !!fd && /tag:Mnestic::Missed(?!::)/.test(fd.args.search || ""),   // the bare tag too: "No subdeck" saves
       fd && fd.args.search);
 
     // A new user has missed nothing yet. Anki refuses to build a filtered deck
@@ -827,7 +826,8 @@ function listenFree(server, from) {
 
     // storage lives in the extension's context, not the page's
     const log = await readTracker();
-    const today = String(new Date(new Date().setHours(0, 0, 0, 0)).getTime());
+    const d0 = new Date();
+    const today = d0.getFullYear() + "-" + String(d0.getMonth() + 1).padStart(2, "0") + "-" + String(d0.getDate()).padStart(2, "0");
     const got = log && log.daily && log.daily.usmle1 && log.daily.usmle1[today];
     check("tracker", "credits questions the qbank counted but we never saw (" + got + ")", got === 15);
 
@@ -850,6 +850,339 @@ function listenFree(server, from) {
     check("tracker", "popup says where the number came from",
       /from your qbank's own counter/.test(projTxt), projTxt.slice(0, 80));
     await pop.close();
+  }
+  console.log("");
+
+  // ---- 1.4: one block per audit finding, each written to fail on 1.3 ----
+  console.log("1.4 hardening:");
+  {
+    const COURSO_URL = SITES[0].url;                  // /qbanks/usmle1/test/1
+    const RESULTS_URL = "https://coursology-qbank.com/qbanks/usmle1/dashboard/performance/test/1883996777/results";
+    const reviewHtml = (qid, extra) => page(`
+      <div class="question-header">Question Id: ${qid}</div>
+      <div id="question-explanation" style="min-height:420px;padding:12px">
+        <h3>Explanation</h3><p>${LOREM}</p>${extra || ""}</div>`);
+    async function openAt(html, url) {
+      const p = await ctx.newPage();
+      await p.route("**/*", (r) => r.fulfill({ status: 200, contentType: "text/html", body: html }));
+      await p.goto(url || COURSO_URL, { waitUntil: "domcontentloaded" });
+      return p;
+    }
+    const opsSince = (n, names) => mock.calls().slice(n).filter((c) => names.indexOf(c.op) >= 0);
+    const WRITES = ["unsuspend", "suspend", "copyNote", "updateNote", "newNote", "setDeck", "removeTags",
+                    "deleteNotes", "writeMedia", "openBrowser", "createDeck", "filteredDeck"];
+    const panelText = (p) => p.evaluate(() => (document.getElementById("mnx-resources") || {}).innerText || "");
+    const overlayOpen = (p) => p.evaluate(() => { const o = document.getElementById("mnx-overlay"); return !!(o && o.style.display === "flex"); });
+
+    // B-03: a slow answer for the previous question must not land on this one.
+    {
+      mock.reset();
+      mock.state.slowNoteInfo = 3500;
+      const p = await openAt(reviewHtml("4211"));
+      await p.waitForTimeout(1800);                  // 4211's note lookup is in flight
+      await p.evaluate(() => { document.querySelector(".question-header").textContent = "Question Id: 5555"; });
+      await p.waitForTimeout(5000);                  // 5555 settles; then 4211's answer arrives
+      mock.state.slowNoteInfo = 0;
+      const st = await p.evaluate(() => {
+        const el = document.getElementById("mnx-resources");
+        return { qid: el && el.dataset.qid, text: (el && el.innerText) || "" };
+      });
+      check("1.4", "a late answer for the previous question never lands on this one (panel shows " + st.qid + ")",
+        st.qid === "5555" && /question id 5555/.test(st.text) && !/First Aid|Sketchy/.test(st.text), st.text.slice(0, 90));
+      await p.close();
+    }
+
+    // B-06: the results toolbar only on a results page.
+    {
+      const p = await openAt(reviewHtml("4211", "<ul><li>5-alpha reductase inhibitors lower DHT</li><li>2 weeks of therapy</li></ul>"));
+      await p.waitForSelector("#mnx-resources", { timeout: 12000 });
+      await p.waitForTimeout(2500);
+      check("1.4", "no results toolbar on a question whose explanation has numbered bullets", !(await p.$("#mnx-float-toolbar")));
+      await p.close();
+      const prevTests = page(`<table><thead><tr><th>Test</th><th>Score</th><th>Date</th></tr></thead><tbody>
+        <tr><td>25</td><td>55%</td><td>Sep 29</td></tr><tr><td>40</td><td>70%</td><td>Sep 28</td></tr></tbody></table>
+        <ul><li>55% correct</li><li>48 used</li></ul>`);
+      const p2 = await openAt(prevTests, "https://coursology-qbank.com/qbanks/usmle1/dashboard/previous-tests");
+      await p2.waitForTimeout(4000);
+      check("1.4", "no results toolbar on the Previous tests list (its scores are not question ids)", !(await p2.$("#mnx-float-toolbar")));
+      await p2.close();
+    }
+
+    // B-07 / B-20 / B-08: keys by physical position, one press per press, and
+    // never while typing -- even inside a web component.
+    {
+      mock.reset();
+      const p = await openAt(reviewHtml("4211", `<note-box></note-box><script>
+        customElements.define("note-box", class extends HTMLElement { constructor(){ super();
+          this.attachShadow({mode:"open"}).innerHTML = '<textarea id="t"></textarea>'; } });
+      </script>`));
+      await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 12000 });
+      await p.waitForTimeout(800);
+      const cdp = await ctx.newCDPSession(p);
+      const key = (type, k, extra) => cdp.send("Input.dispatchKeyEvent",
+        Object.assign({ type, key: k, code: "KeyF", windowsVirtualKeyCode: 70 }, type === "keyDown" ? { text: k } : {}, extra || {}));
+      await key("keyDown", "ب"); await key("keyUp", "ب");
+      await p.waitForTimeout(900);
+      check("1.4", "F works with an Arabic keyboard layout (the key types ب)", await overlayOpen(p));
+      await p.keyboard.press("Escape"); await p.waitForTimeout(400);
+      await key("keyDown", "f");
+      for (let i = 0; i < 3; i++) await key("keyDown", "f", { autoRepeat: true });
+      await key("keyUp", "f");
+      await p.waitForTimeout(900);
+      check("1.4", "holding F opens the overlay once instead of flickering it", await overlayOpen(p));
+      await p.keyboard.press("Escape"); await p.waitForTimeout(400);
+      await p.evaluate(() => document.querySelector("note-box").shadowRoot.getElementById("t").focus());
+      await p.keyboard.type("f");
+      await p.waitForTimeout(900);
+      check("1.4", "typing f into a web component's text box stays typing", !(await overlayOpen(p)));
+      await p.close();
+    }
+
+    // S-04: page script can't reach Anki through any Mnestic control.
+    {
+      mock.reset();
+      await setCfg({ easy: true });
+      const p = await openAt(reviewHtml("4211"));
+      await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 12000 });
+      await p.waitForTimeout(1500);
+      let since = mock.calls().length;
+      await p.evaluate(() => document.querySelectorAll("#mnx-resources button, #mnx-qid-open").forEach((b) => b.click()));
+      await p.waitForTimeout(1200);
+      check("1.4", "page script clicking every panel control reaches nothing",
+        !(await p.$("#mnx-md-overlay")) && opsSince(since, WRITES).length === 0,
+        JSON.stringify(opsSince(since, WRITES).map((c) => c.op)));
+      await p.close();
+
+      const rows = `<tr><td>1</td><td>4211</td><td>Renal</td><td><i class="fa-xmark"></i></td></tr>
+                    <tr><td>2</td><td>1633</td><td>Renal</td><td><i class="fa-check"></i></td></tr>`;
+      const res = page(`<table><thead><tr><th>#</th><th>ID</th><th>System</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table>`);
+      const p2 = await openAt(res, RESULTS_URL);
+      await p2.waitForSelector("#mnx-float-toolbar .mnx-btn", { timeout: 12000 });
+      since = mock.calls().length;
+      await p2.evaluate(() => document.querySelectorAll("#mnx-float-toolbar button").forEach((b) => b.click()));
+      await p2.waitForTimeout(1500);
+      check("1.4", "page script clicking the results toolbar reaches nothing",
+        opsSince(since, WRITES.concat(["cardStats"])).length === 0 && !(await p2.$("#mnx-md-overlay")) && !(await p2.$("#mnx-confirm")));
+      // a real click opens Easy mode's confirmation; the page pressing OK must not unlock anything
+      await p2.locator("#mnx-float-toolbar .mnx-btn", { hasText: "Anki: Missed" }).click();
+      let confirm = false;
+      try { await p2.waitForSelector("#mnx-confirm .mnx-cf-ok", { timeout: 6000 }); confirm = true; } catch (e) {}
+      since = mock.calls().length;
+      await p2.evaluate(() => { const b = document.querySelector("#mnx-confirm .mnx-cf-ok"); if (b) b.click(); });
+      await p2.waitForTimeout(1000);
+      check("1.4", "page script can't press OK on the unlock confirmation",
+        confirm && opsSince(since, ["unsuspend"]).length === 0 && !!(await p2.$("#mnx-confirm")));
+      await p2.locator("#mnx-confirm .mnx-cf-cancel").click().catch(() => {});
+      // weak areas: a real click opens it; the page clicking "Open N missed" does nothing
+      await p2.locator("#mnx-float-toolbar .mnx-btn", { hasText: "Weak areas" }).click();
+      await p2.waitForSelector("#mnx-md-overlay .mnx-brk-open", { timeout: 6000 }).catch(() => {});
+      since = mock.calls().length;
+      await p2.evaluate(() => document.querySelectorAll("#mnx-md-overlay .mnx-brk-open").forEach((b) => b.click()));
+      await p2.waitForTimeout(1000);
+      // Easy mode is on, so a click that got through would ask Anki for card
+      // stats and raise the unlock confirmation rather than open the browser.
+      check("1.4", "page script clicking “Open N missed” reaches nothing",
+        opsSince(since, ["openBrowser", "cardStats", "unsuspend"]).length === 0 && !(await p2.$("#mnx-confirm")));
+      const few = await p2.$("#mnx-md-overlay .mnx-brk-few");
+      check("1.4", "a group with too few questions to judge is labelled so", !!few);
+      await p2.close();
+      await setCfg({ easy: false });
+    }
+
+    // S-07: a card's remote image is never fetched by Preview.
+    {
+      mock.reset();
+      const p = await openAt(reviewHtml("4211"));
+      const remote = [];
+      p.on("request", (r) => { if (/tracker\.invalid/.test(r.url())) remote.push(r.url()); });
+      await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 12000 });
+      await p.locator("#mnx-resources button", { hasText: "Preview" }).click();
+      await p.waitForSelector("#mnx-md-overlay .mnx-md-prev", { timeout: 6000 });
+      await p.waitForTimeout(800);
+      const r = await p.evaluate(() => ({
+        placeholder: !!document.querySelector("#mnx-md-overlay .mnx-remote-img"),
+        remoteImg: Array.from(document.querySelectorAll("#mnx-md-overlay img")).some((i) => /tracker\.invalid/.test(i.src))
+      }));
+      check("1.4", "Preview doesn't load a card's remote image (and says so)",
+        r.placeholder && !r.remoteImg && remote.length === 0, JSON.stringify(r) + " requests=" + remote.length);
+      await p.close();
+    }
+
+    // B-10 / B-12: a save unsuspends only the chosen card and records its
+    // question; undo reverses exactly that.
+    {
+      mock.reset();
+      await setCfg({ mnxMissedMode: "move" });
+      const p = await openAt(reviewHtml("4211"));
+      await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 12000 });
+      const since = mock.calls().length;
+      await p.locator("#mnx-resources button", { hasText: "Save to Missed Qs" }).click();
+      await p.waitForSelector("#mnx-md-overlay textarea", { timeout: 6000 });
+      await p.locator("#mnx-md-overlay .mnx-md-ok").last().click();
+      await p.waitForTimeout(1500);
+      const n1 = mock.note(mock.NOTE.noteId), n2 = mock.note(mock.NOTE2.noteId);
+      const un = opsSince(since, ["unsuspend"]);
+      check("1.4", "saving unsuspends only the card you chose",
+        un.length === 1 && un[0].args.queries[0] === "nid:" + mock.NOTE.noteId &&
+        n1.cards.every((c) => !c.suspended) && n2.cards.every((c) => c.suspended),
+        JSON.stringify(un.map((c) => c.args.queries)));
+      check("1.4", "the save records which question it was missed on",
+        n1.tags.indexOf("Mnestic::QID::4211") >= 0 && n1.deck !== "AnKing Step 1", n1.tags.filter((t) => /Mnestic/.test(t)).join(" "));
+      await p.locator("#mnx-resources button", { hasText: "Save to Missed Qs" }).click();
+      let undoShown = false;
+      try { await p.waitForSelector("#mnx-md-overlay .mnx-md-undo", { state: "visible", timeout: 6000 }); undoShown = true; } catch (e) {}
+      if (undoShown) await p.locator("#mnx-md-overlay .mnx-md-undo").click();
+      await p.waitForTimeout(1500);
+      check("1.4", "undo re-suspends exactly the cards the save unsuspended",
+        undoShown && n1.cards.every((c) => c.suspended) && n2.cards.every((c) => c.suspended));
+      check("1.4", "undo untags it and puts it back in its own deck",
+        !n1.tags.some((t) => /^Mnestic::(Missed|QID)/.test(t)) && n1.deck === "AnKing Step 1",
+        n1.deck + " | " + n1.tags.filter((t) => /Mnestic/.test(t)).join(" "));
+      await p.close();
+    }
+
+    // B-11: a card saved from ANOTHER question is left alone by this one's undo.
+    {
+      mock.reset();
+      mock.markMissed(mock.NOTE.noteId, "9999");     // saved earlier, from question 9999
+      const p = await openAt(reviewHtml("4211"));
+      await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 12000 });
+      await p.locator("#mnx-resources button", { hasText: "Save to Missed Qs" }).click();
+      await p.waitForSelector("#mnx-md-overlay textarea", { timeout: 6000 });
+      await p.waitForTimeout(1300);
+      const info = await p.evaluate(() => ({
+        undo: (() => { const u = document.querySelector("#mnx-md-overlay .mnx-md-undo"); return !!(u && u.style.display !== "none"); })(),
+        text: (document.querySelector("#mnx-md-overlay .mnx-saved") || {}).innerText || ""
+      }));
+      check("1.4", "a card saved from another question isn't offered for undo here, and that's explained",
+        !info.undo && /another question/.test(info.text), JSON.stringify(info).slice(0, 140));
+      await p.locator("#mnx-md-overlay .mnx-md-cancel").click();
+      // saved from BOTH questions: undo here drops only this question's link
+      mock.markMissed(mock.NOTE.noteId, "4211");
+      await p.locator("#mnx-resources button", { hasText: "Save to Missed Qs" }).click();
+      await p.waitForSelector("#mnx-md-overlay .mnx-md-undo", { state: "visible", timeout: 6000 }).catch(() => {});
+      await p.locator("#mnx-md-overlay .mnx-md-undo").click().catch(() => {});
+      await p.waitForTimeout(1500);
+      const n1 = mock.note(mock.NOTE.noteId);
+      check("1.4", "undo on a card saved from two questions keeps it saved for the other one",
+        n1.tags.indexOf("Mnestic::QID::9999") >= 0 && n1.tags.indexOf("Mnestic::QID::4211") < 0 &&
+        n1.tags.indexOf("Mnestic::Missed") >= 0, n1.tags.filter((t) => /Mnestic/.test(t)).join(" "));
+      await p.close();
+    }
+
+    // B-15 + error states: Anki closed says so and recovers on its own; a
+    // refused pairing code says to pair.
+    {
+      mock.reset();
+      await setCfg({ bridgePort: port + 37 });       // nothing listens there
+      const p = await openAt(reviewHtml("4211"));
+      try { await p.waitForFunction(() => /isn't running/.test((document.getElementById("mnx-resources") || {}).innerText || ""), null, { timeout: 15000 }); } catch (e) {}
+      const msg = await panelText(p);
+      check("1.4", "Anki not running says so, with a Retry", /isn't running/.test(msg) && /Retry/.test(msg), msg.slice(0, 120));
+      await setCfg({ bridgePort: port });            // Anki is back
+      let back = false;
+      try { await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 15000 }); back = true; } catch (e) {}
+      check("1.4", "the panel recovers by itself once Anki answers", back);
+      await p.close();
+
+      mock.state.rejectToken = true;
+      const p2 = await openAt(reviewHtml("4211"));
+      try { await p2.waitForFunction(() => /paired/.test((document.getElementById("mnx-resources") || {}).innerText || ""), null, { timeout: 12000 }); } catch (e) {}
+      const msg2 = await panelText(p2);
+      mock.state.rejectToken = false;
+      check("1.4", "a refused pairing code says to pair, not that Anki is closed",
+        /isn't paired/.test(msg2) && !/isn't running/.test(msg2), msg2.slice(0, 120));
+      await p2.close();
+    }
+
+    // B-26 / B-13 / B-23: what the panel says when there's nothing to show.
+    {
+      mock.reset();
+      const p = await openAt(reviewHtml("7777"));
+      try { await p.waitForFunction(() => /resource tags/.test((document.getElementById("mnx-resources") || {}).innerText || ""), null, { timeout: 12000 }); } catch (e) {}
+      const t = await panelText(p);
+      check("1.4", "cards with no resource tags say exactly that (not 'no cards')",
+        /1 card matches this question/.test(t) && !/No AnKing cards are tagged/.test(t) && /Save to Missed Qs/.test(t), t.slice(0, 120));
+      await p.close();
+
+      const p2 = await openAt(reviewHtml("5555"));
+      try { await p2.waitForSelector("#mnx-resources .mnx-msg-btn", { timeout: 12000 }); } catch (e) {}
+      const before = mock.calls().length;
+      await p2.locator("#mnx-resources .mnx-msg-btn", { hasText: "Broader search" }).click().catch(() => {});
+      await p2.waitForTimeout(2500);
+      const loose = opsSince(before, ["searchNotes"]).some((c) => /::#UWorld::\*::5555/.test(c.args.query || ""));
+      const t2 = await panelText(p2);
+      check("1.4", "the wildcard search runs only when asked for, and says how it went",
+        loose && /broader search found nothing/i.test(t2), t2.slice(0, 120));
+      await p2.close();
+
+      const b0 = mock.calls().length;
+      const p3 = await openAt(reviewHtml("4211"), "https://coursology-qbank.com/qbanks/nbme-30/test/1");
+      try { await p3.waitForFunction(() => /isn't UWorld's/.test((document.getElementById("mnx-resources") || {}).innerText || ""), null, { timeout: 12000 }); } catch (e) {}
+      const t3 = await panelText(p3);
+      check("1.4", "a non-UWorld bank is never searched, and the panel says why",
+        /isn't UWorld's/.test(t3) && opsSince(b0, ["searchNotes"]).length === 0, t3.slice(0, 100));
+      await p3.close();
+    }
+
+    // B-18: a made card is linked to its question; a duplicate asks first.
+    {
+      mock.reset();
+      const p = await openAt(reviewHtml("4211"));
+      await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 12000 });
+      await p.locator("#mnx-resources button", { hasText: "Make card" }).click();
+      await p.waitForSelector("#mnx-md-overlay textarea", { timeout: 6000 });
+      await p.fill("#mnx-md-overlay textarea >> nth=0", "The {{c1::cochlea}} transduces sound.");   // same as NOTE's text
+      const since = mock.calls().length;
+      await p.locator("#mnx-md-overlay .mnx-md-ok").last().click();
+      await p.waitForTimeout(1200);
+      const asked = await p.evaluate(() => {
+        const d = document.querySelector("#mnx-md-overlay .mnx-dup");
+        return { shown: !!(d && d.style.display !== "none"), btn: (document.querySelector("#mnx-md-overlay .mnx-md-ok") || {}).textContent };
+      });
+      check("1.4", "a card that already exists asks before adding a duplicate", asked.shown && /anyway/.test(asked.btn), JSON.stringify(asked));
+      await p.locator("#mnx-md-overlay .mnx-md-ok").last().click();
+      await p.waitForTimeout(1200);
+      const made = opsSince(since, ["newNote"]);
+      const last = made[made.length - 1];
+      check("1.4", "…creates it when you say so, linked to its question",
+        made.length === 2 && !!last && last.args.allowDuplicate === true &&
+        (last.args.addTags || []).indexOf("Mnestic::QID::4211") >= 0 && !(await p.$("#mnx-md-overlay")),
+        JSON.stringify(last && last.args.addTags));
+      const uploads = opsSince(since, ["writeMedia"]).length;
+      check("1.4", "…without uploading anything twice", uploads === 0);
+      await p.close();
+    }
+
+    // B-04: a counter jump across days is kept undated, not put on today.
+    {
+      const yesterday = Date.now() - 86400000;
+      await setCfg({ akTrackerV2: { answered: {}, totals: { usmle1: { total: 3654, used: 1000, unused: 2654, ts: yesterday } },
+                                    daily: {}, targets: {} } });
+      const dash = page(`<div><h2>Welcome</h2><div>Used Questions 1040</div><div>Unused Questions 2614</div>
+                         <div>Total Questions 3654</div></div>`);
+      const p = await openAt(dash, "https://coursology-qbank.com/qbanks/usmle1/dashboard/welcome");
+      await p.waitForTimeout(3000);
+      await p.close();
+      const log = await readTracker();
+      const und = (log && log.undated && log.undated.usmle1) || [];
+      check("1.4", "40 questions counted since yesterday are kept undated, not booked to today",
+        und.length === 1 && und[0].n === 40 && !Object.keys((log.daily && log.daily.usmle1) || {}).length, JSON.stringify(und));
+      const pop = await ctx.newPage();
+      await pop.goto(`chrome-extension://${extId}/popup.html`);
+      await pop.waitForTimeout(1200);
+      const todayTxt = ((await pop.textContent("#trkToday")) || "").trim();
+      const projTxt = (await pop.textContent("#trkProj")) || "";
+      check("1.4", "the popup's Today stays at 0 and it says where the 40 went",
+        /^0/.test(todayTxt) && /not tied to a day/.test(projTxt), todayTxt + " | " + projTxt.slice(0, 90));
+      // the background worker refuses an op the popup has no business sending
+      const refused = await pop.evaluate(() => new Promise((r) =>
+        chrome.runtime.sendMessage({ type: "bridge", op: "deleteNotes", args: { notes: [1] } }, (resp) => r(resp))));
+      check("1.4", "the worker refuses an op this part of Mnestic never sends",
+        refused && !refused.ok && refused.code === "refused", JSON.stringify(refused));
+      await pop.close();
+      await setCfg({ akTrackerV2: null });
+    }
   }
   console.log("");
 

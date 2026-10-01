@@ -190,7 +190,7 @@
   <div id="pairBox" hidden>
     <p class="hint" style="margin-top:8px">In Anki: <b>Tools → Mnestic Bridge → Pairing code…</b> (it copies the code), then paste it here:</p>
     <div class="field" style="margin-top:6px">
-      <input type="text" id="tokenInput" placeholder="paste pairing code" autocomplete="off">
+      <input type="password" id="tokenInput" placeholder="paste pairing code" autocomplete="off" spellcheck="false">
       <button id="tokenSave" class="btn">Save</button>
     </div>
   </div>
@@ -233,6 +233,8 @@
     <a href="https://buymeacoffee.com/bnkhaled" target="_blank" rel="noopener noreferrer">☕ Buy me a coffee</a>
   </p>
 
+  <script src="lib/dates.js"></script>
+  <script src="lib/tracker.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

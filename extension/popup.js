@@ -147,6 +147,18 @@ function renderMissed() {
   });
   missedSummary.textContent = missedRows.length + " saved across " + byChapter.size +
     (byChapter.size === 1 ? " chapter" : " chapters") + ". Paste the ids into your qbank's test builder.";
+  // Since 1.4 a save records the question itself. A card saved earlier only
+  // carries AnKing's own question tags, which can name questions you never
+  // saw -- say so rather than pass them off as your misses.
+  const approx = missedRows.filter((r) => r.exact === false).length;
+  if (missedRows.every((r) => r.exact === undefined)) {
+    // An add-on older than 1.4 can't tell them apart at all.
+    missedSummary.textContent += " Update the Mnestic Bridge add-on so this lists only the questions you missed — " +
+      "the version you have lists every question AnKing tags on each saved card.";
+  } else if (approx) {
+    missedSummary.textContent += " " + approx + (approx === 1 ? " id comes" : " ids come") +
+      " from cards saved before Mnestic 1.4, which list every question AnKing tags on the card — some may be questions you didn't miss.";
+  }
 
   const rows = [["All", missedRows.map((r) => r.qid)]]
     .concat(Array.from(byChapter.entries()).sort((a, b) => b[1].length - a[1].length));
@@ -182,7 +194,9 @@ document.getElementById("missedStudy").addEventListener("click", async () => {
   btn.disabled = true; btn.textContent = "Building…";
   const r = await bridge("filteredDeck", {
     name: "Mnestic — Missed",
-    search: 'tag:Mnestic::Missed::* -is:suspended',
+    // Both forms: a question saved with "No subdeck" carries the bare tag, and
+    // "Mnestic::Missed::*" alone left every one of those out of the deck.
+    search: "(tag:Mnestic::Missed OR tag:Mnestic::Missed::*) -is:suspended",
     limit: 200
   });
   btn.disabled = false; btn.textContent = "Study them in Anki";
@@ -243,9 +257,12 @@ aiPromptEl.addEventListener("change", saveAiPrompt);
 aiPromptEl.addEventListener("blur", saveAiPrompt);
 
 // ---- study tracker (reads the per-question log the content script writes) ----
+// Days are calendar dates (lib/dates.js) and the arithmetic lives in
+// lib/tracker.js, both unit-tested. Keying days by milliseconds and stepping
+// 86,400,000 at a time broke the streak and heatmap on the days a clock changes.
+const Dt = window.Mnx.dates;
+const Trk = window.Mnx.tracker;
 const TRK_KEY = "akTrackerV2";
-function startOfDayMs() { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }
-function startOfWeekMs() { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); }
 function prettySlug(s) { return (s || "").replace(/([a-z])(\d)/i, "$1 $2").toUpperCase(); }
 function setText(id, t) { const e = document.getElementById(id); if (e) e.textContent = t; }
 function setFill(id, frac, on) {
@@ -253,99 +270,65 @@ function setFill(id, frac, on) {
   e.parentElement.style.visibility = on ? "visible" : "hidden";
   if (on) { e.style.width = Math.min(100, Math.round(frac * 100)) + "%"; e.classList.toggle("over", frac >= 1); }
 }
-const DAY = 86400000;
-function dayStart(ts) { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); }
-function fmtDate(ms) { return new Date(ms).toLocaleDateString(undefined, { month: "short", day: "numeric" }); }
-function currentStreak(buckets, d0) {
-  let cur = 0, d = d0;
-  if (!(buckets[d] > 0)) d -= DAY; // today not done yet -> don't break the streak
-  while (buckets[d] > 0) { cur++; d -= DAY; }
-  return cur;
-}
-function bestStreak(buckets) {
-  const days = Object.keys(buckets).map(Number).sort((a, b) => a - b);
-  let best = 0, run = 0, prev = null;
-  for (const d of days) { run = (prev != null && d - prev === DAY) ? run + 1 : 1; if (run > best) best = run; prev = d; }
-  return best;
+function fmtDay(key) {
+  const d = Dt.parseDay(key);
+  return d ? d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) : key;
 }
 function heatLevel(count, daily) {
   if (!count) return "";
   if (daily > 0) { const f = count / daily; return f >= 1 ? "l4" : f >= 0.67 ? "l3" : f >= 0.34 ? "l2" : "l1"; }
   return count >= 40 ? "l4" : count >= 20 ? "l3" : count >= 10 ? "l2" : "l1";
 }
-function renderHeatmap(buckets, daily) {
+function renderHeatmap(counts, daily, today) {
   const cal = document.getElementById("trkCal"); if (!cal) return;
   cal.replaceChildren();
-  const weeks = 16, today = startOfDayMs();
-  const firstMon = startOfWeekMs() - (weeks - 1) * 7 * DAY; // Monday, 16 weeks back
+  const weeks = 16;
+  const firstMon = Dt.addDays(Dt.weekStart(today), -(weeks - 1) * 7);   // Monday, 16 weeks back
   let sum = 0;
   for (let i = 0; i < weeks * 7; i++) {
-    const day = firstMon + i * DAY;
+    const day = Dt.addDays(firstMon, i);
     const cell = document.createElement("div");
     if (day > today) { cell.className = "trk-day future"; }
-    else { const c = buckets[day] || 0; sum += c; cell.className = "trk-day " + heatLevel(c, daily); cell.title = fmtDate(day) + ": " + c + " q"; }
+    else { const c = counts[day] || 0; sum += c; cell.className = "trk-day " + heatLevel(c, daily); cell.title = fmtDay(day) + ": " + c + " q"; }
     cal.appendChild(cell);
   }
   setText("trkCalHint", sum ? (sum + " questions") : "");
 }
-function renderTracker(t) {
-  t = t || { answered: {}, totals: {}, targets: { weekly: 0, daily: 0 } };
-  const answered = t.answered || {};
-  const d0 = startOfDayMs(), w0 = startOfWeekMs();
-  const daily = (t.targets && t.targets.daily) || 0, weekly = (t.targets && t.targets.weekly) || 0;
+function renderTracker(raw) {
+  const t = Trk.normalizeLog(raw);
+  const today = Dt.dayKey();
+  const w0 = Dt.weekStart(today), cut7 = Dt.addDays(today, -6);
+  const daily = t.targets.daily || 0, weekly = t.targets.weekly || 0;
 
-  const buckets = {};                 // day -> questions, both signals combined
-  const inferredByDay = {};           // day -> questions only the qbank counted
-  let today = 0, week = 0, last14 = 0, acc7C = 0, acc7T = 0, liveTotal = 0, inferredTotal = 0, guessed7 = 0;
-  const cut14 = d0 - 13 * DAY, cut7 = d0 - 6 * DAY;
+  // Both dated signals: questions the panel watched, and counter jumps that
+  // happened within one day. Undated jumps count toward totals, never a day.
+  const counts = Trk.dayCounts(t);
+  let todayN = counts[today] || 0, week = 0;
+  for (const d in counts) if (d >= w0 && d <= today) week += counts[d];
 
-  // 1. what the panel actually watched. Entries with no ts came from a results
-  //    table — real questions, unknown date — so they feed accuracy but never
-  //    a specific day, or an old block would land on today's streak.
-  for (const k in answered) {
-    const e = answered[k], ts = e.ts;
-    if (!ts) {
-      if (e.correct === true || e.correct === false) { /* content only, no calendar */ }
-      continue;
-    }
-    liveTotal++;
-    const day = dayStart(ts);
-    if (day >= cut7 && (e.conf === "guessed" || e.conf === "noidea")) guessed7++;
-    buckets[day] = (buckets[day] || 0) + 1;
-    if (ts >= d0) today++;
-    if (ts >= w0) week++;
-    if (day >= cut14) last14++;
-    if ((e.correct === true || e.correct === false) && day >= cut7) { acc7T++; if (e.correct) acc7C++; }
+  let acc7C = 0, acc7T = 0, guessed7 = 0;
+  for (const k in t.answered) {
+    const e = t.answered[k];
+    if (!e || !e.ts) continue;                    // undated: a results table or a rating, not an answer
+    const d = Dt.dayKey(e.ts);
+    if (d < cut7) continue;
+    if (e.conf === "guessed" || e.conf === "noidea") guessed7++;
+    if (e.correct === true || e.correct === false) { acc7T++; if (e.correct) acc7C++; }
   }
 
-  // 2. questions the qbank counted that we never saw
-  const byBank = t.daily || {};
-  for (const bank in byBank) {
-    for (const dayKey in byBank[bank]) {
-      const day = Number(dayKey), n = byBank[bank][dayKey] || 0;
-      if (!n) continue;
-      inferredTotal += n;
-      inferredByDay[day] = (inferredByDay[day] || 0) + n;
-      buckets[day] = (buckets[day] || 0) + n;
-      if (day >= d0) today += n;
-      if (day >= w0) week += n;
-      if (day >= cut14) last14 += n;
-    }
-  }
-
-  setText("trkToday", today + (daily ? " / " + daily : ""));
+  setText("trkToday", todayN + (daily ? " / " + daily : ""));
   setText("trkWeek", week + (weekly ? " / " + weekly : ""));
-  setFill("trkTodayFill", daily ? today / daily : 0, !!daily);
+  setFill("trkTodayFill", daily ? todayN / daily : 0, !!daily);
   setFill("trkWeekFill", weekly ? week / weekly : 0, !!weekly);
 
-  const cur = currentStreak(buckets, d0), best = bestStreak(buckets);
+  const cur = Dt.currentStreak(counts, today), best = Dt.bestStreak(counts);
   setText("trkStreak", cur > 0 ? ("🔥 " + cur + "-day" + (best > cur ? " · best " + best : "")) : (best > 0 ? "best " + best : ""));
 
-  renderHeatmap(buckets, daily);
+  renderHeatmap(counts, daily, today);
 
-  // remaining, from the most recently scraped qbank dashboard
+  // remaining, from the most recently scraped bank dashboard
   let slug = null, bestTs = -1;
-  for (const s in (t.totals || {})) { const ts = t.totals[s].ts || 0; if (ts > bestTs) { bestTs = ts; slug = s; } }
+  for (const s in t.totals) { const ts = t.totals[s].ts || 0; if (ts > bestTs) { bestTs = ts; slug = s; } }
   const tot = slug ? t.totals[slug] : null;
   let remain = null;
   if (tot && (tot.unused != null || tot.total != null)) {
@@ -356,24 +339,39 @@ function renderTracker(t) {
     const el = document.getElementById("trkRemain");
     if (el) el.title = (tot.used != null ? tot.used + " used · " : "") + (tot.total != null ? tot.total + " total" : "");
   } else {
-    setText("trkRemainLbl", "Remaining"); setText("trkRemain", "— open dashboard"); setFill("trkRemainFill", 0, false);
+    setText("trkRemainLbl", "Remaining"); setText("trkRemain", "— open your bank's dashboard"); setFill("trkRemainFill", 0, false);
   }
 
   // projection + 7-day accuracy + where the numbers came from
   const proj = document.getElementById("trkProj");
   if (proj) {
-    const pace = last14 / 14, bits = [];
-    const inferredToday = inferredByDay[d0] || 0;
+    const bits = [];
+    let inferredToday = 0;
+    for (const b in t.daily) inferredToday += t.daily[b][today] || 0;
     if (inferredToday > 0) bits.push("+" + inferredToday + " of today's from your qbank's own counter");
-    if (tot && tot.used != null) {
-      const mine = liveTotal + inferredTotal;
-      if (Math.abs(tot.used - mine) > 2) {
-        bits.push(prettySlug(slug) + " says " + tot.used + " used · Mnestic recorded " + mine);
+    if (slug) {
+      const und = t.undated[slug] || [];
+      if (und.length) {
+        const last = und[und.length - 1];
+        bits.push("+" + last.n + " counted by " + prettySlug(slug) + " between " + fmtDay(last.from) + " and " +
+          fmtDay(last.to) + " — not tied to a day, so not in Today or the streak");
       }
     }
-    if (remain != null && remain > 0 && pace > 0) {
-      const daysLeft = Math.ceil(remain / pace);
-      bits.push("≈ " + daysLeft + " days left at your pace · finish ~" + fmtDate(d0 + daysLeft * DAY));
+    if (remain != null && slug) {
+      const pace = Trk.pace(t, slug, today);
+      const p = Trk.projection(remain, pace, today);
+      if (p && p.done) bits.push("You've used every question in " + prettySlug(slug) + ".");
+      else if (pace && pace.insufficient) bits.push("A finish date appears after 3 days of history.");
+      else if (p && p.tooFar) bits.push("At your recent pace (" + pace.perDay.toFixed(1) + "/day) that's over 10 years — a daily target below gives a real date.");
+      else if (p) {
+        bits.push("≈ " + p.daysLeft + " days left at " + pace.perDay.toFixed(1) + "/day (your last " + pace.span +
+          " days) · finish ~" + fmtDay(p.finish) +
+          (pace.staleDays > 7 ? " · counts last read " + fmtDay(pace.to) + ", open the dashboard to update" : ""));
+      }
+      if (daily > 0 && remain > 0) {
+        const tp = Trk.projection(remain, { perDay: daily }, today);
+        if (tp && tp.finish) bits.push("At your target of " + daily + "/day: finish ~" + fmtDay(tp.finish));
+      }
     }
     if (acc7T > 0) bits.push(Math.round(100 * acc7C / acc7T) + "% correct · last 7 days (" + acc7T + " q)");
     // A right answer you weren't sure of is the highest-yield thing to revisit.
@@ -391,8 +389,7 @@ function renderTracker(t) {
 }
 function saveTargets() {
   chrome.storage.local.get({ [TRK_KEY]: null }, (c) => {
-    const t = c[TRK_KEY] || { answered: {}, totals: {}, targets: {} };
-    t.targets = t.targets || {};
+    const t = Trk.normalizeLog(c[TRK_KEY]);
     t.targets.daily = Math.max(0, parseInt(document.getElementById("trkDaily").value, 10) || 0);
     t.targets.weekly = Math.max(0, parseInt(document.getElementById("trkWeekly").value, 10) || 0);
     chrome.storage.local.set({ [TRK_KEY]: t }, () => renderTracker(t));
@@ -447,7 +444,9 @@ async function checkConnection() {
   const ping = await bridge("ping");
   if (!ping.ok) { setPill("off"); refreshSetup(false, false); return; }   // bridge/add-on not reachable
   const auth = await bridge("auth");
-  setPill(auth.ok ? "on" : "pair");            // reachable — paired or not
+  // Reachable, but only a refused CODE means "pair": a timeout or an Anki
+  // error must not send someone off to re-enter a code that is fine.
+  setPill(auth.ok ? "on" : auth.code === "auth" ? "pair" : "off");
   refreshSetup(true, !!auth.ok);
   if (auth.ok) loadMissed();                   // only once we know we can ask
 }
