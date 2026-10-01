@@ -80,9 +80,9 @@ These are the operations the extension can ask for. Nothing else is reachable.
 
 | | |
 |---|---|
-| **Read** | search notes, read a note's fields and tags, count matches, read card stats and maturity, list decks and tags, read a media file |
-| **Write** | add tags, append to a field, create a note, copy a note, move cards to a deck, create a deck, unsuspend, write a media file |
-| **Open** | raise Anki's Browse window on a search |
+| **Read** | search notes, read a note's fields and tags, count matches, read card stats and maturity, list decks, read a media file |
+| **Write** | add tags, append to a field, create a note, copy a note, move cards to a deck, create a deck, unsuspend, re-suspend what Mnestic unsuspended, write a media file |
+| **Open** | open Anki's Browse window on a search, in front of you |
 | **Build** | a filtered deck from a search, for studying what you missed |
 
 ## What it will not do

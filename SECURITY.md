@@ -53,6 +53,10 @@ the add-on, to exactly what the extension needs:
   only select by question-id tag, by Mnestic's own tags or by explicit note/card
   ids — never `deck:*`, a negation, or an empty search — and an unsuspend may
   touch at most 3,000 cards, checked before anything changes;
+- re-suspending takes at most 500 cards per request, and only cards whose note
+  is saved to Missed Qs or linked to a question (a UWorld or `Mnestic::QID` tag)
+  — the cards Mnestic can unsuspend in the first place, never the rest of a
+  collection;
 - moving cards takes at most 50 notes per request and never into a filtered
   deck; it builds and rebuilds only filtered decks named "Mnestic…";
 - it **deletes only notes it created**: a note must carry the marker tag
@@ -68,7 +72,8 @@ blank its `ankihub_id`, then delete it). `scripts/bridge-test.py` replays that
 attack against the add-on on every test run.
 
 What a stolen code can still do: read your collection, re-file or untag notes
-Mnestic itself saved, and delete the copies Mnestic made. Rotate the code from
+Mnestic itself saved, suspend or unsuspend cards linked to a question (all
+reversible), and delete the copies Mnestic made. Rotate the code from
 **Tools → Mnestic Bridge → Issue a new pairing code…** whenever it may have been
 seen, and paste the new one into the extension.
 
@@ -79,7 +84,9 @@ tag/attribute allowlist, dropping every event handler, `<script>`/`<iframe>`,
 `class` (which could borrow the question bank's own styles), and any
 `javascript:`/non-image `data:` URL. **Images on other websites are never
 loaded** in a card preview — Mnestic shows a placeholder instead, so a shared
-deck can't learn your address or when you viewed a card.
+deck can't learn your address or when you viewed a card. An image from your own
+media folder is read through the add-on and never requested from the page's
+server (before 1.5 the browser first asked the qbank for it by its file name).
 
 **Every link built from a deck is scheme-checked.** Resource links (Sketchy,
 First Aid, …) are resolved against the page and accepted only if they are

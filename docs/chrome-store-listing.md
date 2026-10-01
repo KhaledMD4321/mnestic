@@ -43,8 +43,9 @@ same way, which is what lets one AnKing tag search work on all of them.
   topics page with the arrow keys.
 
 • SEE THE CARDS. How the matching cards actually stand (mature, young, learning,
-  suspended) with one-click unsuspend, and a preview of the card itself with
-  clozes revealed — without opening Anki.
+  suspended) with one-click unsuspend — and Suspend again if you change your
+  mind — and a preview of the whole card with clozes revealed, without opening
+  Anki.
 
 • KEEP THE ONES YOU MISSED. Save a question into a chapter subdeck built from
   the card's own AnKing tags, with your note added to the card. Move the real
@@ -144,8 +145,8 @@ without leaving the page.
   ```
 - **clipboardWrite**
   ```
-  Powers the "Copy for AI" and "Copy explanation" buttons, which copy the current
-  question or explanation to the user's clipboard.
+  Powers the "Copy for AI" button (and its "Copy the explanation only" option),
+  which copies the current question or explanation to the user's clipboard.
   ```
 - **Host permissions — `https://*.coursology-qbank.com/*`, `https://*.medpark.io/*`, `https://*.uworld.com/*`**
   ```

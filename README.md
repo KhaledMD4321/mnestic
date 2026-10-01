@@ -90,6 +90,23 @@ high-yield points, quiz me) — in one click for ChatGPT, Claude or Gemini.
 
 </td>
 </tr>
+<tr>
+<td valign="top">
+
+### 🧠 Test me
+The question's own AnKing cards as a quick flashcard run, in a focus window over
+the page — **Space** and **1**, like Anki. Practice only: your schedule is never
+touched.
+
+</td>
+<td valign="top">
+
+### ✅ How did that go?
+One optional tap — *knew it*, *guessed*, *misread*, *torn between two* — and the
+one next step that helps. A lucky guess counts as weak.
+
+</td>
+</tr>
 </table>
 
 <div align="center">
@@ -109,6 +126,11 @@ sharper **MP4**, and all of them together as one
 [**7-minute walkthrough**](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-real-walkthrough.mp4) —
 see the [tutorial media release](https://github.com/KhaledMD4321/mnestic/releases/tag/tutorial-media).
 
+> [!NOTE]
+> The clips were recorded on version 1.3.1. Version **1.5.0** groups the panel's
+> buttons differently and has a calmer look, so what you see in a clip may differ
+> a little from your screen — the text here describes 1.5.0.
+
 | | Feature | Where |
 |:---:|---|---|
 | 1 | [The Mnestic panel](#1-the-mnestic-panel) | Under the explanation of every answered question |
@@ -126,8 +148,13 @@ see the [tutorial media release](https://github.com/KhaledMD4321/mnestic/release
 **On every question you've answered.** Mnestic reads the **Question Id** off the
 page and, right under the explanation, shows:
 
+- **The buttons** for the question — **Copy for AI ▾**, **Make card**, and the green
+  **Save to Missed Qs** — each with its key (**Q**, **G**, **V**). They stay in
+  view while you scroll the panel.
+
 - **The AnKing cards tagged with this question** — how many, and how they stand
-  (new, young, mature, suspended).
+  (new, young, mature, suspended) — with **Preview** and **Test me** beside them.
+- **Extra** and **Additional Resources** — what your cards say there, card by card.
 - **Every resource those cards point to** — First Aid, Sketchy, B&B, OME, Bootcamp,
   Physeo, Pixorize… one line each, with the number of **chapters** your cards tag
   there and its image key (hover the key to see how many images it opens).
@@ -139,9 +166,9 @@ page and, right under the explanation, shows:
 - **Test me** (or **T**) — the question's own AnKing cards as a quick flashcard run,
   in a focus window over the page (so the explanation can't give the answer away):
   the blank hidden, **Space** to show the answer, then **Space** = *Got it*, **1** =
-  *Missed*, like Anki. Practice
-  only — nothing is graded in Anki — and at the end one tap unsuspends exactly
-  the cards you missed.
+  *Missed*, like Anki. Practice only — nothing is graded in Anki — and at the end
+  one tap unsuspends exactly the cards you missed (and **Suspend them again** if
+  you change your mind).
 
 Nothing appears until you've answered, so it can never spoil a question.
 
@@ -174,14 +201,15 @@ jump, **Esc** closes. The keys only work after you answer.
 
 ### 3. Your AnKing cards — preview, unsuspend, open in Anki
 
-- **👁 Preview** — the whole card, answer revealed: Text, Extra, Additional
+- **Preview** — the whole card, answer revealed: Text, Extra, Additional
   Resources and your Missed Questions notes open, every other filled field
   (First Aid, Sketchy, Physeo…) one click away. **Next** shows the other cards
   for the question, most specific to it first.
 - **Unsuspend N** — one click and this question's suspended cards are in your
-  Anki reviews.
+  Anki reviews. Changed your mind? The button becomes **Suspend again**, which
+  puts back exactly those cards.
 - **Anki** (next to the Question Id), or press **D** — Anki's Browse window opens
-  on exactly this question's cards.
+  on exactly this question's cards, in front of you.
 
 ![Preview a card, unsuspend the question's cards, then open them in Anki's Browse window](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/03-cards-preview-unsuspend.gif)
 
@@ -196,7 +224,9 @@ jump, **Esc** closes. The keys only work after you answer.
    Pick a chapter deck itself and it saves straight there, with the question's
    subject (Pharmacology, Medicine…) offered as an optional subdeck inside it.
 3. **Type your note.** It's *added* to the card's *Missed Questions* field — never
-   overwritten — and protected so an AnkiHub update can't wipe it.
+   overwritten — and protected so an AnkiHub update can't wipe it. Add images
+   too: paste a screenshot, drop a file, or tap the question's own figures —
+   including the ones behind the explanation's buttons.
 4. **Move it** — the real card moves, keeping its review history. (Prefer *Tag only*
    or *Make a copy*? Choose in the popup.)
 
@@ -211,7 +241,7 @@ the card goes back to its deck, and your note stays.
 
 For the fact a question taught you that no card covers:
 
-1. **Select any text** in the explanation — a **✚ Make card** button appears
+1. **Select any text** in the explanation — a **Make card** chip appears
    (or press **G**).
 2. Keep **Cloze**, or switch to **Basic** for a front / back card.
 3. Highlight a word and click **Make cloze** — it becomes `{{c1::…}}`.
@@ -226,7 +256,7 @@ For the fact a question taught you that no card covers:
 
 ### 6. Copy for AI
 
-**🤖 Copy for AI** (or **Q**) copies a prompt and the question in parts — the
+**Copy for AI** (or **Q**) copies a prompt and the question in parts — the
 stem, the choices with **your answer and the correct one marked**, whether you
 got it right, how it went, and the explanation — never the block's navigation,
 the qbank's name or a link. Paste it into ChatGPT, Claude or Gemini; Mnestic
@@ -239,9 +269,9 @@ wrong or unsure, and to the Step. **★** makes one the one-click default.
 **Copy the explanation only** (at the bottom of the **▾** menu) copies just the
 explanation, for your own notes.
 
-![Copy for AI, pasted: your prompt, then the question id, link and full question](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/06-copy-for-ai.gif)
+![Copy for AI: the question copied, ready to paste into an AI assistant](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/06-copy-for-ai.gif)
 
-<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/06-copy-for-ai.mp4)</sub>
+<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/06-copy-for-ai.mp4) · recorded on 1.3.1, which pasted the whole page; 1.5.0 copies the question in parts with your answer marked, as described above.</sub>
 
 ### 7. After a block — Anki buttons and Weak areas
 
@@ -264,8 +294,9 @@ Click the **M** in Chrome's toolbar (pin it so it's always one click away):
 - **Your pace** — questions left in your bank, and a finish date at the pace you
   actually study.
 - **Settings** — daily / weekly targets, Step, panel theme, how saving works, your
-  Missed Qs deck, and switches for Expected score, Easy mode, High-yield only and
-  all keyboard shortcuts.
+  Missed Qs deck, which prompt **Copy for AI** uses (and your own prompt), and
+  switches for Expected score, Easy mode, High-yield only and all keyboard
+  shortcuts.
 - **Missed questions by chapter** — **Copy ids** to retest them in your qbank's
   test builder, or **Study them in Anki**.
 
@@ -423,6 +454,8 @@ so the limits are worth stating plainly:
   a *Make a copy* save and refuses any note it did not itself create.
 - **It only removes its own tags** — never `marked`, `leech`, an AnKing tag, or the
   `AnkiHub_Protect` tag guarding notes you typed.
+- **Card images come only from your own Anki.** A preview never loads an image from
+  another website, and never asks the qbank's server for your files.
 
 Full detail, and how to report a problem: [SECURITY.md](SECURITY.md) ·
 [PRIVACY.md](PRIVACY.md)
@@ -434,24 +467,28 @@ Full detail, and how to report a problem: [SECURITY.md](SECURITY.md) ·
 ```
 extension/               the browser extension
   manifest.json          the qbank sites it runs on
-  content.js             matching engine, site adapters, every on-page feature
-  background.js          proxy to the bridge at 127.0.0.1:8790
+  content.js             site adapters and every on-page feature
+  lib/                   the pure logic, unit-tested: matching, tags and chapters,
+                         dates, tracker, weak areas, cloze text, AI prompts
+  background.js          proxy to the bridge at 127.0.0.1:8790 (allowlisted requests only)
   popup.html/.js         tracker, settings, missed list, pairing
 anki-addon/
   mnestic_bridge/        the Anki add-on — local bridge + Tools menu
 scripts/                 build, test and the demo recorder
-docs/                    the guides, release runbook, store copy, demo media
+test/unit/               node:test unit tests for extension/lib
+docs/                    the guides, release runbook, store copy, release notes
 ```
 
 <details><summary>Building and testing</summary><br>
 
 ```bash
-python scripts/check-addon.py    # the add-on can actually import
-python scripts/check-listing.py  # store copy fits the store's limits
-python scripts/guard-test.py     # destructive ops refuse what they should
-node   scripts/adapter-test.js   # every site adapter still parses its pages
-node   scripts/e2e-test.js       # the real extension, in a real browser
+npm ci --ignore-scripts          # the pinned test tooling (playwright-core)
+npm test                         # unit tests + add-on import, guard and bridge-security tests + listing limits
+npm run test:adapters            # every site adapter still parses its pages
+npm run test:e2e                 # the real extension, in a real browser, against a mock Anki
 ```
+
+CI runs all of them on every push (`.github/workflows/ci.yml`).
 
 Re-record the demos in `docs/media/` (drives the real extension, needs ffmpeg):
 

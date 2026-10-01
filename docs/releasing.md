@@ -88,10 +88,10 @@ unzip -p dist/mnestic-extension.zip manifest.json | grep version
 ## 3. GitHub
 
 ```bash
-git tag -a v1.3.0 -m "Mnestic 1.3.0"
-git push origin v1.3.0
-gh release create v1.3.0 dist/mnestic-extension.zip dist/mnestic_bridge.ankiaddon \
-  --title "Mnestic 1.3.0" --notes-file docs/release-notes/v1.3.0.md
+git tag -a v1.5.0 -m "Mnestic 1.5.0"
+git push origin v1.5.0
+gh release create v1.5.0 dist/mnestic-extension.zip dist/mnestic_bridge.ankiaddon \
+  --title "Mnestic 1.5.0" --notes-file docs/release-notes/v1.5.0.md
 ```
 
 The release is what people install from if they'd rather not use the stores, and

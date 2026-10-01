@@ -34,6 +34,7 @@ leaves your device, and there is nowhere for it to be sent.
 | Your settings | Step, theme, how to save missed questions, deck names, toggles, your AI prompt and which one Copy for AI uses |
 | Your study-pace log | Which questions you answered and when, how they went (and why, if you said), your last **Test me** score, and the qbank totals it read — this is what draws the tracker |
 | Which resource rows you open | So the panel can put the ones you use at the top |
+| Which cards Mnestic unsuspended, per question | So **Suspend again** puts back exactly those cards and nothing that was already in your reviews (kept 60 days) |
 | What each save did | For each card you save to Missed Qs: which question it came from, the deck it lived in, and which of its cards the save unsuspended — this is what lets **Remove from Missed Qs** undo exactly that save |
 | Chapters you pick | So the next save suggests the chapter you'd choose |
 | The question bank's subject/system for questions you've reviewed | Read off the results page, to suggest the matching chapter when you save |
@@ -60,7 +61,7 @@ Mnestic itself sends nothing anywhere.
 ## Permissions, explained
 
 - **storage** — save your settings and study log in your browser.
-- **clipboardWrite** — the "Copy for AI" and "Copy explanation" buttons write to
+- **clipboardWrite** — "Copy for AI" (and its "Copy the explanation only") writes to
   your clipboard.
 - **Access to your question-bank sites** (Coursology, MedPark, UWorld) — read the current
   question so it can be matched to your Anki cards. The extension runs only on

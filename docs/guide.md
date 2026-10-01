@@ -13,7 +13,12 @@ shows the whole idea.
 **New here?** [▶️ Watch the 7-minute walkthrough](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-real-walkthrough.mp4)
 first — it's faster than reading, it's recorded on a real qbank, and every click
 and key is highlighted so you can see exactly what's being pressed. Each section
-below also has its own short clip. Then do [Setup](#1-setup) and
+below also has its own short clip. The clips were recorded on version 1.3.1;
+version **1.5.0** groups the panel's buttons differently and has a calmer look,
+so what you see in a clip may differ a little from your screen — the text here
+describes 1.5.0.
+
+Then do [Setup](#1-setup) and
 [Check your ids match](#2-check-your-ids-match), which takes 30 seconds and
 tells you whether this will work for your deck at all.
 
@@ -29,16 +34,16 @@ If you only read one table, read this one.
 |---|---|:---:|
 | **Resource panel** | The resources your own card links to — First Aid, Sketchy, Physeo, OME, B&B, Picmonic — one collapsed line each, with the topics covered | |
 | **Image overlays** | That resource's images, over the question — press its key or click the key badge on its row. Multi-page topics page with the arrows | **F S P O E A** |
-| **Card readiness** | How the matching cards stand: mature, young, learning, suspended — with one-click **Unsuspend** | |
+| **Your cards** | How the matching cards stand: mature, young, learning, suspended — with one-click **Unsuspend** (and **Suspend again** if you change your mind) | |
 | **Preview** | Read the matched card as Anki renders it, clozes revealed, images inline | |
-| **Open in Anki** | This question's cards in Anki's Browse window | **D** |
+| **Open in Anki** | This question's cards in Anki's Browse window, brought to the front | **D** |
 | **Copy for AI** | A focused prompt + the question, your answer and the correct one, on the clipboard; **▾** picks the prompt | **Q** |
 | **Copy the explanation only** | Just the explanation text — in the **▾** menu next to Copy for AI | |
 | **Save to Missed Qs** | Keep it in a chapter subdeck with your note — move, tag, or copy | **V** |
 | **Remove from Missed Qs** | Undo that save. Untags, moves the card home, deletes the copy | |
 | **Make a card** | Select explanation text → a new Cloze or Basic card in Anki | **G** |
 | **How did that go?** | Optional: how sure you were, or why you missed it — with the one next step | |
-| **🧠 Test me** | This question's cards as a quick flashcard run, in the panel (practice only) | |
+| **Test me** | This question's cards as a quick flashcard run, in a focus window over the page (practice only) | **T** |
 
 ### When the block is finished
 
@@ -75,7 +80,7 @@ mode** and deck · **Expected score** · **Easy mode** · **High-yield only** ·
 | **[1. Setup](#1-setup)** | Install the add-on and extension, pair them |
 | **[2. Check your ids match](#2-check-your-ids-match)** | The one assumption everything rests on |
 | **[3. On a question](#3-on-a-question)** | Resource panel, image overlays, card readiness |
-| **[4. The buttons](#4-the-buttons)** | Copy for AI, Copy explanation, Preview, Test me, Save |
+| **[4. The buttons](#4-the-buttons)** | Copy for AI, Make card, Save — and Preview, Test me on your cards |
 | **[5. Missed questions](#5-missed-questions)** | Three ways to keep one, chapter subdecks, undo |
 | **[6. Make a card](#6-make-a-card)** | Turn any explanation text into a new card |
 | **[7. After a block](#7-after-a-block)** | Results buttons and the weak-area breakdown |
@@ -201,16 +206,20 @@ Resources* fields — often the explanation's own figures:
 
 <sub>▶ MP4: [First Aid](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/02a-first-aid-images.mp4) · [Sketchy, Extra, Additional](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/02b-sketchy-extra-additional.mp4)</sub>
 
-### The readiness strip
+### Your cards
 
-A line under the buttons says how the matching cards actually stand —
-*9 cards · 3 mature · 2 suspended* — with one-click **Unsuspend**.
+A strip under *How did that go?* says how the matching cards actually stand —
+*9 cards · 3 mature · 2 suspended* — with **Preview** and **Test me** beside it.
+**Unsuspend N** puts this question's suspended cards in your reviews; it then
+becomes **Suspend again**, which puts back exactly the cards it unsuspended and
+nothing else.
 
 ### Quick open in Anki
 
 Once you've answered, a small **Anki** button appears beside the question id and
-opens that question's cards in Anki's Browser. (Shortcut: **D**.) It stays hidden
-while a question is unanswered — those cards are the answer.
+opens that question's cards in Anki's Browser and brings it to the front.
+(Shortcut: **D**.) It stays hidden while a question is unanswered — those cards
+are the answer.
 
 Preview, Unsuspend and Open in Anki, on a real question:
 
@@ -222,9 +231,12 @@ Preview, Unsuspend and Open in Anki, on a real question:
 
 ## 4. The buttons
 
-At the top of the resource panel.
+At the top of the panel, for the **question**: **Copy for AI ▾**, **Make card** and
+the green **Save to Missed Qs** — the one filled button. They stay in view while
+you scroll the panel. On the strip under them, for its **cards**: **Preview** and
+**Test me**. Each button shows its key.
 
-### 🤖 Copy for AI — **Q**
+### Copy for AI — **Q**
 
 Copies a prompt and the question **in parts** — the stem, the lettered choices
 with *your answer* and *the correct answer* marked, the result, how it went (if
@@ -247,20 +259,21 @@ Each prompt adapts to the Step (Step 1: mechanisms; Step 2 CK / 3: diagnosis and
 the next best step) and to whether you were right, wrong or unsure. **★** makes a
 prompt the one-click default. Nothing is sent anywhere — you paste it.
 
-![Copy for AI, pasted: your prompt, then the question id, link and full question](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/06-copy-for-ai.gif)
+![Copy for AI: the question copied, ready to paste into an AI assistant](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/06-copy-for-ai.gif)
 
-<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/06-copy-for-ai.mp4)</sub>
+<sub>▶ [MP4 version](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/06-copy-for-ai.mp4) · recorded on 1.3.1, which pasted the whole page; 1.5.0 copies the question in parts, as described above.</sub>
 
 ### Copy the explanation only
 
-Just the qbank's explanation text, for your own notes.
+At the bottom of the **▾** menu: just the qbank's explanation text, for your own
+notes.
 
-### 👁 Preview
+### Preview
 
 Reads the matched card(s) without opening Anki — clozes revealed, images inline,
 with **‹ Prev / Next ›** across every card matched to the question.
 
-### 🧠 Test me
+### Test me — **T**
 
 The cards tagged with this question are already the flashcards for it — AnKing
 wrote them, the question id links them — so **Test me** runs them as a quick
@@ -395,7 +408,7 @@ studying them costs nothing permanent.
 
 ## 6. Make a card — **G**
 
-Select any text in the explanation and a floating **✚ Make card** chip appears.
+Select any text in the explanation and a floating **Make card** chip appears.
 
 - **Cloze** or **Basic**
 - For a cloze, highlight the word to hide and click **Make cloze** — it becomes
