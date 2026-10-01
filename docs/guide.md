@@ -18,6 +18,8 @@ version **1.5.0** groups the panel's buttons differently and has a calmer look,
 so what you see in a clip may differ a little from your screen — the text here
 describes 1.5.0.
 
+https://github.com/user-attachments/assets/9ba0eec1-44ef-4bc7-9869-10c88d54c0c7
+
 Then do [Setup](#1-setup) and
 [Check your ids match](#2-check-your-ids-match), which takes 30 seconds and
 tells you whether this will work for your deck at all.

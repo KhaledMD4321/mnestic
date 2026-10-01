@@ -12,7 +12,7 @@
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-7c4dff?style=flat-square)](LICENSE)
 [![Buy me a coffee](https://img.shields.io/badge/%E2%98%95-Buy%20me%20a%20coffee-d5891c?style=flat-square)](https://buymeacoffee.com/bnkhaled)
 
-[**▶️ Promo (1:46)**](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-promo.mp4) · [**🎬 Full walkthrough (7 min)**](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-real-walkthrough.mp4) · [**🎞️ Feature tour**](#feature-tour) · [**📖 Extension guide**](docs/guide.md) · [**🔌 Add-on guide**](docs/addon-guide.md) · [**Install**](#install) · [**Privacy**](PRIVACY.md)
+[**▶️ Promo (1:46)**](#mnestic) · [**🎬 Full walkthrough (7 min)**](#full-walkthrough) · [**🎞️ Feature tour**](#feature-tour) · [**📖 Extension guide**](docs/guide.md) · [**🔌 Add-on guide**](docs/addon-guide.md) · [**Install**](#install) · [**Privacy**](PRIVACY.md)
 
 </div>
 
@@ -29,7 +29,9 @@ Everything runs on your own computer, through a small local link to your own Ank
 
 <div align="center">
 
-[![Watch the 1:46 promo: everything, on the question](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/promo-thumbnail.png)](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-promo.mp4)
+
+https://github.com/user-attachments/assets/0e6a7e0d-004b-4d03-b0b4-5c4b8b8edf7b
+
 
 <sub>**New to Mnestic?** The [1:46 promo](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-promo.mp4) shows the whole idea — then the [feature tour](#feature-tour) below shows each feature on a real qbank.</sub>
 
@@ -125,6 +127,12 @@ real qbank, with the real extension and a real Anki — no mock-ups (see
 sharper **MP4**, and all of them together as one
 [**7-minute walkthrough**](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/mnestic-real-walkthrough.mp4) —
 see the [tutorial media release](https://github.com/KhaledMD4321/mnestic/releases/tag/tutorial-media).
+
+### Full walkthrough
+
+Every feature in 7 minutes, recorded on a real qbank:
+
+https://github.com/user-attachments/assets/9ba0eec1-44ef-4bc7-9869-10c88d54c0c7
 
 > [!NOTE]
 > The clips were recorded on version 1.3.1. Version **1.5.0** groups the panel's
