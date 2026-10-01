@@ -998,6 +998,43 @@
     #${PANEL_ID} .mnx-pbtn:hover{filter:brightness(.97);transform:translateY(-1px)}
     #${PANEL_ID} .mnx-pbtn:active{transform:translateY(0) scale(.98)}
     #${PANEL_ID} .mnx-pbtn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
+    #${PANEL_ID} .mnx-test{margin:10px 12px;border:1px solid var(--mnx-border);border-radius:var(--mnx-r-sm);background:var(--mnx-surface);overflow:hidden}
+    #${PANEL_ID} .mnx-test-top{display:flex;align-items:center;gap:8px;padding:8px 10px 6px}
+    #${PANEL_ID} .mnx-test-title{font-size:12px;font-weight:700;color:var(--mnx-text)}
+    #${PANEL_ID} .mnx-test-count{font-size:11.5px;color:var(--mnx-muted);font-variant-numeric:tabular-nums}
+    #${PANEL_ID} .mnx-test-end{margin-left:auto;border:none;background:none;font:600 11.5px var(--mnx-font);color:var(--mnx-muted);cursor:pointer;padding:3px 6px;border-radius:var(--mnx-r-xs)}
+    #${PANEL_ID} .mnx-test-end:hover{color:var(--mnx-text);background:var(--mnx-surface-2)}
+    #${PANEL_ID} .mnx-test-prog{height:3px;background:var(--mnx-surface-2)}
+    #${PANEL_ID} .mnx-test-prog i{display:block;height:100%;width:0;background:var(--mnx-accent);transition:width .25s}
+    #${PANEL_ID} .mnx-test-card{padding:12px 12px 4px;font-size:13.5px;line-height:1.55;color:var(--mnx-text)}
+    #${PANEL_ID} .mnx-test-card img{max-width:100%;height:auto;display:block;margin:8px 0;border-radius:var(--mnx-r-xs)}
+    #${PANEL_ID} .mnx-test-card .cloze{color:var(--mnx-accent);font-weight:700}
+    #${PANEL_ID} .mnx-test-extra{padding:0 12px}
+    #${PANEL_ID} .mnx-test-extra .mnx-field{border-top:1px solid var(--mnx-border);padding:6px 0}
+    #${PANEL_ID} .mnx-test-extra .mnx-field > summary{cursor:pointer;font-size:12.5px;display:flex;gap:8px;align-items:baseline;padding:3px 0;list-style-position:inside}
+    #${PANEL_ID} .mnx-test-extra .mnx-field > summary b{color:var(--mnx-ink);flex:none}
+    #${PANEL_ID} .mnx-test-extra .mnx-field-hint{color:var(--mnx-muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+    #${PANEL_ID} .mnx-test-extra .mnx-field[open] > summary .mnx-field-hint{display:none}
+    #${PANEL_ID} .mnx-test-extra .mnx-field-body{padding:4px 0 2px;font-size:13px;line-height:1.5}
+    #${PANEL_ID} .mnx-test-extra .mnx-field-body img{max-width:100%;height:auto;display:block;margin:8px 0;border-radius:var(--mnx-r-xs)}
+    #${PANEL_ID} .mnx-test-actions{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px 12px}
+    #${PANEL_ID} .mnx-test-btn{flex:1 1 120px;border:1px solid var(--mnx-border);border-radius:var(--mnx-r-xs);padding:8px 12px;font:600 12.5px var(--mnx-font);cursor:pointer;background:var(--mnx-surface-2);color:var(--mnx-text);transition:background .14s,transform .12s,filter .14s}
+    #${PANEL_ID} .mnx-test-btn:active{transform:scale(.98)}
+    #${PANEL_ID} .mnx-test-btn:focus-visible,#${PANEL_ID} .mnx-test-act:focus-visible,#${PANEL_ID} .mnx-test-end:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
+    #${PANEL_ID} .mnx-test-reveal{background:var(--mnx-accent);border-color:var(--mnx-accent);color:#fff}
+    #${PANEL_ID} .mnx-test-reveal:hover{filter:brightness(1.06)}
+    #${PANEL_ID} .mnx-test-miss{color:var(--mnx-bad-txt)}
+    #${PANEL_ID} .mnx-test-miss:hover{background:rgba(220,75,69,.10);border-color:var(--mnx-bad)}
+    #${PANEL_ID} .mnx-test-got{color:var(--mnx-good-txt)}
+    #${PANEL_ID} .mnx-test-got:hover{background:rgba(31,157,87,.10);border-color:var(--mnx-good)}
+    #${PANEL_ID} .mnx-test-score{font-size:13px;margin-bottom:6px}
+    #${PANEL_ID} .mnx-test-score b{font-size:15px}
+    #${PANEL_ID} .mnx-test-missed{margin:4px 0 8px;padding-left:18px;font-size:12.5px}
+    #${PANEL_ID} .mnx-test-missed li{margin:2px 0}
+    #${PANEL_ID} .mnx-test-act{font:600 12px var(--mnx-font);cursor:pointer;padding:5px 11px;border-radius:var(--mnx-r-pill);border:1px solid var(--mnx-border);background:var(--mnx-surface);color:var(--mnx-accent);transition:background .14s}
+    #${PANEL_ID} .mnx-test-act:hover{background:var(--mnx-accent-soft)}
+    #${PANEL_ID} .mnx-test-act:disabled{opacity:.6;cursor:progress}
+    #${PANEL_ID} .mnx-test-act.mnx-test-close{color:var(--mnx-muted);margin-left:auto}
     #${PANEL_ID} .mnx-split{display:inline-flex;align-items:stretch}
     #${PANEL_ID} .mnx-split .mnx-split-main{border-top-right-radius:0;border-bottom-right-radius:0}
     #${PANEL_ID} .mnx-split .mnx-split-caret{border-top-left-radius:0;border-bottom-left-radius:0;padding:6px 8px;margin-left:1px;font-size:11px}
@@ -3588,13 +3625,13 @@
     chrome.storage.local.set({ mnxChapterPicks: chapterPicks });
   }
 
-  function openSaveDialog(s) {
+  function openSaveDialog(s, startNid) {
     s = s || Q;
     if (!s || !s.notes.length) { toast("No AnKing card matched this question to save."); return; }
     const qid = s.qid;
     const notes = s.notes;                         // most specific first
     const m = buildModal("Save to Missed Qs — QID " + qid, () => document.removeEventListener("paste", pics.handlePaste));
-    let chosenNote = notes[0];
+    let chosenNote = (startNid && notes.find(n => n.noteId === startNid)) || notes[0];
     const NEW_OPT = "➕ New deck…";
     let candidates = [];
 
@@ -3606,7 +3643,7 @@
       const pick = document.createElement("div"); pick.className = "mnx-pick";
       notes.forEach((note, i) => {
         const row = document.createElement("label");
-        const r = document.createElement("input"); r.type = "radio"; r.name = "mnx-note"; r.checked = i === 0;
+        const r = document.createElement("input"); r.type = "radio"; r.name = "mnx-note"; r.checked = note === chosenNote;
         r.addEventListener("change", () => { chosenNote = note; refreshDeckGuess(); refreshFullCard(); });
         const ids = Mt.rankInfo(note).ids;
         const span = noteGlance(note, ids > 1 ? "tagged on " + ids + " questions" : "");
@@ -4154,11 +4191,18 @@
     const qid = s.qid;
     const head = document.createElement("div"); head.className = "mnx-phead";
     closeAiMenu();                          // a menu left open for the previous question
+    closeCardTest();
     head.appendChild(aiSplitButton(qid));   // the question, your answer, the explanation + a prompt
     head.appendChild(pbtn("📝 Copy explanation", "", () => copyExplanation()));  // for your notes
     head.appendChild(pbtn("✚ Make card", "", () => openMakeCardDialog(String((window.getSelection && window.getSelection()) || ""))));
     if (s.notes.length) {
       head.appendChild(pbtn("👁 Preview", "", () => openPreview(s.notes, 0)));
+      if (testItems(s.notes).items.length) {
+        const last = (trackerLog.answered[currentQbankSlug() + " " + qid] || {}).test;
+        const tb = pbtn("🧠 Test me", "", () => (document.getElementById(TEST_ID) ? closeCardTest() : openCardTest(s)));
+        tb.title = "Test yourself on this question's cards, here on the page" + (last ? " · last time " + last.got + " of " + last.total : "");
+        head.appendChild(tb);
+      }
       head.appendChild(pbtn("★ Save to Missed Qs", "mnx-save", () => openSaveDialog(s)));
     }
     panel.appendChild(head);
@@ -4207,8 +4251,8 @@
       case "knew": return { text: "Counts as known. Nothing to do here." };
       case "narrowed": return { text: "Counts as half — you had a coin flip left. Find the one feature that separates the two.",
                                 acts: [ai("choices", "Compare the choices")] };
-      case "guessed": return { text: "Counts as missed — a lucky answer isn't knowledge yet. Review the cards behind it.",
-                               acts: [has ? ["Preview the cards", () => openPreview(s.notes, 0)] : ai("hy", "High-yield points"), save] };
+      case "guessed": return { text: "Counts as missed — a lucky answer isn't knowledge yet. Check whether you really know the cards behind it.",
+                               acts: [has && testItems(s.notes).items.length ? ["Test me on the cards", () => openCardTest(s)] : ai("hy", "High-yield points"), save] };
       case "noknow": return { text: "A knowledge gap: learn it from the cards, then keep them in rotation.",
                               acts: [has ? ["Preview the cards", () => openPreview(s.notes, 0)] : ai("hy", "High-yield points"), save] };
       case "misread": return { text: "Go back to the stem and find the clue you skipped — usually the timing, the age, a negative (NOT, EXCEPT) or a lab value.",
@@ -4288,6 +4332,196 @@
     const key = slug + " " + qid;
     const e = trackerLog.answered[key] || (trackerLog.answered[key] = { ts: null, slug, qid, src: "rating" });
     if (conf) e.conf = conf; else delete e.conf;
+    saveLog();
+  }
+
+  // ============================================================
+  // Test yourself: the question's own AnKing cards, as a quick flashcard run
+  // ============================================================
+  // After the explanation, the cards tagged with this question ARE the
+  // flashcards for it -- written by AnKing, linked by the question id -- so
+  // no AI is needed to make any. One cloze at a time, like Anki: the blank
+  // hidden, Show answer, then Got it / Missed. It runs inside the panel, on
+  // the question page.
+  //
+  // Practice only: nothing is graded in Anki. Right after reading the
+  // explanation, remembering a card is short-term memory; grading it "Good"
+  // would push it weeks out on a false signal, and most AnKing cards are new or
+  // suspended. What you missed is offered back at the end -- unsuspend those
+  // cards, or save the question -- and nothing happens unless you tap it.
+  const TEST_MAX_NOTES = 8, TEST_MAX_ITEMS = 12;
+  function testItems(notes) {
+    const items = [], skipped = [];
+    (notes || []).slice(0, TEST_MAX_NOTES).forEach(note => {
+      if (/image occlusion/i.test(note.modelName || "")) { skipped.push(note); return; }
+      const text = noteField(note, "Text");
+      const ords = Cd.clozeOrdinals(text);
+      if (ords.length) ords.forEach(n => items.push({ note, n, front: Cd.clozeSide(text, n, false), back: Cd.clozeSide(text, n, true),
+                                                      answer: htmlToText(Cd.clozeAnswer(text, n)) }));
+      else {
+        const front = noteField(note, "Front"), back = noteField(note, "Back");
+        if (fieldHasContent(front) && fieldHasContent(back)) items.push({ note, n: 1, front, back: front + "<hr>" + back, answer: htmlToText(back) });
+        else skipped.push(note);
+      }
+    });
+    return { items: items.slice(0, TEST_MAX_ITEMS), skipped };
+  }
+  const TEST_ID = "mnx-test";
+  function closeCardTest() { const t = document.getElementById(TEST_ID); if (t) t.remove(); }
+  function openCardTest(s, only) {
+    const panel = document.getElementById(PANEL_ID); if (!panel || !isLive(s)) return;
+    closeCardTest();
+    const all = testItems(s.notes);
+    const items = only && only.length ? only : all.items;
+    if (!items.length) { toast("These cards have no blanks to test (image occlusion or empty cards)."); return; }
+    const box = document.createElement("section");
+    box.id = TEST_ID; box.className = "mnx-test";
+    box.setAttribute("aria-label", "Test yourself on this question's cards");
+    const top = document.createElement("div"); top.className = "mnx-test-top";
+    const title = document.createElement("span"); title.className = "mnx-test-title"; title.textContent = "Test yourself";
+    const count = document.createElement("span"); count.className = "mnx-test-count";
+    const end = document.createElement("button"); end.type = "button"; end.className = "mnx-test-end"; end.textContent = "End";
+    end.title = "End the test (Esc)";
+    top.append(title, count, end);
+    const prog = document.createElement("div"); prog.className = "mnx-test-prog";
+    const progFill = document.createElement("i"); prog.appendChild(progFill);
+    const card = document.createElement("div"); card.className = "mnx-test-card mnx-md-prev";
+    const extra = document.createElement("div"); extra.className = "mnx-test-extra";
+    const actions = document.createElement("div"); actions.className = "mnx-test-actions";
+    box.append(top, prog, card, extra, actions);
+    const headEl = panel.querySelector(".mnx-phead");
+    if (headEl && headEl.nextSibling) panel.insertBefore(box, headEl.nextSibling); else panel.appendChild(box);
+
+    let i = 0;
+    const results = [];                                    // { item, got }
+    const stillHere = () => isLive(s) && box.isConnected;
+    end.addEventListener("click", onUserClick(() => (results.length ? finish() : closeCardTest())));
+    box.addEventListener("keydown", e => {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); results.length ? finish() : closeCardTest(); }
+    });
+    function setProgress() {
+      count.textContent = Math.min(i + 1, items.length) + " / " + items.length;
+      progFill.style.width = (100 * i / items.length) + "%";
+    }
+    function show() {
+      const it = items[i];
+      setProgress();
+      setSafeHtml(card, it.front);
+      resolveMediaImages(card, stillHere);
+      extra.replaceChildren();
+      actions.replaceChildren();
+      const reveal = document.createElement("button"); reveal.type = "button"; reveal.className = "mnx-test-btn mnx-test-reveal";
+      reveal.textContent = "Show answer";
+      reveal.addEventListener("click", onUserClick(() => back()));
+      actions.appendChild(reveal);
+      reveal.focus({ preventScroll: true });
+    }
+    function back() {
+      const it = items[i];
+      setSafeHtml(card, it.back);
+      resolveMediaImages(card, stillHere);
+      // Extra open; Additional Resources one click away (images load when opened).
+      [["Extra", ["Extra", "Back Extra"], true], ["Additional Resources", ["Additional Resources"], false]].forEach(([label, names, open]) => {
+        const html = names.map(n => noteField(it.note, n)).filter(fieldHasContent).join("<br>");
+        if (!html) return;
+        const d = document.createElement("details"); d.className = "mnx-field";
+        const sum = document.createElement("summary");
+        const b = document.createElement("b"); b.textContent = label;
+        const h = document.createElement("span"); h.className = "mnx-field-hint"; h.textContent = fieldSummary(html);
+        sum.append(b, h);
+        const body = document.createElement("div"); body.className = "mnx-md-prev mnx-field-body";
+        d.append(sum, body);
+        let built = false;
+        const build = () => { if (built) return; built = true; setSafeHtml(body, html); resolveMediaImages(body, stillHere); };
+        d.addEventListener("toggle", () => { if (d.open) build(); });
+        if (open) { d.open = true; build(); }
+        extra.appendChild(d);
+      });
+      actions.replaceChildren();
+      const miss = document.createElement("button"); miss.type = "button"; miss.className = "mnx-test-btn mnx-test-miss"; miss.textContent = "Missed";
+      const got = document.createElement("button"); got.type = "button"; got.className = "mnx-test-btn mnx-test-got"; got.textContent = "Got it";
+      miss.addEventListener("click", onUserClick(() => grade(false)));
+      got.addEventListener("click", onUserClick(() => grade(true)));
+      actions.append(miss, got);
+      got.focus({ preventScroll: true });
+    }
+    function grade(gotIt) {
+      results.push({ item: items[i], got: gotIt });
+      i++;
+      if (i < items.length) show(); else finish();
+    }
+    async function finish() {
+      progFill.style.width = "100%";
+      count.textContent = "";
+      const got = results.filter(r => r.got).length, missed = results.filter(r => !r.got);
+      rememberTest(s.qid, got, results.length);
+      card.replaceChildren(); extra.replaceChildren(); actions.replaceChildren();
+      const score = document.createElement("div"); score.className = "mnx-test-score";
+      const big = document.createElement("b"); big.textContent = got + " of " + results.length;
+      score.append(big, document.createTextNode(missed.length ? " recalled. The ones you missed:" : " recalled — you know these cards."));
+      card.appendChild(score);
+      if (missed.length) {
+        const ul = document.createElement("ul"); ul.className = "mnx-test-missed";
+        missed.forEach(r => { const li = document.createElement("li"); li.textContent = r.item.answer || noteSnippet(r.item.note); li.title = noteSnippet(r.item.note); ul.appendChild(li); });
+        card.appendChild(ul);
+        const note = document.createElement("div"); note.className = "mnx-md-hint";
+        note.textContent = "Practice only — nothing was graded in Anki, so your schedule is unchanged.";
+        card.appendChild(note);
+        // Which missed cards are suspended -- those are the ones worth a tap.
+        let stats = null;
+        try { stats = (await bridge("cardStats", { queries: [s.query || qidQuery(s.qid, s.sv || 1)] }))[0] || []; } catch (e) { stats = null; }
+        if (!stillHere()) return;
+        const exact = stats && stats.length && stats[0].nid != null && stats[0].ord != null;
+        const suspended = [];
+        if (exact) {
+          missed.forEach(r => {
+            const row = stats.find(c => c.nid === r.item.note.noteId && c.ord === r.item.n - 1);
+            if (row && row.suspended && suspended.indexOf(row.cid) < 0) suspended.push(row.cid);
+          });
+        }
+        const missedNotes = Array.from(new Set(missed.map(r => r.item.note.noteId)));
+        if (exact && suspended.length) {
+          actions.appendChild(testAction("Unsuspend the " + suspended.length + " you missed", async (b) => {
+            await bridge("unsuspend", { queries: suspended.map(c => "cid:" + c) });
+            toast("Unsuspended " + suspended.length + (suspended.length === 1 ? " card" : " cards") + " — Anki will schedule " + (suspended.length === 1 ? "it" : "them") + ".");
+            b.remove();
+          }));
+        } else if (!exact && stats) {
+          // An add-on before 1.5 can't say which card is which cloze: offer the notes.
+          actions.appendChild(testAction("Unsuspend these notes' cards", async (b) => {
+            await bridge("unsuspend", { queries: missedNotes.map(n => "nid:" + n) });
+            toast("Unsuspended the cards of " + missedNotes.length + (missedNotes.length === 1 ? " note" : " notes") + ".");
+            b.remove();
+          }, "Update the Mnestic Bridge add-on to unsuspend only the exact cards you missed"));
+        }
+        actions.appendChild(testAction("Save to Missed Qs", () => openSaveDialog(s, missedNotes[0])));
+        actions.appendChild(testAction("Test the missed again", () => openCardTest(s, missed.map(r => r.item))));
+      }
+      const done = testAction("Close", () => closeCardTest());
+      done.classList.add("mnx-test-close");
+      actions.appendChild(done);
+      (actions.querySelector("button") || done).focus({ preventScroll: true });
+    }
+    show();
+    box.scrollIntoView({ block: "nearest" });
+  }
+  function testAction(label, fn, title) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "mnx-test-act"; b.textContent = label;
+    if (title) b.title = title;
+    b.addEventListener("click", onUserClick(async () => {
+      if (b.disabled) return;
+      b.disabled = true;
+      try { await fn(b); } catch (e) { toast("Couldn't do that: " + bridgeFailure(e)); }
+      b.disabled = false;
+    }));
+    return b;
+  }
+  // Kept in this browser only, with the question: the last score.
+  function rememberTest(qid, got, total) {
+    const slug = currentQbankSlug();
+    const key = slug + " " + qid;
+    const e = trackerLog.answered[key] || (trackerLog.answered[key] = { ts: null, slug, qid, src: "test" });
+    e.test = { at: Date.now(), got, total };
     saveLog();
   }
 

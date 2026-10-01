@@ -32,12 +32,13 @@ If you only read one table, read this one.
 | **Card readiness** | How the matching cards stand: mature, young, learning, suspended — with one-click **Unsuspend** | |
 | **Preview** | Read the matched card as Anki renders it, clozes revealed, images inline | |
 | **Open in Anki** | This question's cards in Anki's Browse window | **D** |
-| **Copy for AI** | Your editable prompt + the whole question, on the clipboard | **Q** |
+| **Copy for AI** | A focused prompt + the question, your answer and the correct one, on the clipboard; **▾** picks the prompt | **Q** |
 | **Copy explanation** | Just the explanation text | |
 | **Save to Missed Qs** | Keep it in a chapter subdeck with your note — move, tag, or copy | **V** |
 | **Remove from Missed Qs** | Undo that save. Untags, moves the card home, deletes the copy | |
 | **Make a card** | Select explanation text → a new Cloze or Basic card in Anki | **G** |
-| **How did that go?** | Mark a question guessed, so a lucky right answer still counts as weak | |
+| **How did that go?** | Optional: how sure you were, or why you missed it — with the one next step | |
+| **🧠 Test me** | This question's cards as a quick flashcard run, in the panel (practice only) | |
 
 ### When the block is finished
 
@@ -56,7 +57,7 @@ If you only read one table, read this one.
 | **Missed questions** | Your saved questions grouped by chapter, with **Copy ids** for your qbank's test builder |
 | **Study them in Anki** | Builds a filtered deck of everything you missed |
 | **Find a topic in Anki** | Opens Browse on any topic, for drilling outside the qbank |
-| **AI prompt** | The prompt Copy for AI uses — four presets or your own |
+| **Copy for AI** | Which prompt one click uses, and your own prompt (optional) |
 | **Check my deck / this page** | Diagnostics when something isn't matching |
 
 ### Settings
@@ -74,7 +75,7 @@ mode** and deck · **Expected score** · **Easy mode** · **High-yield only** ·
 | **[1. Setup](#1-setup)** | Install the add-on and extension, pair them |
 | **[2. Check your ids match](#2-check-your-ids-match)** | The one assumption everything rests on |
 | **[3. On a question](#3-on-a-question)** | Resource panel, image overlays, card readiness |
-| **[4. The four buttons](#4-the-four-buttons)** | Copy for AI, Copy explanation, Preview, Save |
+| **[4. The buttons](#4-the-buttons)** | Copy for AI, Copy explanation, Preview, Test me, Save |
 | **[5. Missed questions](#5-missed-questions)** | Three ways to keep one, chapter subdecks, undo |
 | **[6. Make a card](#6-make-a-card)** | Turn any explanation text into a new card |
 | **[7. After a block](#7-after-a-block)** | Results buttons and the weak-area breakdown |
@@ -219,17 +220,32 @@ Preview, Unsuspend and Open in Anki, on a real question:
 
 ---
 
-## 4. The four buttons
+## 4. The buttons
 
 At the top of the resource panel.
 
 ### 🤖 Copy for AI — **Q**
 
-Copies your **AI prompt** + the question id + link + the whole question (stem,
-choices, explanation) — ready to paste into ChatGPT, Claude or Gemini.
+Copies a prompt and the question **in parts** — the stem, the lettered choices
+with *your answer* and *the correct answer* marked, the result, how it went (if
+you said), and the explanation. It leaves out the block's question list, "Item 20
+of 40", timers, the answer percentages, the qbank's name and the link. If your
+answer can't be read on the page, the text says so and tells the AI not to guess.
 
-Edit the prompt in the popup. Four presets: **Explain**, **Differentiate**,
-**One-liner**, **Simplify**. Leave it empty to copy the raw question.
+The **▾** next to the button:
+
+| Prompt | What you get |
+|---|---|
+| **Full review** (default) | What it tests, the key clues, how to solve it, why the answer is right, *why yours was wrong* (or what should have made you sure), every other choice in a line, what to remember |
+| **Why I got it wrong** | Why your answer was tempting, the clue that rules it out, your error type, one rule for next time, the same trap again |
+| **Compare the choices** | Every option: what it is, the deciding clue, "it would be correct if…", and a table of the correct answer vs. yours |
+| **High-yield points** | The topic's high-yield points, grouped and ordered from most to least tested |
+| **Quiz me** | Five questions, one at a time, getting harder, ending with a new vignette |
+| **My own prompt** | The one you wrote in the popup |
+
+Each prompt adapts to the Step (Step 1: mechanisms; Step 2 CK / 3: diagnosis and
+the next best step) and to whether you were right, wrong or unsure. **★** makes a
+prompt the one-click default. Nothing is sent anywhere — you paste it.
 
 ![Copy for AI, pasted: your prompt, then the question id, link and full question](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/06-copy-for-ai.gif)
 
@@ -243,6 +259,42 @@ Just the qbank's explanation text, for your own notes.
 
 Reads the matched card(s) without opening Anki — clozes revealed, images inline,
 with **‹ Prev / Next ›** across every card matched to the question.
+
+### 🧠 Test me
+
+The cards tagged with this question are already the flashcards for it — AnKing
+wrote them, the question id links them — so **Test me** runs them as a quick
+test, inside the panel, without leaving the question:
+
+1. One cloze at a time, like Anki: the blank hidden (or its hint shown).
+2. **Show answer** — the answer, with the card's **Extra** open and **Additional
+   Resources** one click away.
+3. **Got it** or **Missed**.
+
+At the end you see what you missed, and — only if you tap them — **Unsuspend the
+ones you missed** (exactly those cards, so Anki starts scheduling them), **Save
+to Missed Qs**, or **Test the missed again**.
+
+It's practice only: **nothing is graded in Anki**. Remembering a card a minute
+after reading the explanation is short-term memory; grading it "Good" would push
+it weeks out on a false signal. Your last score stays in your browser.
+
+### How did that go?
+
+Optional, one tap, never in the way of the next question. It follows the result
+on the page:
+
+| You were | It asks | The choices |
+|---|---|---|
+| Right | How sure were you? | Knew it · Narrowed to 2 · Guessed |
+| Wrong | Why did you miss it? | Didn't know it · Misread / missed a clue · Knew it, reasoned wrong · Torn between 2 |
+| Omitted | What happened? | Didn't know it · Ran out of time |
+
+Each answer comes with the one next step that helps — a guess → **Test me**; a
+misread or a reasoning slip → **Copy for AI: Why I got it wrong**; torn between
+two → **Copy for AI: Compare the choices**. In the block breakdown a guess counts
+as missed, *Narrowed to 2* as half, and once you've rated 3 or more wrong answers
+it shows **why you missed** them.
 
 ### ★ Save to Missed Qs — **V**
 
@@ -353,7 +405,7 @@ Select any text in the explanation and a floating **✚ Make card** chip appears
 For the fact a question taught you that no existing card covers.
 
 > **Known issue:** in store version **1.3.1**, *Create card* does nothing.
-> It's fixed in **1.4.0**.
+> It's fixed in **1.5.0**.
 
 ![Select explanation text, click Make card, make a cloze, and attach the question as its source](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/05-make-a-card.gif)
 
@@ -445,10 +497,12 @@ chapter, each with **Copy ids**:
 Type a topic → opens Anki's Browser with the matching AnKing Step cards. For
 drilling something tough outside the qbank.
 
-### AI prompt
+### Copy for AI
 
-The text **Copy for AI** puts in front of the question. Four presets, or write
-your own.
+**One click uses** picks the prompt the button uses (the **▾** next to it on the
+panel picks any other for a single copy). **My own prompt** is optional: write one
+and it becomes a sixth choice. If you'd written your own prompt before 1.5, it
+stays the one-click default.
 
 ### Advanced
 

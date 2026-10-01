@@ -43,6 +43,8 @@ list it in `SITES`. The full contract is in the comment above `SITES`:
 | `blockSlug()` | key for the tracker's per-qbank totals; the tracker reads a dashboard only when this isn't `"default"` |
 | `questionSource()` | `"uworld"`, `"other"` or `"unknown"` — a bank of NON-UWorld questions on the same site returns `"other"`, and is never searched |
 | `inTest()`, `isResultsPage()` | which view we're on. Make `isResultsPage()` strict (a results URL, or a table with an `ID` column): the results toolbar and every "Anki: …" button depend on it |
+| `stemEl()`, `choiceRows()`, `choiceSelected(row)` | *optional.* The stem element, one element per answer choice, and "is this the choice the user picked". Copy for AI and "How did that go?" use them to say which answer was picked and which is correct. Without them, `readQuestionParts()` finds choices reading "A. …", the correct one by a check icon or a `correct` class, a wrong pick by a cross, and the verdict from a short "Correct / Incorrect / Omitted" block — and anything it can't read is reported as *not detected*, never guessed |
+| `exhibits()` | *optional.* Figures the explanation keeps behind a button: `[{label, open() → image URL}]` |
 
 **Prefer shape over class names.** Sites that ship generated class names
 (`css-1x2y3z`) break fixed selectors on every release. Look for a visible

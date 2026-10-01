@@ -31,8 +31,8 @@ leaves your device, and there is nowhere for it to be sent.
 
 | What | Why |
 |---|---|
-| Your settings | Step, theme, how to save missed questions, deck names, toggles, your AI prompt |
-| Your study-pace log | Which questions you answered and when, how they went, and the qbank totals it read — this is what draws the tracker |
+| Your settings | Step, theme, how to save missed questions, deck names, toggles, your AI prompt and which one Copy for AI uses |
+| Your study-pace log | Which questions you answered and when, how they went (and why, if you said), your last **Test me** score, and the qbank totals it read — this is what draws the tracker |
 | Which resource rows you open | So the panel can put the ones you use at the top |
 | What each save did | For each card you save to Missed Qs: which question it came from, the deck it lived in, and which of its cards the save unsuspended — this is what lets **Remove from Missed Qs** undo exactly that save |
 | Chapters you pick | So the next save suggests the chapter you'd choose |

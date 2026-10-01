@@ -1502,6 +1502,50 @@ function listenFree(server, from) {
       await p2.close();
     }
 
+    // Test yourself: the question's own cards as flashcards, in the panel.
+    // Nothing is graded in Anki; what you missed is offered back at the end.
+    {
+      mock.reset();
+      const p = await openAt(reviewHtml("4211"));
+      await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 12000 });
+      const n0 = mock.calls().length;
+      await p.locator("#mnx-resources .mnx-pbtn", { hasText: "Test me" }).click();
+      await p.waitForSelector("#mnx-test .mnx-test-reveal", { timeout: 5000 });
+      const front = await p.evaluate(() => ({ card: document.querySelector("#mnx-test .mnx-test-card").innerText,
+        count: document.querySelector("#mnx-test .mnx-test-count").textContent,
+        focused: document.activeElement && document.activeElement.textContent,
+        inPanel: !!document.querySelector("#mnx-resources #mnx-test") }));
+      check("1.5", "Test me runs in the panel: the card with its blank hidden, one at a time",
+        front.inPanel && /The \[…\] transduces sound/.test(front.card) && !/cochlea/.test(front.card) && front.count === "1 / 1" &&
+        front.focused === "Show answer", JSON.stringify(front));
+      await p.keyboard.press("Enter");                    // the focused Show answer
+      await p.waitForSelector("#mnx-test .mnx-test-got", { timeout: 3000 });
+      const back = await p.evaluate(() => ({ card: document.querySelector("#mnx-test .mnx-test-card").innerText,
+        extra: (document.querySelector("#mnx-test .mnx-test-extra") || {}).innerText || "" }));
+      check("1.5", "…Show answer reveals it, with the card's Extra",
+        /The cochlea transduces sound/.test(back.card) && /Extra note text/.test(back.extra), JSON.stringify(back));
+      await p.locator("#mnx-test .mnx-test-miss").click();
+      await p.waitForSelector("#mnx-test .mnx-test-score", { timeout: 3000 });
+      await p.waitForTimeout(800);
+      const endv = await p.evaluate(() => ({ score: document.querySelector("#mnx-test .mnx-test-score").innerText,
+        missed: Array.from(document.querySelectorAll("#mnx-test .mnx-test-missed li")).map((l) => l.textContent),
+        acts: Array.from(document.querySelectorAll("#mnx-test .mnx-test-act")).map((b) => b.textContent),
+        note: document.querySelector("#mnx-test .mnx-test-card").innerText }));
+      const writesDuring = mock.calls().slice(n0).filter((c) => WRITES.indexOf(c.op) >= 0).map((c) => c.op);
+      check("1.5", "…the end says what you missed, changed nothing in Anki, and offers the follow-ups",
+        /0 of 1/.test(endv.score) && endv.missed[0] === "cochlea" && /nothing was graded in Anki/.test(endv.note) &&
+        endv.acts.join("|") === "Unsuspend the 1 you missed|Save to Missed Qs|Test the missed again|Close" && writesDuring.length === 0,
+        JSON.stringify(endv) + " writes: " + writesDuring.join(","));
+      await p.locator("#mnx-test .mnx-test-act", { hasText: "Unsuspend the 1 you missed" }).click();
+      await p.waitForTimeout(700);
+      const un = mock.calls().filter((c) => c.op === "unsuspend").slice(-1)[0];
+      const cards = mock.note(1111111111111).cards.map((c) => c.suspended);
+      check("1.5", "…and unsuspends exactly the card you missed (cloze 1), not its sibling",
+        !!un && JSON.stringify(un.args.queries) === JSON.stringify(["cid:11111111111110"]) && cards[0] === false && cards[1] === true,
+        JSON.stringify(un && un.args) + " " + JSON.stringify(cards));
+      await p.close();
+    }
+
     // Upgrading from 1.3: its log keyed days by local-midnight milliseconds.
     // The popup must read that history as calendar days (and the content
     // script rewrites it once as v3), with nothing lost.

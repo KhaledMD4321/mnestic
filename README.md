@@ -84,8 +84,9 @@ straight into Anki, with the question id as the source.
 <td valign="top">
 
 ### 🤖 Copy for AI
-Your editable prompt + the whole question, copied in one click for ChatGPT,
-Claude or Gemini.
+The question, **your answer and the correct one**, and the explanation — with a
+focused prompt (full review, why you got it wrong, compare the choices,
+high-yield points, quiz me) — in one click for ChatGPT, Claude or Gemini.
 
 </td>
 </tr>
@@ -131,8 +132,14 @@ page and, right under the explanation, shows:
   Physeo, Pixorize… one line each, with the number of **chapters** your cards tag
   there and its image key (hover the key to see how many images it opens).
   **Click a row** to see those chapters; the most-tagged come first.
-- **How did that go?** — *Knew it*, *Guessed* or *No idea*. A right answer you only
-  guessed still counts as weak.
+- **How did that go?** — optional, one tap. A right answer asks how sure you were
+  (*Knew it*, *Narrowed to 2*, *Guessed*); a wrong one asks why (*Didn't know it*,
+  *Misread*, *Reasoned wrong*, *Torn between 2*). Each answer suggests the one next
+  step, and your weak areas count a guess as missed and a coin flip as half.
+- **🧠 Test me** — the question's own AnKing cards as a quick flashcard run, right
+  in the panel: the blank hidden, *Show answer*, *Got it* / *Missed*. Practice
+  only — nothing is graded in Anki — and at the end one tap unsuspends exactly
+  the cards you missed.
 
 Nothing appears until you've answered, so it can never spoil a question.
 
@@ -209,7 +216,7 @@ For the fact a question taught you that no card covers:
 4. **Create card.** The question's id and link go on the card as its source.
 
 > **Known issue:** in store version **1.3.1**, *Create card* does nothing.
-> It's fixed in **1.4.0**.
+> It's fixed in **1.5.0**.
 
 ![Select explanation text, click Make card, make a cloze, and attach the question as its source](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/05-make-a-card.gif)
 
@@ -217,10 +224,17 @@ For the fact a question taught you that no card covers:
 
 ### 6. Copy for AI
 
-**🤖 Copy for AI** (or **Q**) copies your saved prompt, the question id and link,
-and the whole question — paste it into ChatGPT, Claude or Gemini. **📝 Copy
-explanation** copies just the explanation, for your own notes. Set the prompt once
-in the popup (four presets, or write your own).
+**🤖 Copy for AI** (or **Q**) copies a prompt and the question in parts — the
+stem, the choices with **your answer and the correct one marked**, whether you
+got it right, how it went, and the explanation — never the block's navigation,
+the qbank's name or a link. Paste it into ChatGPT, Claude or Gemini; Mnestic
+itself never calls an AI.
+
+The **▾** next to the button picks the prompt: **Full review** (the default),
+**Why I got it wrong**, **Compare the choices**, **High-yield points**, **Quiz me**,
+or your own (written in the popup). Each one adapts to whether you were right,
+wrong or unsure, and to the Step. **★** makes one the one-click default.
+**📝 Copy explanation** copies just the explanation, for your own notes.
 
 ![Copy for AI, pasted: your prompt, then the question id, link and full question](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/06-copy-for-ai.gif)
 

@@ -224,13 +224,22 @@ const OPS = {
   // Per query, one row per card of the matching notes, with its real suspension.
   cardStats: (a) => (a.queries || []).map((q) => {
     const rows = [];
-    search(q).forEach((id) => notes.get(id).cards.forEach((c) =>
-      rows.push({ cid: c.cid, type: 2, ivl: 30, lapses: 0, suspended: c.suspended, yield: "HighYield" })));
+    search(q).forEach((id) => notes.get(id).cards.forEach((c, k) =>
+      rows.push(Object.assign({ cid: c.cid, type: 2, ivl: 30, lapses: 0, suspended: c.suspended, yield: "HighYield" },
+                              state.oldAddon ? {} : { nid: id, ord: k }))));
     return rows;
   }),
   cardMaturity: (a) => (a.queries || []).map(() =>
     ({ new: 1, learning: 1, young: 2, mature: 3, suspended: 2, total: 9 })),
   unsuspend: (a) => (a.queries || []).map((q) => {
+    const one = /^\s*cid:(\d+)\s*$/i.exec(q);              // one card, like the real add-on
+    if (one) {
+      for (const n of notes.values()) {
+        const c = n.cards.find((x) => String(x.cid) === one[1]);
+        if (c) { const was = c.suspended; c.suspended = false; return { matched: 1, unlocked: was ? 1 : 0, cids: was ? [c.cid] : [] }; }
+      }
+      return { matched: 0, unlocked: 0, cids: [] };
+    }
     const ids = search(q);
     const cids = [];
     let matched = 0;
