@@ -10,7 +10,7 @@ import sys
 import types
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ADDON = os.path.join(HERE, "..", "anki-addon")
+ADDON = os.environ.get("MNX_ADDON_DIR") or os.path.join(HERE, "..", "anki-addon")
 
 
 def _stub_anki():
@@ -61,10 +61,11 @@ class Col(object):
         self.updated.append(note.id)
 
     def remove_notes(self, ids):
+        # Like Anki: the count is of CARDS removed, three per note here.
         self.removed.extend(ids)
         for i in ids:
             self.notes.pop(i, None)
-        return types.SimpleNamespace(count=len(ids))
+        return types.SimpleNamespace(count=3 * len(ids))
 
     def find_notes(self, q):
         return list(self.notes.keys())
@@ -138,7 +139,7 @@ def main():
         check("deleteNotes refuses an oversized batch", True, exc)
 
     out = M.op_delete_notes({"notes": [2]})
-    check("deleteNotes removes a genuine Mnestic copy",
+    check("deleteNotes removes a genuine Mnestic copy, and counts it as ONE note (not its 3 cards)",
           out["deleted"] == 1 and out["refused"] == [], out)
     check("the copy is gone", 2 not in col.notes)
 

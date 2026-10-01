@@ -1154,6 +1154,119 @@ function listenFree(server, from) {
       await p.close();
     }
 
+    // Extra and Additional Resources: rows at the top, and E/A show the field itself.
+    {
+      mock.reset();
+      const p = await openAt(reviewHtml("4211"));
+      await p.waitForSelector("#mnx-resources .mnx-r-field", { timeout: 12000 });
+      const order = await p.evaluate(() => Array.from(document.querySelectorAll("#mnx-resources .mnx-r .mnx-r-name")).map((n) => n.textContent));
+      check("1.4", "Extra and Additional Resources lead the panel", order[0] === "Extra" && order[1] === "Additional Resources", order.join(", "));
+      await p.keyboard.press("e");
+      let shown = "";
+      try {
+        await p.waitForSelector("#mnx-overlay .mnx-ovl-field", { timeout: 6000 });
+        shown = await p.evaluate(() => document.querySelector("#mnx-overlay .mnx-ovl-field").innerText);
+      } catch (e) {}
+      check("1.4", "E shows the Extra text itself, not only its images", /Extra note text/.test(shown), shown.slice(0, 80));
+      await p.keyboard.press("Escape");
+      await p.close();
+    }
+
+    // The whole card in Preview: every filled field, the heavy ones one click away.
+    {
+      mock.reset();
+      const p = await openAt(reviewHtml("4211"));
+      await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 12000 });
+      await p.waitForTimeout(1500);                  // let the panel's own prefetch finish
+      const faReads = () => mock.calls().filter((c) => c.op === "readMedia" && /fa-\d/.test(c.args.filename || "")).length;
+      const baseline = faReads();
+      await p.locator("#mnx-resources button", { hasText: "Preview" }).click();
+      await p.waitForSelector("#mnx-md-overlay .mnx-field", { timeout: 6000 });
+      await p.waitForTimeout(600);
+      const st = await p.evaluate(() => Array.from(document.querySelectorAll("#mnx-md-overlay .mnx-field")).map((d) =>
+        d.querySelector("summary b").textContent + (d.open ? "(open)" : "") + ":" + d.querySelector(".mnx-field-hint").textContent));
+      const fa = st.find((x) => /^First Aid/.test(x)) || "";
+      check("1.4", "Preview lists every filled field, First Aid collapsed with its image count",
+        st.some((x) => /^Text\(open\)/.test(x)) && st.some((x) => /^Extra\(open\)/.test(x)) && /^First Aid:.*3 images/.test(fa) &&
+        !st.some((x) => /ankihub_id/i.test(x)), st.join(" | "));
+      const collapsed = faReads();
+      await p.locator("#mnx-md-overlay .mnx-field summary", { hasText: "First Aid" }).click();
+      await p.waitForTimeout(1000);
+      const opened = faReads();
+      const imgs = await p.evaluate(() => Array.from(document.querySelectorAll("#mnx-md-overlay .mnx-field[open] img")).filter((i) => /^data:/.test(i.src)).length);
+      check("1.4", "a collapsed field's images load only when it is opened",
+        collapsed === baseline && opened > collapsed && imgs >= 3,
+        "reads: baseline " + baseline + ", preview open " + collapsed + ", section open " + opened + ", shown " + imgs);
+      await p.keyboard.press("Escape");
+      await p.close();
+    }
+
+    // Save: the full chosen card is one click away and follows the radio.
+    {
+      mock.reset();
+      const p = await openAt(reviewHtml("4211"));
+      await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 12000 });
+      await p.locator("#mnx-resources button", { hasText: "Save to Missed Qs" }).click();
+      await p.waitForSelector("#mnx-md-overlay .mnx-fullcard", { timeout: 6000 });
+      const closedFirst = await p.evaluate(() => !document.querySelector("#mnx-md-overlay .mnx-fullcard").open &&
+        !document.querySelector("#mnx-md-overlay .mnx-fullcard .mnx-field"));
+      await p.locator("#mnx-md-overlay .mnx-fullcard > summary").click();
+      await p.waitForTimeout(500);
+      const one = await p.evaluate(() => document.querySelector("#mnx-md-overlay .mnx-fullcard-body").innerText);
+      await p.locator("#mnx-md-overlay .mnx-pick input[type=radio]").nth(1).check();
+      await p.waitForTimeout(500);
+      const two = await p.evaluate(() => document.querySelector("#mnx-md-overlay .mnx-fullcard-body").innerText);
+      check("1.4", "Save shows the full selected card on demand, and follows the card you pick",
+        closedFirst && /cochlea/.test(one) && /second card/.test(two) && !/cochlea/.test(two), (one.slice(0, 40) + " | " + two.slice(0, 40)));
+      await p.locator("#mnx-md-overlay .mnx-md-cancel").last().click();
+      await p.close();
+    }
+
+    // A chapter deck is a chapter: nothing is appended to it, and picking another
+    // chapter goes beside it. The remembered base is the root, per Step.
+    {
+      mock.reset();
+      await setCfg({ mnxMissedMode: "move", akMissedDeck: "Missed Questions::03_Respiratory", akMissedDeckByStep: {} });
+      const p = await openAt(reviewHtml("4211"));
+      await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 12000 });
+      await p.locator("#mnx-resources button", { hasText: "Save to Missed Qs" }).click();
+      await p.waitForSelector("#mnx-md-overlay select option[value='Missed Questions']", { state: "attached", timeout: 8000 });
+      await p.waitForTimeout(900);
+      const dest = () => p.evaluate(() => (document.querySelector("#mnx-md-overlay .mnx-md-dest b") || {}).textContent);
+      const first = await p.evaluate(() => document.querySelector("#mnx-md-overlay select").value);
+      check("1.4", "a chapter deck remembered by 1.3 opens as its root", first === "Missed Questions", first);
+      await p.locator("#mnx-md-overlay select").selectOption("Missed Questions::03_Respiratory");
+      await p.waitForTimeout(400);
+      const direct = await dest();
+      const chip = await p.evaluate(() => (document.querySelector("#mnx-md-overlay .mnx-chapchip.on") || {}).innerText || "");
+      check("1.4", "picking a chapter deck saves straight into it, nothing appended",
+        direct === "Missed Questions::03_Respiratory" && /Just 03_Respiratory/.test(chip), direct + " | " + chip.replace(/\s+/g, " "));
+      // the chip whose own name is exactly "Cardio" (B&B), not "Cardio marked leech"
+      const cardio = await p.evaluate(() => Array.from(document.querySelectorAll("#mnx-md-overlay .mnx-chapchip"))
+        .findIndex((c) => (c.querySelector("span") || {}).textContent === "Cardio"));
+      await p.locator("#mnx-md-overlay .mnx-chapchip").nth(cardio).click();
+      await p.waitForTimeout(300);
+      const beside = await dest();
+      check("1.4", "another chapter picked from there goes beside it, under the root", beside === "Missed Questions::Cardio", beside);
+      await p.locator("#mnx-md-overlay .mnx-chapchip", { hasText: "Just 03_Respiratory" }).first().click();
+      await p.locator("#mnx-md-overlay .mnx-md-ok").last().click();
+      await p.waitForTimeout(1500);
+      const moved = mock.calls().filter((c) => c.op === "setDeck").slice(-1)[0];
+      const tagged = mock.calls().filter((c) => c.op === "updateNote").slice(-1)[0];
+      check("1.4", "…and still tags the chapter it went into",
+        !!moved && moved.args.deck === "Missed Questions::03_Respiratory" &&
+        !!tagged && (tagged.args.addTags || []).indexOf("Mnestic::Missed::Respiratory") >= 0,
+        JSON.stringify(tagged && tagged.args.addTags));
+      const ext = await ctx.newPage();
+      await ext.goto(`chrome-extension://${extId}/popup.html`);
+      const stored = await ext.evaluate(() => new Promise((r) => chrome.storage.local.get({ akMissedDeck: null, akMissedDeckByStep: {} }, r)));
+      await ext.close();
+      check("1.4", "the base deck is remembered as the root, per Step",
+        stored.akMissedDeck === "Missed Questions" && stored.akMissedDeckByStep["1"] === "Missed Questions", JSON.stringify(stored));
+      await p.close();
+      await setCfg({ akMissedDeck: "", akMissedDeckByStep: {} });
+    }
+
     // B-04: a counter jump across days is kept undated, not put on today.
     {
       const yesterday = Date.now() - 86400000;

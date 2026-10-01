@@ -88,18 +88,29 @@
   // "Renal/Urinary"); AnKing names chapters ("Respiratory", "Renal"). A few
   // words mean the same organ system under different names.
   const SYNONYMS = {
-    pulmonary: "respiratory", lung: "respiratory", lungs: "respiratory",
+    pulmonary: "respiratory", lung: "respiratory", lungs: "respiratory", pulm: "respiratory", pulmonology: "respiratory",
     urinary: "renal", kidney: "renal", nephrology: "renal",
-    gi: "gastrointestinal", digestive: "gastrointestinal", nutrition: "gastrointestinal",
-    heme: "hematology", oncology: "hematology", blood: "hematology",
+    gi: "gastrointestinal", digestive: "gastrointestinal", nutrition: "gastrointestinal", gastroenterology: "gastrointestinal",
+    heme: "hematology", oncology: "hematology", blood: "hematology", onc: "hematology", hemeonc: "hematology",
     nervous: "neurology", neuro: "neurology", neurologic: "neurology",
-    heart: "cardiovascular", cardiology: "cardiovascular", cardiac: "cardiovascular",
-    endocrinology: "endocrine", diabetes: "endocrine", metabolism: "endocrine",
-    behavioral: "psychiatry", psychiatric: "psychiatry",
-    dermatology: "skin", rheumatology: "musculoskeletal", orthopedics: "musculoskeletal",
-    obstetrics: "reproductive", gynecology: "reproductive", breast: "reproductive",
-    infectious: "microbiology"
+    heart: "cardiovascular", cardiology: "cardiovascular", cardiac: "cardiovascular", cardio: "cardiovascular", cards: "cardiovascular",
+    endocrinology: "endocrine", diabetes: "endocrine", metabolism: "endocrine", endo: "endocrine",
+    behavioral: "psychiatry", psychiatric: "psychiatry", psych: "psychiatry",
+    dermatology: "skin", derm: "skin", rheumatology: "musculoskeletal", orthopedics: "musculoskeletal",
+    rheum: "musculoskeletal", msk: "musculoskeletal", ortho: "musculoskeletal",
+    obstetrics: "reproductive", gynecology: "reproductive", breast: "reproductive", repro: "reproductive",
+    obgyn: "reproductive", pregnancy: "reproductive",
+    infectious: "microbiology", micro: "microbiology", immuno: "immunology", biochem: "biochemistry",
+    pharm: "pharmacology", pharmaco: "pharmacology"
   };
+  // Organ systems and basic sciences: how a deck tree is organised when its
+  // chapters are systems rather than rotations.
+  const SYSTEM_WORDS = new Set(["respiratory", "renal", "gastrointestinal", "hematology", "neurology",
+    "cardiovascular", "endocrine", "psychiatry", "skin", "musculoskeletal", "reproductive",
+    "microbiology", "immunology", "biochemistry", "pharmacology", "genetics", "pathology"]);
+  function isSystemName(name) {
+    return systemTokens(name).some((w) => SYSTEM_WORDS.has(w));
+  }
   const STOP = new Set(["and", "the", "system", "systems", "general", "principles", "care", "critical", "special", "senses", "disorders", "connective", "tissue"]);
   function systemTokens(s) {
     return String(s || "").toLowerCase().split(/[^a-z]+/)
@@ -112,18 +123,45 @@
     return systemTokens(chapter).some((w) => w.length >= 4 && want.has(w));
   }
 
-  // Ranked chapters this question's cards agree on: [{name, from, n, system}].
+  // Do two chapter names mean the same chapter? Exactly, one being the start
+  // of the other ("Cardio" / "Cardiovascular"), or the same organ system under
+  // another name ("GI" / "Gastrointestinal", "Pulm" / "Respiratory"). Never a
+  // word in the middle: "Pharm" is not "Psych Pharm".
+  function sameChapter(a, b) {
+    const x = normDeck(a), y = normDeck(b);
+    if (!x || !y) return false;
+    if (x === y) return true;
+    const short = x.length < y.length ? x : y;
+    if (short.length >= 4 && (x.indexOf(y) === 0 || y.indexOf(x) === 0)) return true;
+    const tx = systemTokens(a).filter((w) => SYSTEM_WORDS.has(w));
+    const ty = new Set(systemTokens(b).filter((w) => SYSTEM_WORDS.has(w)));
+    return tx.length > 0 && tx.length === ty.size && tx.every((w) => ty.has(w));
+  }
+  // Is this deck tree organised by organ system (Cardiovascular, GI, Repro…)
+  // rather than by rotation (Internal Medicine, Pediatrics…)?
+  function systemStyle(names) {
+    const list = (names || []).filter(Boolean);
+    if (list.length < 2) return false;
+    return list.filter(isSystemName).length * 2 >= list.length;
+  }
+
+  // Ranked chapters this question's cards agree on: [{name, from, n, system, mine}].
   //   opts.system     the qbank's System for this question, when known
   //   opts.preferred  {chapterLower: timesChosen} -- what you picked before
-  // Order: a chapter matching the question's own system first, then the best
-  // source, then how many of the cards carry it, then what you chose before.
-  // Before, a tie fell to alphabetical order: a pulmonary omalizumab question
-  // pre-selected Immunology.
+  //   opts.existing   names of the subdecks you already have under the base deck
+  // Order: a chapter matching the question's own system; then one matching a
+  // subdeck you already have; then the best source -- rotations first on
+  // Step 2, unless your subdecks are organ systems, in which case systems
+  // first there too -- then how many of the cards carry it, then what you
+  // chose before. Before, a tie fell to alphabetical order: a pulmonary
+  // omalizumab question pre-selected Immunology.
   function chapterCandidates(notes, step, opts) {
     opts = opts || {};
     step = step || 1;
+    const existing = (opts.existing || []).filter(Boolean);
+    const rotationsFirst = step === 2 && !systemStyle(existing);
     const roots = CHAPTER_ROOTS.slice().sort((a, b) => {
-      const w = (r) => (step === 2 ? (r.rotation ? 0 : 1) : (r.rotation ? 1 : 0));
+      const w = (r) => (rotationsFirst ? (r.rotation ? 0 : 1) : (r.rotation ? 1 : 0));
       return w(a) - w(b);
     });
     const prefix = "#AK_Step" + step + "_";
@@ -158,9 +196,10 @@
     const out = Array.from(found.values());
     out.forEach((c) => {
       c.system = matchesSystem(c.name, opts.system);
+      c.mine = existing.some((e) => sameChapter(c.name, e));
       c.pref = +pref[c.name.toLowerCase()] || 0;
     });
-    out.sort((a, b) => (b.system - a.system) || (a.rank - b.rank) || (b.n - a.n) ||
+    out.sort((a, b) => (b.system - a.system) || (b.mine - a.mine) || (a.rank - b.rank) || (b.n - a.n) ||
       (b.pref - a.pref) || a.name.localeCompare(b.name));
     const seen = new Set();
     return out.filter((c) => {
@@ -172,28 +211,52 @@
 
   function deckLeaf(name) { const p = String(name || "").split("::"); return p[p.length - 1]; }
   function normDeck(s) { return String(s || "").toLowerCase().replace(/^\d+[_\-.\s]*/, "").replace(/[^a-z0-9]+/g, ""); }
+  // The direct subdecks of `base`.
+  function childDecks(decks, base) {
+    if (!base || !decks) return [];
+    const prefix = base + "::";
+    return decks.filter((d) => d.indexOf(prefix) === 0 && d.slice(prefix.length).indexOf("::") < 0);
+  }
   // A subdeck of `base` you already have for this chapter, so "Missed Qs::03_Respiratory"
-  // is reused rather than a parallel "Missed Qs::Respiratory" created beside it.
-  // Exact name first, then one name being the start of the other ("Cardio" /
-  // "Cardiovascular"). Never a match in the middle: "Pharm" must not land in
-  // "Psych Pharm".
+  // is reused rather than a parallel "Missed Qs::Respiratory" created beside it,
+  // and "Missed Qs::GI" rather than a new "Missed Qs::Gastrointestinal".
+  // Exact name first, then the start of one another, then the same organ system.
+  // Never a word in the middle: "Pharm" must not land in "Psych Pharm".
   function existingChapterDeck(decks, base, chap) {
     if (!base || !chap || !decks) return null;
     const want = normDeck(chap);
-    if (want.length < 3) return null;
-    const prefix = base + "::";
-    const kids = decks.filter((d) => d.indexOf(prefix) === 0 && d.slice(prefix.length).indexOf("::") < 0);
+    if (want.length < 2) return null;
+    const kids = childDecks(decks, base);
     const exact = kids.find((d) => normDeck(deckLeaf(d)) === want);
     if (exact) return exact;
-    return kids.find((d) => {
+    if (want.length < 3) return null;
+    const prefix = kids.find((d) => {
       const leaf = normDeck(deckLeaf(d));
       const short = leaf.length < want.length ? leaf : want;
       return short.length >= 4 && (leaf.indexOf(want) === 0 || want.indexOf(leaf) === 0);
-    }) || null;
+    });
+    if (prefix) return prefix;
+    return kids.find((d) => sameChapter(deckLeaf(d), chap)) || null;
   }
 
+  // Which deck in a Missed Qs tree is the ROOT, and is `deck` a chapter below it?
+  // "Missed Qs::GI" is already a chapter: saving there must not get another
+  // chapter appended ("Missed Qs::GI::Gastrointestinal"). `knownBase` is the
+  // base deck you saved under before, when there is one.
+  function missedRoot(deck, knownBase) {
+    const d = String(deck || "");
+    if (knownBase && d.indexOf(knownBase + "::") === 0) return knownBase;
+    const seg = d.split("::");
+    for (let i = seg.length - 2; i >= 0; i--) {
+      if (/missed/i.test(seg[i])) return seg.slice(0, i + 1).join("::");
+    }
+    return null;
+  }
+  function isChapterDeck(deck, knownBase) { return !!missedRoot(deck, knownBase); }
+
   const api = { cleanSeg, isNoiseSeg, isEditionSeg, tagPaths, chapterNoise, chapterCandidates, matchesSystem,
-                deckLeaf, normDeck, existingChapterDeck, ROTATION_NAMES, CHAPTER_ROOTS };
+                sameChapter, systemStyle, isSystemName, deckLeaf, normDeck, childDecks, existingChapterDeck,
+                missedRoot, isChapterDeck, ROTATION_NAMES, CHAPTER_ROOTS };
   if (typeof module === "object" && module.exports) module.exports = api;
   else (root.Mnx = root.Mnx || {}).tags = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

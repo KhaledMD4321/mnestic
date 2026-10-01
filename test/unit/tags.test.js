@@ -70,3 +70,58 @@ test("an existing subdeck is reused exactly, or by its start -- never by a word 
   assert.equal(T.existingChapterDeck(decks, "Missed Qs", "GI"), null, "too short to guess");
   assert.equal(T.existingChapterDeck(null, "Missed Qs", "Respiratory"), null);
 });
+
+test("a deck below a Missed root is already a chapter: nothing more is appended", () => {
+  assert.equal(T.missedRoot("Missed questions::GI"), "Missed questions");
+  assert.equal(T.missedRoot("Missed Qs::Repro::Endocrine"), "Missed Qs");
+  assert.equal(T.missedRoot("Missed Qs"), null, "the root itself is not a chapter");
+  assert.equal(T.missedRoot("AnKing Step Deck"), null);
+  assert.equal(T.missedRoot("Wrong answers::Cardio", "Wrong answers"), "Wrong answers", "a base you chose, whatever its name");
+  assert.ok(T.isChapterDeck("Missed questions::GI"));
+  assert.ok(!T.isChapterDeck("Missed questions"));
+});
+
+test("chapter names that mean the same organ system are the same chapter", () => {
+  assert.ok(T.sameChapter("GI", "Gastrointestinal"));
+  assert.ok(T.sameChapter("Pulm", "Respiratory"));
+  assert.ok(T.sameChapter("Repro", "Reproductive"));
+  assert.ok(T.sameChapter("MSK", "Rheumatology"));
+  assert.ok(T.sameChapter("03_Respiratory", "Respiratory"));
+  assert.ok(!T.sameChapter("Pharm", "Psych Pharm"));
+  assert.ok(!T.sameChapter("Immunology", "Respiratory"));
+});
+
+test("an existing subdeck is reused under another name for the same system", () => {
+  const decks = ["Missed questions", "Missed questions::GI", "Missed questions::Cardiovascular"];
+  assert.equal(T.existingChapterDeck(decks, "Missed questions", "Gastrointestinal"), "Missed questions::GI");
+  assert.equal(T.existingChapterDeck(decks, "Missed questions", "Cards"), "Missed questions::Cardiovascular");
+  assert.equal(T.existingChapterDeck(decks, "Missed questions", "Renal"), null);
+});
+
+// The live Step 2 case: question 11989 (ankylosing spondylitis), and a user
+// whose Missed Qs subdecks are organ systems.
+const step2Card = [{ tags: [
+  "#AK_Step2_v12::#Resources_by_rotation::IM::Rheum",
+  "#AK_Step2_v12::#B&B::MSK::Spondyloarthritis",
+  "#AK_Step2_v12::#SketchyIM::Rheumatology::TNF_Inhibitors",
+  "#AK_Step2_v12::#UWorld::Step::11989"] }];
+const systemDecks = ["Biochem", "Cardiovascular", "Endocrine", "Gastrointestinal", "Immunology", "Psychiatry", "Repro", "Respiratory"];
+
+test("Step 2 suggests rotations first for a rotation-style tree…", () => {
+  assert.equal(T.chapterCandidates(step2Card, 2)[0].name, "Internal Medicine");
+  assert.equal(T.chapterCandidates(step2Card, 2, { existing: ["Internal Medicine", "Pediatrics", "Surgery"] })[0].name, "Internal Medicine");
+});
+
+test("…but systems first when your subdecks are organ systems", () => {
+  assert.ok(T.systemStyle(systemDecks));
+  const c = T.chapterCandidates(step2Card, 2, { existing: systemDecks });
+  assert.notEqual(c[0].name, "Internal Medicine");
+  assert.ok(["MSK", "Rheumatology"].indexOf(c[0].name) >= 0, c[0].name);
+});
+
+test("a chapter you already have a subdeck for comes first", () => {
+  const card = [{ tags: ["#AK_Step1_v12::#FirstAid::FA2024::02_Immunology::X", "#AK_Step1_v12::#FirstAid::FA2024::13_Respiratory::Y"] }];
+  const c = T.chapterCandidates(card, 1, { existing: ["Respiratory"] });
+  assert.equal(c[0].name, "Respiratory");
+  assert.equal(c[0].mine, true);
+});

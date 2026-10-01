@@ -801,6 +801,12 @@
       background:var(--mnx-accent-soft);border-radius:var(--mnx-r-xs);padding:1px 5px;letter-spacing:.02em;
       border:none;font-family:inherit;line-height:inherit;cursor:pointer;transition:filter .14s,transform .12s}
     #${PANEL_ID} .mnx-r-key:hover{filter:brightness(.94)}
+    #${PANEL_ID} .mnx-r-key.mnx-r-key-empty{opacity:.4;cursor:default}
+    #${PANEL_ID} .mnx-r-fieldcard{padding:8px 0;border-top:1px dashed var(--mnx-border);font-size:13.5px;line-height:1.55}
+    #${PANEL_ID} .mnx-r-fieldcard:first-child{border-top:none}
+    #${PANEL_ID} .mnx-r-fieldcard-h{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mnx-muted);margin-bottom:4px}
+    #${PANEL_ID} .mnx-r-fieldcard-body img{max-width:100%;height:auto;display:block;margin:6px 0;border-radius:var(--mnx-r-xs)}
+    #${PANEL_ID} .mnx-r-fieldcard-body a{display:inline}
     #${PANEL_ID} .mnx-r-key:active{transform:scale(.94)}
     #${PANEL_ID} .mnx-r-key:focus-visible{outline:2px solid var(--mnx-accent-ring);outline-offset:1px}
 
@@ -853,6 +859,12 @@
     #${OVERLAY_ID} .mnx-x:hover{color:var(--mnx-text);background:var(--mnx-surface-2)}
     #${OVERLAY_ID} .mnx-ovl-img{display:block;width:100%;height:auto;margin:0 0 12px;border-radius:var(--mnx-r-xs)}
     #${OVERLAY_ID} .mnx-ovl-missing{font-size:12.5px;color:var(--mnx-warn-txt);margin:0 0 10px}
+    #${OVERLAY_ID} .mnx-ovl-field{max-height:76vh;overflow:auto;font-size:15px;line-height:1.6}
+    #${OVERLAY_ID} .mnx-ovl-fieldcard{padding:12px 2px;border-top:1px solid var(--mnx-border)}
+    #${OVERLAY_ID} .mnx-ovl-fieldcard:first-child{border-top:none;padding-top:2px}
+    #${OVERLAY_ID} .mnx-ovl-fieldcard-h{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mnx-muted);margin-bottom:6px}
+    #${OVERLAY_ID} .mnx-ovl-fieldcard img{max-width:100%;height:auto;display:block;margin:8px 0;border-radius:var(--mnx-r-xs)}
+    #${OVERLAY_ID} .mnx-ovl-fieldcard a{color:var(--mnx-accent)}
     /* multi-page overlay: pager in the header, filmstrip underneath */
     #${OVERLAY_ID} .mnx-ovl-nav{display:flex;align-items:center;gap:10px;margin-left:auto;margin-right:12px}
     #${OVERLAY_ID} .mnx-ovl-count{font-size:12.5px;font-weight:600;color:var(--mnx-muted);font-variant-numeric:tabular-nums;min-width:44px;text-align:center}
@@ -971,6 +983,16 @@
     #mnx-md-overlay .mnx-md-prev{font-size:13.5px;line-height:1.55}
     #mnx-md-overlay .mnx-md-prev img{max-width:100%;height:auto;display:block;margin:8px 0;border-radius:var(--mnx-r-xs)}
     #mnx-md-overlay .mnx-md-prev .cloze{color:var(--mnx-accent);font-weight:700}
+    #mnx-md-overlay .mnx-fullcard{margin:10px 0 2px;border:1px solid var(--mnx-border);border-radius:var(--mnx-r-sm);background:var(--mnx-surface-2)}
+    #mnx-md-overlay .mnx-fullcard > summary{cursor:pointer;padding:8px 11px;font-size:12.5px;font-weight:600;color:var(--mnx-accent)}
+    #mnx-md-overlay .mnx-fullcard-body{padding:0 11px 10px;max-height:46vh;overflow:auto}
+    #mnx-md-overlay .mnx-field{border-top:1px solid var(--mnx-border);padding:6px 0}
+    #mnx-md-overlay .mnx-field:first-child{border-top:none}
+    #mnx-md-overlay .mnx-field > summary{cursor:pointer;font-size:12.5px;display:flex;gap:8px;align-items:baseline;padding:3px 0;list-style-position:inside}
+    #mnx-md-overlay .mnx-field > summary b{color:var(--mnx-ink);flex:none}
+    #mnx-md-overlay .mnx-field-hint{color:var(--mnx-muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+    #mnx-md-overlay .mnx-field[open] > summary .mnx-field-hint{display:none}
+    #mnx-md-overlay .mnx-field-body{padding:4px 0 2px}
     #mnx-md-overlay .mnx-remote-img{display:inline-block;font-size:11.5px;color:var(--mnx-muted);border:1px dashed var(--mnx-border);border-radius:var(--mnx-r-xs);padding:2px 7px;margin:4px 0}
     #mnx-md-overlay .mnx-prev-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
     #mnx-md-overlay .mnx-prev-count{font-size:12.5px;font-weight:700;color:var(--mnx-ink);font-variant-numeric:tabular-nums}
@@ -1519,9 +1541,17 @@
     S: { label: "Sketchy",              fields: ["Sketchy", "Sketchy 2", "Sketchy Extra"] },
     P: { label: "Physeo",               fields: ["Physeo"] },
     O: { label: "OME",                  fields: ["OME"] },
-    E: { label: "Extra",                fields: ["Extra"] },
-    A: { label: "Additional Resources", fields: ["Additional Resources"] }
+    // E and A open the whole field -- text and images, card by card -- not
+    // just its pictures: on Step 2/3 cards these fields are mostly text, and a
+    // text-only Extra used to answer "No Extra image for this question".
+    E: { label: "Extra",                fields: ["Extra", "Back Extra"], field: true },
+    A: { label: "Additional Resources", fields: ["Additional Resources"], field: true }
   };
+  // The same two fields as rows at the top of the panel.
+  const FIELD_ROWS = [
+    { label: "Extra", key: "E", fields: ["Extra", "Back Extra"], color: "#64748b" },
+    { label: "Additional Resources", key: "A", fields: ["Additional Resources"], color: "#0891b2" }
+  ];
   function emptyFiles() { const o = {}; for (const k in IMG_SOURCES) o[k] = []; return o; }
   function emptyUris() { const o = {}; for (const k in IMG_SOURCES) o[k] = null; return o; }
 
@@ -1908,7 +1938,8 @@
         : "Matched through your deck's Step " + found.sv + " tags (this page looked like Step " + found.detected + ").";
       panel.appendChild(note);
     }
-    if (!rows || !rows.length) {
+    const fieldRows = s.fieldRows || [];
+    if ((!rows || !rows.length) && !fieldRows.length) {
       // Cards matched, but none of them carries a resource tag or field. This
       // used to fall into the "no cards are tagged" message above -- untrue,
       // and it hid the Preview / Save buttons' reason to exist.
@@ -1926,6 +1957,7 @@
       .sort((a, b) => (b.uses - a.uses) || (a.i - b.i))
       .map(x => x.row);
 
+    for (const fr of fieldRows) panel.appendChild(buildFieldRow(fr, s));
     for (const row of ordered) {
       panel.appendChild(buildResourceRow(row, s));
     }
@@ -1981,7 +2013,10 @@
       kb.title = nImg
         ? "Show " + nImg + " " + row.R.label + " image" + (nImg === 1 ? "" : "s") + " over the question (or press " + key + ")"
         : "No " + row.R.label + " images on these cards";
-      kb.setAttribute("aria-label", "Show " + row.R.label + " images");
+      kb.setAttribute("aria-label", nImg ? "Show " + row.R.label + " images" : "No " + row.R.label + " images");
+      // Still a button (it says so when pressed), but it no longer looks like it
+      // opens something when these cards carry no images for it.
+      if (!nImg) kb.classList.add("mnx-r-key-empty");
       // The images were keyboard-only, which also meant the shortcuts toggle
       // could never switch F/S/P/O off without hiding the feature entirely.
       kb.addEventListener("click", onUserClick((e) => { e.stopPropagation(); showImages(key); }));
@@ -2008,6 +2043,81 @@
     sec.append(head, body);
     if (openResources.has(row.R.label)) setOpen(true, false);   // restore what you had open
     return sec;
+  }
+  // An Extra / Additional Resources row: the field from each matched card,
+  // text and images, rendered when you open it (images are fetched then too).
+  function buildFieldRow(fr, s) {
+    const label = fr.F.label, key = fr.F.key;
+    const sec = document.createElement("section");
+    sec.className = "mnx-r mnx-r-field";
+    const head = document.createElement("button");
+    head.type = "button";
+    head.className = "mnx-r-head";
+    head.style.borderLeftColor = fr.F.color;
+    head.setAttribute("aria-expanded", "false");
+    const chev = document.createElement("span"); chev.className = "mnx-r-chev"; chev.setAttribute("aria-hidden", "true");
+    const name = document.createElement("span"); name.className = "mnx-r-name"; name.textContent = label;
+    const kb = document.createElement("button");
+    kb.type = "button"; kb.className = "mnx-r-key"; kb.textContent = key;
+    kb.title = "Show " + label + " over the question (or press " + key + ")";
+    kb.setAttribute("aria-label", "Show " + label);
+    kb.addEventListener("click", onUserClick((e) => { e.stopPropagation(); showImages(key); }));
+    const count = document.createElement("span"); count.className = "mnx-r-count";
+    const n = fr.items.length;
+    count.textContent = n + (n === 1 ? " card" : " cards");
+    count.title = n + " of this question's cards have " + label;
+    const peek = document.createElement("span"); peek.className = "mnx-r-peek";
+    peek.textContent = fieldSummary(fr.items[0].html);
+    head.append(chev, name, kb, count, peek);
+    const body = document.createElement("div"); body.className = "mnx-r-body"; body.hidden = true;
+    let built = false;
+    function setOpen(open, remember) {
+      sec.classList.toggle("open", open);
+      head.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open && !built) {
+        built = true;
+        fr.items.forEach(it => {
+          const card = document.createElement("div"); card.className = "mnx-r-fieldcard";
+          if (n > 1) { const h = document.createElement("div"); h.className = "mnx-r-fieldcard-h"; h.textContent = "Card " + it.card; card.appendChild(h); }
+          const content = document.createElement("div"); content.className = "mnx-r-fieldcard-body";
+          setSafeHtml(content, it.html);
+          card.appendChild(content);
+          body.appendChild(card);
+        });
+        resolveMediaImages(body, () => isLive(s) && body.isConnected);
+      }
+      body.hidden = !open;
+      if (remember) rememberResource(label, open);
+    }
+    head.addEventListener("click", onUserClick(() => setOpen(!sec.classList.contains("open"), true)));
+    sec.append(head, body);
+    if (openResources.has(label)) setOpen(true, false);
+    return sec;
+  }
+  // E / A: the whole field over the question, card by card.
+  function showFieldOverlay(key) {
+    const src = IMG_SOURCES[key];
+    const s = Q;
+    if (!s || !s.ready) return;
+    const fr = (s.fieldRows || []).find(r => r.F.key === key);
+    if (!fr) { toast("No " + src.label + " on this question's cards."); return; }
+    const o = ensureOverlay();
+    o.dataset.key = key; o.style.display = "flex"; o.replaceChildren(); o._mnxPage = null;
+    o.setAttribute("role", "dialog"); o.setAttribute("aria-modal", "true"); o.setAttribute("aria-label", src.label);
+    const dlg = document.createElement("div"); dlg.className = "mnx-dialog";
+    dlg.appendChild(buildHead(o, src.label, key));
+    const body = document.createElement("div"); body.className = "mnx-ovl-field";
+    fr.items.forEach(it => {
+      const card = document.createElement("div"); card.className = "mnx-ovl-fieldcard";
+      if (fr.items.length > 1) { const h = document.createElement("div"); h.className = "mnx-ovl-fieldcard-h"; h.textContent = "Card " + it.card; card.appendChild(h); }
+      const content = document.createElement("div");
+      setSafeHtml(content, it.html);
+      card.appendChild(content);
+      body.appendChild(card);
+    });
+    dlg.appendChild(body);
+    o.appendChild(dlg);
+    resolveMediaImages(body, () => isLive(s) && o.dataset.key === key && o.style.display === "flex");
   }
   function addImageHint(s) {
     const panel = document.getElementById(PANEL_ID);
@@ -2120,6 +2230,14 @@
       const ulinks = links.filter(l => !seen.has(l.href) && seen.add(l.href));
       if (ulinks.length || paths.length) rows.push({ R, links: ulinks, paths });
     }
+    // Extra / Additional Resources: what the cards themselves say, card by card.
+    s.fieldRows = FIELD_ROWS.map(F => ({
+      F,
+      items: ranked.map((note, i) => ({
+        note, card: i + 1,
+        html: F.fields.map(f => noteField(note, f)).filter(fieldHasContent).join("<br>")
+      })).filter(x => x.html)
+    })).filter(r => r.items.length);
     s.ready = true;
     renderRows(s, rows, null, found);
     addImageHint(s);
@@ -2144,7 +2262,7 @@
   const PREFETCH_BUDGET = 24 * 1024 * 1024;   // ~24MB of base64, then stop
   async function prefetchImages(s) {
     const keys = Object.keys(IMG_SOURCES)
-      .filter(k => (s.files[k] || []).length && !s.uris[k])
+      .filter(k => !IMG_SOURCES[k].field && (s.files[k] || []).length && !s.uris[k])
       .sort((a, b) => (resourceUses[IMG_SOURCES[b].label] || 0) - (resourceUses[IMG_SOURCES[a].label] || 0));
     let held = 0;
     for (const k of keys) {
@@ -2292,6 +2410,7 @@
     if (existing && existing.style.display === "flex" && existing.dataset.key === key) {
       hideOverlay(); return; // same key hides it
     }
+    if (src.field) { showFieldOverlay(key); return; }
     const s = Q;
     if (!s || !s.ready) return;
     const files = s.files[key] || [];
@@ -2803,6 +2922,56 @@
     }
   }
 
+  // ---- the whole card ---------------------------------------------------------
+  // Every field with something in it, in the note type's own order. Text and
+  // the fields read most -- Extra, Additional Resources (the heart of a Step 2/3
+  // card) and your own Missed Questions notes -- are open; the rest are one
+  // click away, and their images load only when opened, because a full AnKing
+  // card can carry dozens of them.
+  const HIDDEN_FIELDS = /^(ankihub_id|guid|id|note id)$/i;
+  const OPEN_FIELDS = /^(text|front|back|extra|back extra|additional resources|missed questions)$/i;
+  function fieldHasContent(html) {
+    const h = String(html || "");
+    return /<img\b/i.test(h) || htmlToText(h).replace(/\u00a0/g, " ").trim().length > 0;
+  }
+  function fieldSummary(html) {
+    const imgs = (String(html || "").match(/<img\b/gi) || []).length;
+    const t = htmlToText(html);
+    const bits = [];
+    if (t) bits.push(t.length > 70 ? t.slice(0, 68) + "…" : t);
+    if (imgs) bits.push(imgs + (imgs === 1 ? " image" : " images"));
+    return bits.join(" · ");
+  }
+  function orderedFields(note) {
+    const fields = (note && note.fields) || {};
+    return Object.keys(fields)
+      .map(name => ({ name, value: (fields[name] && fields[name].value) || "",
+                      order: fields[name] && fields[name].order != null ? fields[name].order : 999 }))
+      .filter(f => !HIDDEN_FIELDS.test(f.name) && fieldHasContent(f.value))
+      .sort((a, b) => a.order - b.order);
+  }
+  function renderFullCard(container, note, isCurrent) {
+    container.replaceChildren();
+    const fields = orderedFields(note);
+    if (!fields.length) { container.textContent = "This card has no filled fields."; return; }
+    fields.forEach(f => {
+      const html = /^(text|front)$/i.test(f.name) ? revealCloze(f.value) : f.value;
+      const sec = document.createElement("details");
+      sec.className = "mnx-field";
+      const sum = document.createElement("summary");
+      const nm = document.createElement("b"); nm.textContent = f.name;
+      const hint = document.createElement("span"); hint.className = "mnx-field-hint"; hint.textContent = fieldSummary(f.value);
+      sum.append(nm, hint);
+      const body = document.createElement("div"); body.className = "mnx-md-prev mnx-field-body";
+      sec.append(sum, body);
+      let built = false;
+      const build = () => { if (built) return; built = true; setSafeHtml(body, html); resolveMediaImages(body, isCurrent); };
+      sec.addEventListener("toggle", () => { if (sec.open) build(); });
+      if (OPEN_FIELDS.test(f.name)) { sec.open = true; build(); }
+      container.appendChild(sec);
+    });
+  }
+
   function openPreview(list, startIdx) {
     const s = Q;
     list = (list && list.length) ? list : ((s && s.notes) || []);
@@ -2819,18 +2988,8 @@
     function render() {
       counter.textContent = "Card " + (idx + 1) + " of " + list.length;
       const myIdx = idx;
-      const note = list[idx];
-      content.replaceChildren();
-      const text = document.createElement("div"); text.className = "mnx-md-prev";
-      setSafeHtml(text, revealCloze(noteField(note, "Text")));
-      content.appendChild(text);
-      const extraHtml = noteField(note, "Extra");
-      if (htmlToText(extraHtml)) {
-        const hr = document.createElement("div"); hr.className = "mnx-md-prev";
-        hr.style.cssText = "margin-top:12px;padding-top:12px;border-top:1px solid var(--mnx-border)";
-        setSafeHtml(hr, extraHtml); content.appendChild(hr);
-      }
-      resolveMediaImages(content, () => idx === myIdx);   // inline the card's images
+      // The whole card, not just Text and Extra (see renderFullCard).
+      renderFullCard(content, list[idx], () => idx === myIdx && content.isConnected);
     }
     render();
     m.foot.appendChild(mdButton("Open in Anki", "mnx-md-cancel", () => openInAnki(s)));
@@ -3030,6 +3189,7 @@
     let candidates = [];
 
     // 1) card picker (only if several notes matched), best match first
+    const fullCard = document.createElement("details");
     if (notes.length > 1) {
       const lbl = document.createElement("label"); lbl.className = "mnx-md-lbl";
       lbl.textContent = "Card (" + notes.length + " matched — most specific to this question first)"; m.body.appendChild(lbl);
@@ -3037,7 +3197,7 @@
       notes.forEach((note, i) => {
         const row = document.createElement("label");
         const r = document.createElement("input"); r.type = "radio"; r.name = "mnx-note"; r.checked = i === 0;
-        r.addEventListener("change", () => { chosenNote = note; refreshDeckGuess(); });
+        r.addEventListener("change", () => { chosenNote = note; refreshDeckGuess(); refreshFullCard(); });
         const span = document.createElement("span"); span.textContent = noteSnippet(note);
         const ids = Mt.rankInfo(note).ids;
         if (ids > 1) {
@@ -3049,6 +3209,20 @@
       });
       m.body.appendChild(pick);
     }
+    // 1b) the whole chosen card, collapsed: read it before deciding, without
+    // it taking any room (or any time) when you don't open it.
+    fullCard.className = "mnx-fullcard";
+    const fullSum = document.createElement("summary");
+    fullSum.textContent = notes.length > 1 ? "Show the full selected card" : "Show the full card";
+    const fullBody = document.createElement("div"); fullBody.className = "mnx-fullcard-body";
+    fullCard.append(fullSum, fullBody);
+    function refreshFullCard() {
+      if (!fullCard.open) return;
+      const n = chosenNote;
+      renderFullCard(fullBody, n, () => fullCard.open && chosenNote === n && m.ov.isConnected);
+    }
+    fullCard.addEventListener("toggle", refreshFullCard);
+    m.body.appendChild(fullCard);
 
     // 2) chapter deck
     const dlbl = document.createElement("label"); dlbl.className = "mnx-md-lbl"; dlbl.textContent = "Chapter deck";
@@ -3059,17 +3233,40 @@
     newInput.placeholder = "e.g. Missed Qs";
     newWrap.appendChild(newInput); m.body.appendChild(newWrap);
 
-    // 2b) chapter subdeck — one click, several options, never forced. The
-    // question's own system (from the qbank's results page) and the chapters
-    // you've chosen before decide a tie; alphabetical order no longer does.
+    // The base deck you save under is remembered per Step, so Step 1 and
+    // Step 2 can keep separate trees. Always the ROOT: remembering a chapter
+    // deck ("Missed Qs::GI") as the base made every later save append another
+    // chapter to it.
+    const step = s.sv || 1;
+    let knownBase = "";
+    const rawDeck = () => (sel.value === NEW_OPT ? newInput.value.trim() : sel.value);
+    const chapterDeckSelected = () => Tg.isChapterDeck(rawDeck(), knownBase);
+    // The root of the tree the selected deck is in.
+    function rootDeck() {
+      const raw = rawDeck();
+      if (!raw) return "";
+      return chapterDeckSelected() ? Tg.missedRoot(raw, knownBase) : stripKnownChapter(raw);
+    }
+
+    // 2b) chapter subdeck — one click, several options, never forced. Ranked by
+    // the question's own system (from the qbank's results page), then the
+    // subdecks you already have, then the card's tags and your past picks
+    // (lib/tags.js). Recomputed when the deck list arrives or the deck changes.
     const system = questionSystem(qid);
-    const chapters = Tg.chapterCandidates(notes, s.sv || 1, { system, preferred: chapterPicks });
-    let chapter = chapters.length ? chapters[0].name : null;
-    let customChapter = "";
+    let chapters = [];
+    let chapter = null, customChapter = "", chapterTouched = false;
+    function computeChapters() {
+      const existing = Tg.childDecks(deckCache || [], rootDeck()).map(deckLeaf);
+      chapters = Tg.chapterCandidates(notes, step, { system, preferred: chapterPicks, existing });
+    }
+    function defaultChapter() {
+      // A chapter deck is already the chapter: save straight into it.
+      if (chapterDeckSelected()) return null;
+      return chapters.length ? chapters[0].name : null;
+    }
 
     const subLbl = document.createElement("label");
     subLbl.className = "mnx-md-lbl";
-    subLbl.textContent = chapters.length ? "Chapter subdeck" : "Chapter subdeck (none found in this card's tags)";
     m.body.appendChild(subLbl);
 
     const chips = document.createElement("div");
@@ -3082,11 +3279,16 @@
     m.body.appendChild(customInput);
 
     function drawChips() {
+      const inChapter = chapterDeckSelected();
+      subLbl.textContent = inChapter
+        ? "Chapter subdeck — “" + deckLeaf(rawDeck()) + "” is already a chapter"
+        : chapters.length ? "Chapter subdeck" : "Chapter subdeck (none found in this card's tags)";
       chips.replaceChildren();
       const opts = chapters.map(c => ({ key: c.name, label: c.name,
-        hint: c.from + (c.n > 1 ? " · ×" + c.n : "") + (c.system ? " · this question's system" : "") }));
+        hint: c.from + (c.n > 1 ? " · ×" + c.n : "") + (c.system ? " · this question's system" : "") + (c.mine ? " · your subdeck" : "") }));
       opts.push({ key: "__custom", label: "Custom…", hint: "" });
-      opts.push({ key: null, label: "No subdeck", hint: "" });
+      opts.push(inChapter ? { key: null, label: "Just " + deckLeaf(rawDeck()), hint: "the deck you picked" }
+                          : { key: null, label: "No subdeck", hint: "" });
       opts.forEach(o => {
         const b = document.createElement("button");
         b.type = "button";
@@ -3094,6 +3296,7 @@
         const t = document.createElement("span"); t.textContent = o.label; b.appendChild(t);
         if (o.hint) { const h = document.createElement("i"); h.textContent = o.hint; b.appendChild(h); }
         b.addEventListener("click", onUserClick(() => {
+          chapterTouched = true;
           if (o.key === "__custom") {
             customInput.style.display = "block";
             chapter = customInput.value.trim() || null;
@@ -3108,6 +3311,7 @@
       });
     }
     customInput.addEventListener("input", () => {
+      chapterTouched = true;
       customChapter = customInput.value.trim();
       chapter = customChapter || null;
       refreshDest();
@@ -3117,10 +3321,6 @@
     dest.className = "mnx-md-dest";
     m.body.appendChild(dest);
 
-    function baseDeck() {
-      const raw = sel.value === NEW_OPT ? newInput.value.trim() : sel.value;
-      return stripKnownChapter(raw);
-    }
     // Strip a chapter we previously appended, whichever one it was.
     function stripKnownChapter(path) {
       if (!path) return path;
@@ -3131,15 +3331,18 @@
       if (!leaf) return path;
       const known = chapters.map(c => Tg.normDeck(c.name));
       if (customChapter) known.push(Tg.normDeck(customChapter));
-      if (known.indexOf(leaf) >= 0) return path.slice(0, -(rawLeaf.length + 2));
+      if (known.indexOf(leaf) >= 0 && path.indexOf("::") > 0) return path.slice(0, -(rawLeaf.length + 2));
       return path;
     }
-    // Prefer a subdeck you already have: "03_Respiratory" is reused rather than
-    // a parallel "Respiratory" created beside it.
+    // The deck the card goes to. A subdeck you already have is reused
+    // ("03_Respiratory", "GI") rather than a parallel one created beside it; a
+    // chapter deck you picked is used as it is; another chapter picked while a
+    // chapter deck is selected goes beside it under the same root, never inside it.
     function targetDeck() {
-      const base = baseDeck();
-      if (!base) return "";
-      if (!chapter) return base;
+      const raw = rawDeck();
+      if (!raw) return "";
+      if (!chapter) return chapterDeckSelected() ? raw : stripKnownChapter(raw);
+      const base = rootDeck();
       return Tg.existingChapterDeck(deckCache, base, chapter) || (base + "::" + chapter);
     }
     function refreshDest() {
@@ -3149,10 +3352,18 @@
       const path = document.createElement("b"); path.textContent = t || "(pick a deck)";
       dest.append(lbl, path);
     }
-    drawChips();
-    newInput.addEventListener("input", refreshDest);
+    // The selected deck changed (or the deck list arrived): the suggestions and,
+    // unless you've chosen a chapter yourself, the default follow it.
+    function onDeckChange() {
+      computeChapters();
+      if (!chapterTouched) { chapter = defaultChapter(); customInput.style.display = "none"; }
+      drawChips();
+      refreshDest();
+    }
+    onDeckChange();
+    newInput.addEventListener("input", onDeckChange);
 
-    function refreshDeckGuess() { const g = guessDeck(candidates, chosenNote); if (g) sel.value = g; refreshDest(); }
+    function refreshDeckGuess() { const g = guessDeck(candidates, chosenNote); if (g) sel.value = g; onDeckChange(); }
     function fillDecks(all) {
       const missed = all.filter(d => /missed/i.test(d));
       candidates = (missed.length ? missed : all).slice().sort();
@@ -3162,14 +3373,18 @@
       sel.replaceChildren();
       candidates.forEach(d => { const o = document.createElement("option"); o.value = d; o.textContent = d; sel.appendChild(o); });
       const o = document.createElement("option"); o.value = NEW_OPT; o.textContent = NEW_OPT; sel.appendChild(o);
-      chrome.storage.local.get({ akMissedDeck: null }, c => {
-        if (c.akMissedDeck && candidates.includes(c.akMissedDeck)) { sel.value = c.akMissedDeck; refreshDest(); }
+      chrome.storage.local.get({ akMissedDeck: null, akMissedDeckByStep: {} }, c => {
+        let want = (c.akMissedDeckByStep && c.akMissedDeckByStep[step]) || c.akMissedDeck;
+        // 1.3 could remember a chapter deck as the base; read it as its root.
+        if (want) want = Tg.missedRoot(want) || want;
+        knownBase = want || "";
+        if (want && candidates.includes(want)) { sel.value = want; onDeckChange(); }
         else refreshDeckGuess();
       });
     }
     sel.addEventListener("change", () => {
       newWrap.style.display = sel.value === NEW_OPT ? "block" : "none";
-      refreshDest();
+      onDeckChange();
     });
     if (deckCache) fillDecks(deckCache);
     else {
@@ -3230,8 +3445,11 @@
         // tags we don't control — cleanSeg turns "_" into " ", so a segment
         // like "Cardio_marked_leech" would fan out into three tags and write
         // "marked" and "leech" onto the note. Collapse it back to one tag.
-        const chapTag = chapter
-          ? MISSED_TAG + "::" + String(chapter).split("::").join("_").replace(/\s+/g, "_")
+        // Saving straight into a chapter deck: that deck's name is the chapter
+        // (so the note is still tagged Mnestic::Missed::<chapter>).
+        const tagChapter = chapter || (chapterDeckSelected() ? Tg.cleanSeg(deckLeaf(rawDeck())) : null);
+        const chapTag = tagChapter
+          ? MISSED_TAG + "::" + String(tagChapter).split("::").join("_").replace(/\s+/g, "_")
           : MISSED_TAG;
         // Mnestic::QID::<id> records WHICH question this was missed on, so the
         // missed list and undo work per question rather than per note.
@@ -3300,8 +3518,14 @@
           }
         }
 
-        rememberChapterPick(chapter);
-        chrome.storage.local.set({ akMissedDeck: baseDeck() });
+        rememberChapterPick(tagChapter);
+        // The ROOT of the tree, per Step (see fillDecks).
+        const root = rootDeck();
+        chrome.storage.local.get({ akMissedDeckByStep: {} }, c => {
+          const byStep = isObj(c.akMissedDeckByStep) ? c.akMissedDeckByStep : {};
+          byStep[step] = root;
+          chrome.storage.local.set({ akMissedDeck: root, akMissedDeckByStep: byStep });
+        });
         if (deckCache && !deckCache.includes(deck)) deckCache.push(deck);
         m.close();
         toast(what);

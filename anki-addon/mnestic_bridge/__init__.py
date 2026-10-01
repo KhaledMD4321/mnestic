@@ -1113,15 +1113,14 @@ def op_delete_notes(args):
             refused.append(note.id)
             continue
         ok_ids.append(note.id)
-    count = 0
+    # Report NOTES deleted. Anki's remove_notes() counts the CARDS it removed,
+    # so a three-cloze copy was announced as "deleted 3 copies".
     if ok_ids:
         try:
-            out = col.remove_notes(ok_ids)
-            count = getattr(out, "count", len(ok_ids))
+            col.remove_notes(ok_ids)
         except AttributeError:
             col.rem_notes(ok_ids)
-            count = len(ok_ids)
-    return {"deleted": count, "refused": refused}
+    return {"deleted": len(ok_ids), "refused": refused}
 
 
 # ------------------------------- dispatch -------------------------------
