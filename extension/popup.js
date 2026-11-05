@@ -39,6 +39,29 @@ function applyDark() {
 }
 applyDark();
 
+// Three tabs, so the popup fits Chrome's height limit instead of scrolling a
+// page of everything. Whichever you used last opens next time.
+const tabs = Array.from(document.querySelectorAll("[data-tab]"));
+function showTab(name, focus) {
+  tabs.forEach((t) => {
+    const on = t.dataset.tab === name;
+    t.setAttribute("aria-selected", on ? "true" : "false");
+    t.tabIndex = on ? 0 : -1;
+    document.getElementById("panel-" + t.dataset.tab).hidden = !on;
+    if (on && focus) t.focus();
+  });
+}
+tabs.forEach((t, i) => {
+  t.addEventListener("click", () => { showTab(t.dataset.tab); chrome.storage.local.set({ mnxPopupTab: t.dataset.tab }); });
+  t.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    const next = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+    showTab(next.dataset.tab, true);
+    chrome.storage.local.set({ mnxPopupTab: next.dataset.tab });
+  });
+});
+chrome.storage.local.get({ mnxPopupTab: "today" }, (c) => { if (tabs.some((t) => t.dataset.tab === c.mnxPopupTab)) showTab(c.mnxPopupTab); });
+
 // What "Save to Missed Qs" does. Changeable whenever you like — some people
 // want a real subdeck, some won't move an AnKing card for anything.
 const MISSED_HINTS = {
@@ -341,12 +364,12 @@ function renderTracker(raw) {
   if (tot && (tot.unused != null || tot.total != null)) {
     remain = tot.unused != null ? tot.unused : Math.max(0, (tot.total || 0) - (tot.used || 0));
     setText("trkRemainLbl", prettySlug(slug) + " remaining");
-    setText("trkRemain", remain + " left");
+    setText("trkRemain", remain + " left"); document.getElementById("trkRemain").classList.remove("wordy");
     setFill("trkRemainFill", tot.total ? (tot.total - remain) / tot.total : 0, !!tot.total);
     const el = document.getElementById("trkRemain");
     if (el) el.title = (tot.used != null ? tot.used + " used · " : "") + (tot.total != null ? tot.total + " total" : "");
   } else {
-    setText("trkRemainLbl", "Remaining"); setText("trkRemain", "— open your bank's dashboard"); setFill("trkRemainFill", 0, false);
+    setText("trkRemainLbl", "Remaining"); setText("trkRemain", "Open your bank's dashboard"); document.getElementById("trkRemain").classList.add("wordy"); setFill("trkRemainFill", 0, false);
   }
 
   // projection + 7-day accuracy + where the numbers came from
@@ -443,7 +466,11 @@ async function refreshSetup(ankiUp, paired) {
     }
   }
   setStep("su-deck", tagged ? "done" : paired ? "now" : "");
-  box.hidden = !!(ankiUp && paired && tagged);
+  // The last step is yours: it clears with the first question Mnestic sees.
+  const log = await new Promise((r) => chrome.storage.local.get({ akTrackerV2: null }, (c) => r(c.akTrackerV2)));
+  const answered = !!(log && log.answered && Object.keys(log.answered).length);
+  setStep("su-first", answered ? "done" : tagged ? "now" : "");
+  box.hidden = !!(ankiUp && paired && tagged && answered);
 }
 
 async function checkConnection() {

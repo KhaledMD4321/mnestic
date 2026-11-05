@@ -792,6 +792,7 @@ function listenFree(server, from) {
       rows[0] === "All" && rows.indexOf("Respiratory") > 0);
 
     const before = mock.calls().filter((c) => c.op === "filteredDeck").length;
+    await p.click("#tab-study");
     await p.click("#missedStudy");
     await p.waitForTimeout(800);
     const fd = mock.calls().filter((c) => c.op === "filteredDeck").slice(-1)[0];
@@ -804,6 +805,7 @@ function listenFree(server, from) {
     // that gathers no cards and explains itself in backend prose about
     // suspended cards, which reads like a failure. It must not reach them.
     mock.state.emptyFiltered = true;
+    await p.click("#tab-study");
     await p.click("#missedStudy");
     await p.waitForTimeout(800);
     const hint = (await p.textContent("#missedStudyHint")) || "";
@@ -1242,6 +1244,47 @@ function listenFree(server, from) {
       await r.close();
     }
 
+    // The pinned bar: the question's actions while the panel is out of view.
+    {
+      mock.reset();
+      const p = await openAt(reviewHtml("4211", '<div style="height:2400px">long</div>'));
+      await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 12000 });
+      await p.waitForSelector("#mnx-dock", { timeout: 4000 }).catch(() => {});
+      const bar = await p.evaluate(() => { const d = document.getElementById("mnx-dock"); return d && { labels: Array.from(d.querySelectorAll("button")).map((b) => b.textContent.trim()), inView: d.getBoundingClientRect().bottom <= innerHeight }; });
+      check("1.6", "with the panel below the view, the question's actions are pinned in reach",
+        !!bar && bar.inView && bar.labels.join() === "Cards,Copy for AI,Make card,Save to Missed Qs", JSON.stringify(bar));
+      await p.locator("#mnx-dock .mnx-pbtn", { hasText: "Cards" }).click();
+      await p.waitForFunction(() => !document.getElementById("mnx-dock"), null, { timeout: 4000 }).catch(() => {});
+      const gone = await p.evaluate(() => { const r = document.getElementById("mnx-resources").getBoundingClientRect(); return !document.getElementById("mnx-dock") && r.top < innerHeight; });
+      check("1.6", "Cards goes to the panel, and the bar steps aside", gone);
+      await p.evaluate(() => scrollTo(0, 0));
+      await p.waitForSelector("#mnx-dock", { timeout: 3000 }).catch(() => {});
+      await p.evaluate(() => { document.getElementById("question-explanation").remove(); document.querySelector(".question-header").textContent = ""; });
+      await p.waitForFunction(() => !document.getElementById("mnx-dock"), null, { timeout: 2500 }).catch(() => {});
+      check("1.6", "no answered question, no pinned bar", !(await p.$("#mnx-dock")));
+      await p.close();
+    }
+    // Make card sits beside the page; selected text joins the card being written.
+    {
+      mock.reset();
+      const p = await openAt(reviewHtml("4211", '<p id="src">Renal papillary necrosis follows analgesic overuse.</p>'));
+      await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 12000 });
+      await p.keyboard.press("g");
+      await p.waitForSelector("#mnx-md-overlay.mnx-side .mnx-md", { timeout: 4000 }).catch(() => {});
+      const box = await p.locator("#src").boundingBox();
+      await p.mouse.move(box.x + 2, box.y + box.height / 2);
+      await p.mouse.down(); await p.mouse.move(box.x + 300, box.y + box.height / 2, { steps: 6 }); await p.mouse.up();
+      await p.waitForTimeout(300);
+      const chip = await p.textContent("#mnx-selchip").catch(() => "");
+      await p.locator("#mnx-selchip").click({ timeout: 2000 }).catch(() => {});
+      await p.waitForTimeout(200);
+      const added = await p.evaluate(() => { const t = document.querySelector("#mnx-md-overlay textarea"); return t && t.value; });
+      check("1.6", "with Make card open, page text can be selected and added to it",
+        /Add to card/.test(chip) && /papillary/i.test(added || "") && !!(await p.$("#mnx-md-overlay")), chip + " | " + added);
+      await p.keyboard.press("Escape");
+      await p.close();
+    }
+
     // The whole card in Preview: every filled field, the heavy ones one click away.
     {
       mock.reset();
@@ -1519,6 +1562,7 @@ function listenFree(server, from) {
       const sel = await ext.evaluate(() => document.getElementById("aiPresetSel").value);
       await ext.evaluate(() => new Promise((r) => chrome.storage.local.set({ aiPreset: null }, r)));
       // Explain from Basics: a popup checkbox, stored, and added to the copy
+      await ext.locator("#tab-study").click();
       await ext.locator("#aiBasics").check();
       await ext.waitForTimeout(300);
       const basicsStored = await ext.evaluate(() => new Promise((r) => chrome.storage.local.get({ aiBasics: false }, r)));

@@ -950,7 +950,7 @@
     #${PANEL_ID} .mnx-unsus:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring)}
     #${PANEL_ID} .mnx-unsus[disabled]{opacity:.55;cursor:default}
     @media (prefers-reduced-motion:reduce){
-      #${PANEL_ID} .mnx-r-chev,#${PANEL_ID} .mnx-r-head,#${PANEL_ID} .mnx-pbtn{transition:none}
+      #${PANEL_ID} .mnx-r-chev,#${PANEL_ID} .mnx-r-head,:is(#${PANEL_ID},#mnx-dock) .mnx-pbtn{transition:none}
       #${PANEL_ID},#${PANEL_ID} .mnx-r-body,#mnx-md-overlay .mnx-md{animation:none}
       #mnx-md-overlay .mnx-test-btn,#mnx-md-overlay .mnx-test-prog i{transition:none}
       #${PANEL_ID} img[data-mnx-media],#mnx-md-overlay img[data-mnx-media]{animation:none}
@@ -1029,19 +1029,19 @@
     #${PANEL_ID} .mnx-phead{display:flex;align-items:center;gap:10px;padding:9px 10px 9px 14px;border-bottom:1px solid var(--mnx-hair);background:var(--mnx-surface);position:sticky;top:0;z-index:3}
     #${PANEL_ID} .mnx-phead-id{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--mnx-muted);font-variant-numeric:tabular-nums;white-space:nowrap;padding:4px 9px;border-radius:var(--mnx-r-pill);background:var(--mnx-surface-2);box-shadow:inset 0 0 0 1px var(--mnx-hair)}
     #${PANEL_ID} .mnx-phead-acts{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0}
-    #${PANEL_ID} .mnx-pbtn{display:inline-flex;align-items:center;gap:7px;height:32px;box-sizing:border-box;padding:0 12px;border:none;border-radius:var(--mnx-r-sm);font:600 13px/1 var(--mnx-font);letter-spacing:-.005em;cursor:pointer;background:var(--mnx-surface);color:var(--mnx-ink);white-space:nowrap;box-shadow:inset 0 0 0 1px var(--mnx-hair-2),0 1px 2px rgba(24,20,70,.06);transition:background var(--mnx-std) var(--mnx-ease),box-shadow var(--mnx-std) var(--mnx-ease),transform var(--mnx-std) var(--mnx-ease),color var(--mnx-std) var(--mnx-ease)}
-    #${PANEL_ID} .mnx-ico{width:15px;height:15px;flex:none;display:block}
-    #${PANEL_ID} .mnx-pbtn .mnx-ico{color:var(--mnx-muted);transition:color var(--mnx-std) var(--mnx-ease),transform var(--mnx-std) var(--mnx-ease)}
-    #${PANEL_ID} .mnx-pbtn:hover .mnx-ico{color:var(--mnx-ink)}
+    :is(#${PANEL_ID},#mnx-dock) .mnx-pbtn{display:inline-flex;align-items:center;gap:7px;height:32px;box-sizing:border-box;padding:0 12px;border:none;border-radius:var(--mnx-r-sm);font:600 13px/1 var(--mnx-font);letter-spacing:-.005em;cursor:pointer;background:var(--mnx-surface);color:var(--mnx-ink);white-space:nowrap;box-shadow:inset 0 0 0 1px var(--mnx-hair-2),0 1px 2px rgba(24,20,70,.06);transition:background var(--mnx-std) var(--mnx-ease),box-shadow var(--mnx-std) var(--mnx-ease),transform var(--mnx-std) var(--mnx-ease),color var(--mnx-std) var(--mnx-ease)}
+    :is(#${PANEL_ID},#mnx-dock) .mnx-ico{width:15px;height:15px;flex:none;display:block}
+    :is(#${PANEL_ID},#mnx-dock) .mnx-pbtn .mnx-ico{color:var(--mnx-muted);transition:color var(--mnx-std) var(--mnx-ease),transform var(--mnx-std) var(--mnx-ease)}
+    :is(#${PANEL_ID},#mnx-dock) .mnx-pbtn:hover .mnx-ico{color:var(--mnx-ink)}
     #${PANEL_ID} .mnx-kbd{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;box-sizing:border-box;padding:0 4px;margin-left:1px;border-radius:5px;font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--mnx-muted);background:var(--mnx-surface-2);box-shadow:inset 0 0 0 1px var(--mnx-hair-2),inset 0 -1px 0 var(--mnx-hair-2)}
     #${PANEL_ID}.mnx-nokeys .mnx-kbd{display:none}
-    #${PANEL_ID} .mnx-pbtn.mnx-accent{color:var(--mnx-accent);background:var(--mnx-accent-soft);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--mnx-accent) 24%,transparent)}
-    #${PANEL_ID} .mnx-pbtn.mnx-accent .mnx-ico{color:var(--mnx-accent)}
-    #${PANEL_ID} .mnx-pbtn.mnx-accent .mnx-kbd{color:var(--mnx-accent);background:transparent;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--mnx-accent) 30%,transparent)}
-    #${PANEL_ID} .mnx-pbtn.mnx-accent:hover{background:color-mix(in srgb,var(--mnx-accent) 14%,var(--mnx-surface));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--mnx-accent) 38%,transparent),0 6px 14px -8px var(--mnx-accent-ring)}
-    #${PANEL_ID} .mnx-pbtn:hover{background:var(--mnx-surface-2);box-shadow:inset 0 0 0 1px var(--mnx-hair-2),0 4px 12px -6px rgba(24,20,70,.18)}
-    #${PANEL_ID} .mnx-pbtn:active{transform:scale(.97)}
-    #${PANEL_ID} .mnx-pbtn:focus-visible{outline:none;box-shadow:inset 0 0 0 1px var(--mnx-accent),0 0 0 3px var(--mnx-accent-ring)}
+    :is(#${PANEL_ID},#mnx-dock) .mnx-pbtn.mnx-accent{color:var(--mnx-accent);background:var(--mnx-accent-soft);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--mnx-accent) 24%,transparent)}
+    :is(#${PANEL_ID},#mnx-dock) .mnx-pbtn.mnx-accent .mnx-ico{color:var(--mnx-accent)}
+    :is(#${PANEL_ID},#mnx-dock) .mnx-pbtn.mnx-accent .mnx-kbd{color:var(--mnx-accent);background:transparent;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--mnx-accent) 30%,transparent)}
+    :is(#${PANEL_ID},#mnx-dock) .mnx-pbtn.mnx-accent:hover{background:color-mix(in srgb,var(--mnx-accent) 14%,var(--mnx-surface));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--mnx-accent) 38%,transparent),0 6px 14px -8px var(--mnx-accent-ring)}
+    :is(#${PANEL_ID},#mnx-dock) .mnx-pbtn:hover{background:var(--mnx-surface-2);box-shadow:inset 0 0 0 1px var(--mnx-hair-2),0 4px 12px -6px rgba(24,20,70,.18)}
+    :is(#${PANEL_ID},#mnx-dock) .mnx-pbtn:active{transform:scale(.97)}
+    :is(#${PANEL_ID},#mnx-dock) .mnx-pbtn:focus-visible{outline:none;box-shadow:inset 0 0 0 1px var(--mnx-accent),0 0 0 3px var(--mnx-accent-ring)}
     #mnx-md-overlay .mnx-md.mnx-md-test{width:min(540px,92vw)}
     #mnx-md-overlay .mnx-md-test .mnx-md-head{gap:10px}
     #mnx-md-overlay .mnx-test-count{margin-left:auto;font-size:12px;font-weight:600;color:var(--mnx-muted);font-variant-numeric:tabular-nums}
@@ -1100,13 +1100,13 @@
     /* A colour-filled button gets its own layer: at fractional display scaling (125%)
        Chrome otherwise left a faint 1-px seam beside its text, depending on where the
        button fell on the pixel grid. Checked on Windows at 120%. */
-    #${PANEL_ID} .mnx-pbtn.mnx-save,#mnx-md-overlay .mnx-test-reveal,#mnx-selchip{transform:translateZ(0)}
-    #${PANEL_ID} .mnx-pbtn.mnx-save:active{transform:translateZ(0) scale(.98)}
-    #${PANEL_ID} .mnx-pbtn.mnx-save{border-radius:var(--mnx-r-pill);padding:0 10px 0 4px;gap:8px;background:var(--mnx-save-bg);color:var(--mnx-on-save);box-shadow:var(--mnx-save-shadow),inset 0 1px 0 rgba(255,255,255,.12)}
-    #${PANEL_ID} .mnx-pbtn.mnx-save .mnx-ico{box-sizing:content-box;width:12px;height:12px;padding:6px;border-radius:var(--mnx-r-pill);color:var(--mnx-on-save);background:color-mix(in srgb,var(--mnx-on-save) 15%,transparent)}
-    #${PANEL_ID} .mnx-pbtn.mnx-save:hover .mnx-ico{color:var(--mnx-on-save);transform:rotate(-14deg) scale(1.08)}
-    #${PANEL_ID} .mnx-pbtn.mnx-save .mnx-kbd{background:transparent;color:inherit;opacity:.75;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--mnx-on-save) 32%,transparent)}
-    #${PANEL_ID} .mnx-pbtn.mnx-save:hover{background:var(--mnx-save-bg);filter:brightness(1.07);transform:translateZ(0) translateY(-1px);box-shadow:var(--mnx-save-shadow),inset 0 1px 0 rgba(255,255,255,.14)}
+    :is(#${PANEL_ID},#mnx-dock) .mnx-pbtn.mnx-save,#mnx-md-overlay .mnx-test-reveal,#mnx-selchip{transform:translateZ(0)}
+    :is(#${PANEL_ID},#mnx-dock) .mnx-pbtn.mnx-save:active{transform:translateZ(0) scale(.98)}
+    :is(#${PANEL_ID},#mnx-dock) .mnx-pbtn.mnx-save{border-radius:var(--mnx-r-pill);padding:0 10px 0 4px;gap:8px;background:var(--mnx-save-bg);color:var(--mnx-on-save);box-shadow:var(--mnx-save-shadow),inset 0 1px 0 rgba(255,255,255,.12)}
+    :is(#${PANEL_ID},#mnx-dock) .mnx-pbtn.mnx-save .mnx-ico{box-sizing:content-box;width:12px;height:12px;padding:6px;border-radius:var(--mnx-r-pill);color:var(--mnx-on-save);background:color-mix(in srgb,var(--mnx-on-save) 15%,transparent)}
+    :is(#${PANEL_ID},#mnx-dock) .mnx-pbtn.mnx-save:hover .mnx-ico{color:var(--mnx-on-save);transform:rotate(-14deg) scale(1.08)}
+    :is(#${PANEL_ID},#mnx-dock) .mnx-pbtn.mnx-save .mnx-kbd{background:transparent;color:inherit;opacity:.75;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--mnx-on-save) 32%,transparent)}
+    :is(#${PANEL_ID},#mnx-dock) .mnx-pbtn.mnx-save:hover{background:var(--mnx-save-bg);filter:brightness(1.07);transform:translateZ(0) translateY(-1px);box-shadow:var(--mnx-save-shadow),inset 0 1px 0 rgba(255,255,255,.14)}
 
     /* modal system (preview / save / make card / breakdown) */
     #mnx-md-overlay{position:fixed;inset:0;background:rgba(16,14,36,.3);z-index:2147483647;display:flex;align-items:flex-start;justify-content:center;padding:6vh 0;font-family:var(--mnx-font)}
@@ -1276,6 +1276,16 @@
     #mnx-ai-menu,#mnx-md-overlay *,#${OVERLAY_ID} *,#${SUMMARY_ID} *,#${PANEL_ID}{scrollbar-width:thin;scrollbar-color:var(--mnx-hair-2) transparent}
     /* a dialog takes focus for screen readers; only controls show a ring */
     #mnx-md-overlay .mnx-md:focus{outline:none}
+    /* the pinned bar: the question's actions while the panel is out of view */
+    #mnx-dock{position:fixed;z-index:2147483645;display:flex;align-items:center;gap:6px;box-sizing:border-box;height:46px;padding:0 7px 0 14px;font-family:var(--mnx-font);color:var(--mnx-text);background:var(--mnx-surface);border-radius:var(--mnx-r);box-shadow:0 0 0 1px var(--mnx-hair),var(--mnx-shadow-sm);animation:mnx-rise var(--mnx-std) var(--mnx-ease) both;color-scheme:light}
+    :root.mnx-dark #mnx-dock{color-scheme:dark}
+    #mnx-dock .mnx-dock-id{font-size:11px;font-weight:600;color:var(--mnx-muted);font-variant-numeric:tabular-nums;margin-right:auto;white-space:nowrap}
+    #mnx-dock.mnx-tight .mnx-dock-id{display:none}
+    #mnx-dock.mnx-tight{justify-content:flex-end;padding-left:7px}
+    /* Make card: beside the page, so the explanation stays readable and selectable */
+    #mnx-md-overlay.mnx-side{background:transparent;pointer-events:none;padding:0}
+    #mnx-md-overlay.mnx-side .mnx-md{pointer-events:auto;position:fixed;top:12px;bottom:12px;left:12px;width:min(420px,46vw);max-height:none}
+    #mnx-md-overlay.mnx-side-right .mnx-md{left:auto;right:12px}
     /* system settings */
     @media (prefers-reduced-motion:reduce){
       [id^="mnx-"],[id^="mnx-"] *,.mnx-toast,.mnx-btn,.mnx-qid-open{animation:none!important;transition:none!important}
@@ -1286,7 +1296,7 @@
     }
     @media (forced-colors:active){
       #${PANEL_ID},#mnx-md-overlay .mnx-md,#${OVERLAY_ID} .mnx-dialog,#mnx-ai-menu,.mnx-toast{border:1px solid CanvasText}
-      #${PANEL_ID} .mnx-pbtn,.mnx-btn,#mnx-md-overlay .mnx-md-btn{border:1px solid ButtonText}
+      :is(#${PANEL_ID},#mnx-dock) .mnx-pbtn,.mnx-btn,#mnx-md-overlay .mnx-md-btn{border:1px solid ButtonText}
       #${PANEL_ID} .mnx-kbd{opacity:1}
     }
   `;
@@ -4453,6 +4463,60 @@
     if (s.notes.length) addCardStatus(s);
   }
 
+  // The panel sits under the explanation, a long scroll away from where you are
+  // reading. While it's below the view, its question actions ride along at the
+  // bottom of the pane; "Cards" takes you down to the rest. It follows the
+  // panel's rule: no panel (an unanswered question), no bar.
+  const DOCK_ID = "mnx-dock";
+  function removeDock() { const d = document.getElementById(DOCK_ID); if (d) d.remove(); }
+  function panelViewBottom(panel) {
+    for (let n = panel.parentElement; n && n !== document.body; n = n.parentElement) {
+      const o = getComputedStyle(n).overflowY;
+      if ((o === "auto" || o === "scroll") && n.scrollHeight > n.clientHeight) return Math.min(n.getBoundingClientRect().bottom, window.innerHeight);
+    }
+    return window.innerHeight;
+  }
+  function buildDock(s) {
+    const qid = s.qid;
+    const d = document.createElement("div"); d.id = DOCK_ID; d.dataset.qid = qid;
+    d.setAttribute("role", "toolbar"); d.setAttribute("aria-label", "Question actions");
+    const id = document.createElement("span"); id.className = "mnx-dock-id"; id.textContent = "Q" + qid;
+    d.appendChild(id);
+    d.appendChild(pbtn("Cards", "", () => {
+      const p = document.getElementById(PANEL_ID);
+      const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (p) p.scrollIntoView({ behavior: calm ? "auto" : "smooth", block: "start" });
+    }, { icon: "chevron", title: "Go to this question's cards" }));
+    d.appendChild(pbtn("Copy for AI", "", () => copyForAI(qid), { icon: "ai" }));
+    d.appendChild(pbtn("Make card", "", () => openMakeCardDialog(String((window.getSelection && window.getSelection()) || "")), { icon: "makecard" }));
+    if (s.notes.length) d.appendChild(pbtn("Save to Missed Qs", "mnx-save", () => openSaveDialog(s), { icon: "save" }));
+    document.body.appendChild(d);
+    return d;
+  }
+  function syncDock() {
+    const panel = document.getElementById(PANEL_ID);
+    const s = Q;
+    if (!panel || !s || !s.ready || panel.classList.contains("mnx-float")) { removeDock(); return; }
+    const r = panel.getBoundingClientRect();
+    const bottom = panelViewBottom(panel);
+    if (r.top < bottom - 60) { removeDock(); return; }
+    let d = document.getElementById(DOCK_ID);
+    if (d && d.dataset.qid !== s.qid) { d.remove(); d = null; }
+    if (!d) d = buildDock(s);
+    d.style.left = r.left + "px";
+    d.style.width = r.width + "px";
+    d.style.top = (bottom - 58) + "px";
+    d.classList.toggle("mnx-tight", r.width < 560);
+  }
+  let dockQueued = false;
+  function dockSoon() {
+    if (dockQueued) return;
+    dockQueued = true;
+    requestAnimationFrame(() => { dockQueued = false; syncDock(); });
+  }
+  window.addEventListener("scroll", dockSoon, { capture: true, passive: true });
+  window.addEventListener("resize", dockSoon);
+
   // "How did that go?" -- optional and one tap; it never stands between you
   // and the next question. What it asks follows the result read from the page:
   // a right answer asks how sure you were (a lucky one is the highest-yield
@@ -4950,7 +5014,12 @@
     hideSelChip();
     prefill = (prefill || "").replace(/\s+/g, " ").trim();
     const qid = findQid();
-    const m = buildModal("Make a card", () => document.removeEventListener("paste", pics.handlePaste));
+    const m = buildModal("Make a card", () => { cardDraft = null; hideSelChip(); document.removeEventListener("paste", pics.handlePaste); });
+    m.ov.classList.add("mnx-side");
+    // On whichever side leaves the explanation clear.
+    const exRoot = SITE.explanationRoot ? SITE.explanationRoot() : null;
+    if (exRoot && exRoot.getBoundingClientRect().left < 460) m.ov.classList.add("mnx-side-right");
+    m.md.setAttribute("aria-modal", "false");     // the page stays usable beside it
     let kind = "cloze";
 
     const seg = document.createElement("div"); seg.className = "mnx-seg";
@@ -4961,7 +5030,7 @@
     const clozeView = document.createElement("div");
     const clLbl = document.createElement("label"); clLbl.className = "mnx-md-lbl"; clLbl.textContent = "Text";
     const clozeTa = document.createElement("textarea"); clozeTa.value = prefill;
-    clozeTa.placeholder = "Highlight a word below, then “Make cloze”…";
+    clozeTa.placeholder = "Type, or select text on the page and add it here…";
     const clRow = document.createElement("div"); clRow.className = "mnx-inline";
     const clozeBtn = document.createElement("button"); clozeBtn.type = "button"; clozeBtn.className = "mnx-md-btn mnx-md-cancel"; clozeBtn.textContent = "Make cloze {{c}}";
     clozeBtn.addEventListener("click", onUserClick(() => clozeWrap(clozeTa)));
@@ -4971,6 +5040,12 @@
     const extraTa = document.createElement("textarea");
     clozeView.appendChild(clLbl); clozeView.appendChild(clozeTa); clozeView.appendChild(clRow); clozeView.appendChild(exLbl); clozeView.appendChild(extraTa);
 
+    // Text selected on the page goes into the card you're writing, not a new one.
+    cardDraft = text => {
+      const ta = kind === "cloze" ? clozeTa : backTa;
+      ta.value = (ta.value.trim() ? ta.value.trim() + " " : "") + text.replace(/\s+/g, " ").trim();
+      ta.focus({ preventScroll: true });
+    };
     const basicView = document.createElement("div"); basicView.style.display = "none";
     const fLbl = document.createElement("label"); fLbl.className = "mnx-md-lbl"; fLbl.textContent = "Front (your prompt)";
     const frontTa = document.createElement("textarea"); frontTa.placeholder = "Ask yourself a question…";
@@ -5085,13 +5160,18 @@
 
   // the floating "Make card" chip that appears when you select text on the page
   let selChipEl = null;
+  let cardDraft = null;                 // set while Make card is open: adds to it
   function ensureSelChip() {
     if (selChipEl && document.body.contains(selChipEl)) return selChipEl;
     const b = document.createElement("button"); b.id = "mnx-selchip"; b.type = "button";
     const bt = document.createElement("span"); bt.textContent = "Make card";
     b.append(icon("makecard"), bt);
     b.addEventListener("mousedown", e => e.preventDefault());           // keep the text selection
-    b.addEventListener("click", onUserClick(e => { e.preventDefault(); e.stopPropagation(); openMakeCardDialog(b.dataset.text || ""); }));
+    b.addEventListener("click", onUserClick(e => {
+      e.preventDefault(); e.stopPropagation();
+      if (cardDraft) { cardDraft(b.dataset.text || ""); hideSelChip(); return; }
+      openMakeCardDialog(b.dataset.text || "");
+    }));
     document.body.appendChild(b); selChipEl = b; return b;
   }
   function hideSelChip() { if (selChipEl) selChipEl.style.display = "none"; }
@@ -5105,6 +5185,7 @@
     let rect; try { rect = s.getRangeAt(0).getBoundingClientRect(); } catch (e) { hideSelChip(); return; }
     if (!rect || (!rect.width && !rect.height)) { hideSelChip(); return; }
     const chip = ensureSelChip(); chip.dataset.text = text; chip.style.display = "flex";
+    chip.querySelector("span").textContent = cardDraft ? "Add to card" : "Make card";
     const cw = chip.offsetWidth || 120, ch = chip.offsetHeight || 34;
     let left = rect.left + rect.width / 2 - cw / 2;
     left = Math.max(6, Math.min(window.innerWidth - cw - 6, left));
@@ -5370,6 +5451,7 @@
       if (p) p.remove();
       hideOverlay();
     }
+    syncDock();
   }
   setInterval(mainTick, 1000);
   // The tick alone made every switch wait up to a second: the panel came late,
