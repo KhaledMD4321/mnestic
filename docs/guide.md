@@ -69,9 +69,13 @@ If you only read one table, read this one.
 
 ### Settings
 
-**Step** · **Panel theme** (match the site / light / dark) · **Missed questions
+**Step** · **Missed questions
 mode** and deck · **Expected score** · **Easy mode** · **High-yield only** ·
-**Keyboard shortcuts** · **Bridge port**
+**Keep rows open between questions** · **Keyboard shortcuts** · **Bridge port**
+
+The popup has three tabs: **Today** (tracker and targets), **Study** (missed
+questions, topic search, Copy for AI) and **Settings**. The panel follows your
+question bank's light or dark look on its own.
 
 ---
 
@@ -413,7 +417,12 @@ studying them costs nothing permanent.
 
 ## 6. Make a card — **G**
 
-Select any text in the explanation and a floating **Make card** chip appears.
+Make card opens beside the page, so the explanation stays readable. Select any
+text in the explanation and a floating **Make card** chip appears; with the card
+already open, it becomes **Add to card**.
+
+While the panel is below the view, a pinned bar keeps **Cards**, **Copy for AI**,
+**Make card** and **Save to Missed Qs** at the bottom of the pane.
 
 - **Cloze** or **Basic**
 - For a cloze, highlight the word to hide and click **Make cloze** — it becomes
@@ -498,7 +507,7 @@ qbank resets.
 | Setting | What it does |
 |---|---|
 | **Step** | Which AnKing step to search. Auto-detected from the URL; this is the fallback. |
-| **Dark panel** | Match the site / Light / Dark |
+| **Keep rows open** | Reopen the rows you left open on the next question. Off by default |
 | **Missed questions** | Move / Tag only / Make a copy, plus the deck name |
 | **Expected score (beta)** | Estimates a score from your cards' maturity |
 | **Easy mode** | Results buttons unsuspend instead of just opening |

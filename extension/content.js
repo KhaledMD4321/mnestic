@@ -1838,7 +1838,8 @@
     const brk = makeBtn("Weak areas", () => [], () => openBreakdown());     // per-system accuracy breakdown
     brk.classList.add("mnx-brkbtn");
     host.appendChild(brk);
-    toolbar.insertBefore(host, toolbar.firstChild);
+    // Beside the page's own buttons, after any empty spacer that pushes them right.
+    toolbar.insertBefore(host, Array.from(toolbar.children).find(c => (c.textContent || "").trim()) || null);
   }
 
   // ============================================================
@@ -3550,7 +3551,7 @@
       }
       cacheMedia(fn, uri);
       if (stillCurrent && !stillCurrent()) return;        // user navigated away
-      if (uri) { img.src = uri; img.removeAttribute("data-mnx-media"); } else img.remove();
+      if (uri) { img.decoding = "async"; img.src = uri; img.removeAttribute("data-mnx-media"); } else img.remove();
     }
   }
 

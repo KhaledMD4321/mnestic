@@ -235,7 +235,7 @@ jump, **Esc** closes. The keys only work after you answer.
    overwritten — and protected so an AnkiHub update can't wipe it. Add images
    too: paste a screenshot, drop a file, or tap the question's own figures —
    including the ones behind the explanation's buttons.
-4. **Move it** — the real card moves, keeping its review history. (Prefer *Tag only*
+4. **Save to Missed Qs** — the real card moves, keeping its review history. (Prefer *Tag only*
    or *Make a copy*? Choose in the popup.)
 
 Changed your mind? Open the dialog again and click **Remove from Missed Qs** —
@@ -302,7 +302,7 @@ Click the **M** in Chrome's toolbar (pin it so it's always one click away):
 - **Study tracker** — today, this week, your streak, and a 16-week heatmap.
 - **Your pace** — questions left in your bank, and a finish date at the pace you
   actually study.
-- **Settings** — daily / weekly targets, Step, panel theme, how saving works, your
+- **Settings** — Step, how saving works, your
   Missed Qs deck, which prompt **Copy for AI** uses (and your own prompt), and
   switches for Expected score, Easy mode, High-yield only and all keyboard
   shortcuts.
