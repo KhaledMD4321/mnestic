@@ -8,7 +8,6 @@
 
 const sel = document.getElementById("sv");
 const saved = document.getElementById("saved");
-const darkSelect = document.getElementById("darkSelect");
 const missedMode = document.getElementById("missedMode");
 const missedHint = document.getElementById("missedHint");
 const esToggle = document.getElementById("esToggle");
@@ -34,15 +33,11 @@ function bridge(op, args) {
   });
 }
 
-// "auto" follows the qbank's own theme, then the OS. Light/Dark are overrides.
-function prefersDark() {
-  try { return matchMedia("(prefers-color-scheme: dark)").matches; } catch (e) { return false; }
+// The popup follows the system; the panel follows the qbank.
+function applyDark() {
+  try { document.body.classList.toggle("dark", matchMedia("(prefers-color-scheme: dark)").matches); } catch (e) {}
 }
-function applyDark(pref) {
-  const on = pref === true ? true : pref === false ? false : prefersDark();
-  document.body.classList.toggle("dark", on);
-  darkSelect.value = pref === true ? "dark" : pref === false ? "light" : "auto";
-}
+applyDark();
 
 // What "Save to Missed Qs" does. Changeable whenever you like — some people
 // want a real subdeck, some won't move an AnKing card for anything.
@@ -60,10 +55,9 @@ missedMode.addEventListener("change", () => {
   chrome.storage.local.set({ mnxMissedMode: missedMode.value });
 });
 
-chrome.storage.local.get({ sv: 1, dark: "auto", expectedScore: false, easy: false, highYield: false, kbShortcuts: true, mnxMissedMode: "move" }, (cfg) => {
+chrome.storage.local.get({ sv: 1, expectedScore: false, easy: false, highYield: false, kbShortcuts: true, mnxMissedMode: "move" }, (cfg) => {
   applyMissedMode(cfg.mnxMissedMode || "move");
   sel.value = String(cfg.sv);
-  applyDark(cfg.dark === true || cfg.dark === false ? cfg.dark : "auto");
   esToggle.checked = !!cfg.expectedScore;
   easyToggle.checked = !!cfg.easy;
   hyToggle.checked = !!cfg.highYield;
@@ -78,12 +72,6 @@ sel.addEventListener("change", () => {
   });
 });
 
-darkSelect.addEventListener("change", () => {
-  const v = darkSelect.value;
-  const pref = v === "dark" ? true : v === "light" ? false : "auto";
-  applyDark(pref);
-  chrome.storage.local.set({ dark: pref });
-});
 esToggle.addEventListener("change", () => chrome.storage.local.set({ expectedScore: esToggle.checked }));
 easyToggle.addEventListener("change", () => chrome.storage.local.set({ easy: easyToggle.checked }));
 hyToggle.addEventListener("change", () => chrome.storage.local.set({ highYield: hyToggle.checked }));
