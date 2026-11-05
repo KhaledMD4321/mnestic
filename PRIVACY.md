@@ -19,6 +19,9 @@ Anki collection, entirely on your own computer.
 - **Question-bank images.** When you choose to attach a question's own image to a
   card, the extension fetches that image from the question bank's image server so
   it can be saved into your card. The image is used only to build your card.
+- **Your clipboard.** When you click Copy for AI or Copy the explanation, that text
+  is written to your clipboard so you can paste it yourself. Mnestic never reads
+  your clipboard, except an image you paste into a card dialog.
 - **Images inside your cards.** A card preview shows images from your own Anki
   media folder only. If a card's HTML points at an image on another website,
   Mnestic does **not** load it (it shows a placeholder), so that website can't

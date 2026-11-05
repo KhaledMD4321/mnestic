@@ -38,9 +38,12 @@ same way, which is what lets one AnKing tag search work on all of them.
 ── WHILE YOU REVIEW A QUESTION ──
 
 • RESOURCE OVERLAYS. The resources your own card links to — First Aid, Sketchy,
-  Physeo, OME and more — listed beside the explanation, one line each. Press F,
+  Physeo, OME and more — listed under the explanation, one line each. Press F,
   S, P or O and that resource's images appear over the question. Multi-page
   topics page with the arrow keys.
+
+• ALWAYS IN REACH. While the panel is out of view, a slim bar keeps your cards,
+  Copy for AI, Make card and Save at the bottom of the pane.
 
 • SEE THE CARDS. How the matching cards actually stand (mature, young, learning,
   suspended) with one-click unsuspend — and Suspend again if you change your
@@ -53,8 +56,9 @@ same way, which is what lets one AnKing tag search work on all of them.
   by mistake? Reopen the dialog and one click takes it back out: it untags the
   card, moves it home, and keeps everything you typed.
 
-• MAKE A CARD. Select any explanation text and turn it into a new Cloze or Basic
-  card, created in Anki with the question id as its source. Paste screenshots in.
+• MAKE A CARD. It opens beside the page, so the explanation stays readable. Select
+  any text to add it, and turn it into a new Cloze or Basic card, created in Anki
+  with the question id as its source. Paste screenshots in.
 
 • TEST YOURSELF. The question's own AnKing cards as a quick flashcard run, in a
   focus window that hides the explanation while you recall — Space and 1, like
@@ -64,13 +68,15 @@ same way, which is what lets one AnKing tag search work on all of them.
   two — and the one next step that helps. Guesses count as weak.
 
 • COPY FOR AI. The question, your answer and the correct one, with a focused
-  prompt (full review, why you got it wrong, compare the choices, high-yield
-  points, quiz me), in one click for ChatGPT, Claude or Gemini.
+  prompt (Full Review, Fix My Mistake, Compare the Choices, High-Yield Review,
+  Quiz Me), in one click for ChatGPT, Claude or Gemini. Turn on Explain from Basics
+  and any prompt teaches the foundations first.
 
 ── WHEN THE BLOCK IS DONE ──
 
 • WEAK AREAS. Per System / Subject / Topic accuracy, weakest first, with a
-  button that opens just that group's missed questions in Anki.
+  button that opens just that group's missed questions in Anki. A clean block
+  simply says so.
 
 • OPEN THEM IN ANKI. Missed, all, flagged, or high-yield only — straight to
   Anki's browser, or unsuspended in bulk.
@@ -87,16 +93,22 @@ same way, which is what lets one AnKing tag search work on all of them.
 ── PRIVACY ──
 
 Everything runs on your own computer. There is no server, no account and no
-telemetry. The extension talks to exactly two things: the question-bank page
-you're already on, and a small companion add-on on 127.0.0.1 that searches your
-own Anki collection. Nothing is collected and nothing is sent anywhere.
+telemetry. The extension talks to two things: your question bank, including an
+image you choose to attach to a card, and a small companion add-on on 127.0.0.1
+that searches your own Anki collection. Mnestic collects nothing and sends nothing
+to anyone.
+
+Its panel is part of the question-bank page, so that site's own scripts can see
+what the panel shows. Mnestic loads a question's cards only after real input from
+you, and the privacy policy explains this.
 
 The add-on cannot delete your cards: it has one delete operation, for undoing a
 "make a copy" save, and it refuses any note it did not itself create.
 
 ── WHAT YOU NEED ──
 
-1. Anki, running, with the free companion add-on "Mnestic Bridge":
+1. Anki, running, with the free companion add-on "Mnestic Bridge" (version 1.6.0
+   or newer gives you everything here):
    Tools > Add-ons > Get Add-ons, paste 199262916, restart Anki.
    https://ankiweb.net/shared/info/199262916
 2. Your own AnKing deck, with the UWorld question-id tags.
@@ -113,7 +125,7 @@ with Anki or AnKing. Use your own accounts and your own content.
 
 ```
 
-**Screenshots:** upload the five 1280×800 images from `dist/store/` (store-1…store-5).
+**Screenshots:** upload the five 1280×800 images from `dist/store/` (store-1 to store-5), replacing the old ones.
 
 **Privacy policy URL**
 ```
@@ -140,14 +152,15 @@ without leaving the page.
 
 - **storage**
   ```
-  Saves the user's own settings and study-pace log in their browser. No data
-  leaves the device.
+  Saves the user's own settings, study-pace log, pairing code and undo records in
+  their browser. No data leaves the device.
   ```
 - **Host permissions — `https://*.coursology-qbank.com/*`, `https://*.medpark.io/*`, `https://*.uworld.com/*`**
   ```
   The extension runs on the user's own question bank to read the visible question
-  (its ID and text) so it can be matched to the user's Anki cards, and to fetch a
-  question's own image when the user chooses to attach it to a card. These are
+  (its ID and text) so it can be matched to the user's Anki cards. Host access also
+  lets it fetch a question's own image, on that bank's domain, when the user
+  chooses to attach it to a card. On UWorld it runs only on the app hosts. These are
   the only question banks it supports, and it runs on no other site.
   ```
 - **Host permission — `http://127.0.0.1:8790/*`**
