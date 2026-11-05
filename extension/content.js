@@ -1263,7 +1263,7 @@
     #${PANEL_ID} .mnx-kbd{transition:opacity var(--mnx-fast) var(--mnx-ease)}
     #${PANEL_ID}:not(:hover):not(:focus-within) .mnx-kbd{opacity:0}
     /* results buttons sit quietly beside the page's own */
-    #${BTN_HOST_ID}{flex-wrap:wrap;margin-left:0}
+    #${BTN_HOST_ID}{flex:none;max-width:100%;flex-wrap:wrap;margin-left:0}
     .mnx-btn,.mnx-btn.mnx-hy,.mnx-btn.mnx-brkbtn,.mnx-btn.mnx-es{background:var(--mnx-surface);color:var(--mnx-ink);box-shadow:inset 0 0 0 1px var(--mnx-hair-2);border-radius:var(--mnx-r-sm);padding:7px 12px;font:600 12px/1.2 var(--mnx-font)}
     .mnx-btn:hover,.mnx-btn.mnx-hy:hover,.mnx-btn.mnx-brkbtn:hover{background:var(--mnx-surface-2);filter:none;transform:none}
     .mnx-btn.mnx-btn-idle{color:var(--mnx-muted);box-shadow:inset 0 0 0 1px var(--mnx-hair);opacity:1}
