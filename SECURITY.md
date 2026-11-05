@@ -30,7 +30,8 @@ page you're already on, and a local companion add-on on `127.0.0.1`.
 - rejects any request from a web page: only `chrome-extension://` origins are
   accepted, so a page on loopback (a local dev server, or a shared deck's script
   in Anki's own webview) is refused too, and a refusal carries no CORS header, so
-  a website can't read it to learn the add-on is there. A local tool that sends
+  a website can't read the answer. A browser without a local-network prompt can
+  still tell an open port from a closed one by timing or error. A local tool that sends
   no `Origin` still needs the pairing code;
 - rejects any request whose **`Host` header isn't loopback**, which blocks
   DNS-rebinding attacks, and validates the same on `OPTIONS` before answering a
@@ -50,15 +51,19 @@ the add-on, to exactly what the extension needs:
 - the only tags it adds are its own (`Mnestic::Missed…`, `Mnestic::QID::<id>`,
   `Mnestic::Made`) and `AnkiHub_Protect::Missed_Questions`, with no HTML in them;
   the only field it writes to on an existing note is **Missed Questions**, and
-  only by **appending** — it never overwrites a field;
+  only by **appending** — it never overwrites a field, and a card without that
+  field is an error rather than a silently lost note;
 - text it writes into a note may hold only what the extension produces: escaped
   text, line breaks, images from your media folder, and http(s) links. Script,
-  event handlers and every other tag are refused, because Anki runs script in
-  cards;
+  event handlers, every other tag, media and LaTeX tags, and MathJax are refused,
+  because Anki acts on all of them in cards. The limit is on what the text is
+  written as; it has not been tested against every note type's template;
 - searches that change cards (unsuspend, filtered decks, removing its tags) may
   only select by question-id tag, by Mnestic's own tags or by explicit note/card
   ids — never `deck:*`, a negation, or an empty search — and an unsuspend may
-  touch at most 3,000 cards, checked before anything changes;
+  touch at most 3,000 cards per request, checked before anything changes. Explicit
+  ids can name any card, so these limits slow a stolen code down; they don't fence
+  it off from part of your collection;
 - re-suspending takes at most 500 cards per request, and only cards whose note
   is saved to Missed Qs or linked to a question (a UWorld or `Mnestic::QID` tag)
   — the cards Mnestic can unsuspend in the first place, never the rest of a
@@ -107,11 +112,13 @@ page's DOM, which the page's own scripts can also touch. Every control that can
 talk to Anki — and every way of adding an image (paste, drop, file picker) —
 requires a trusted event, so a compromised page cannot drive it with synthetic
 clicks, keystrokes, pastes or drops. A click must also land on a control that is
-visible and on top at that point, which stops a page hiding a button under
-something else, though a transparent overlay that lets clicks through can't be
-detected. Moving to a new question takes real input since the last one, so a page
-can't walk question ids by itself and read cards out of the panel. An end-to-end
-test clicks every Mnestic control from page script and checks that nothing
+visible and on top at that point, and Enter or Space only counts on a control you
+reached yourself, which stops the simple ways of tricking a real press. A page
+that controls its own DOM can still relabel a button or lay a transparent overlay
+over it, so this raises the bar rather than closing the gap. Every new question,
+the first after a page load included, takes real input since the last one, so a
+page can't walk question ids unattended, in place or by reloading. Each real press
+still lets a hostile page choose the next question. An end-to-end test clicks every Mnestic control from page script and checks that nothing
 reaches Anki. What a page *can* still do is read the question's panel and open
 dialogs, including text in rows you've opened, and edit a dialog's fields before
 you press its button; isolating them from the page is planned.
@@ -125,14 +132,15 @@ other operation is refused before it reaches Anki.
 fetch https images from a supported question bank's own domain — the same short
 list the manifest grants host permissions for, checked again on the final address
 after any redirect — and only if the response declares an image type other than
-SVG, at most 15 MB.
+SVG. Images over 15 MB are refused; without a declared size, that is checked after
+the download.
 
 **Each site adapter only reads.** Support for a new question bank adds selectors
 and page heuristics, never new privileges: the extension still runs only on the
 hosts listed in the manifest, still talks only to `127.0.0.1`, and still sends
 nothing anywhere. The popup's **Check this page** diagnostic reports page
-*structure* only (tag names, ids, class names) — never question text, answers,
-or account details.
+*structure* (tag names, ids, class names), the page's path and the question ids it
+sees — never question text, answers, or account details.
 
 ## Scope
 

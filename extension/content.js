@@ -792,8 +792,8 @@
     @keyframes mnx-shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
     #${PANEL_ID} img[data-mnx-media],#mnx-md-overlay img[data-mnx-media]{display:block;width:min(220px,100%);aspect-ratio:4/3;margin:8px 0;border-radius:var(--mnx-r-sm);
       background:linear-gradient(90deg,var(--mnx-surface-2) 30%,var(--mnx-hair-2) 50%,var(--mnx-surface-2) 70%) 0 0/200% 100%;animation:mnx-shimmer 1.3s linear infinite}
-    @keyframes mnx-rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-    @keyframes mnx-pop{from{opacity:0;transform:scale(.965) translateY(6px)}to{opacity:1;transform:none}}
+    @keyframes mnx-rise{from{opacity:.7;transform:translateY(8px)}to{opacity:1;transform:none}}
+    @keyframes mnx-pop{from{opacity:.7;transform:scale(.965) translateY(6px)}to{opacity:1;transform:none}}
     @keyframes mnx-toast-in{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
 
     #${BTN_HOST_ID}{display:inline-flex;gap:8px;margin-left:8px;vertical-align:middle}
@@ -1548,14 +1548,24 @@
   // What the qbank says each question was about, kept with the question in the
   // tracker, so "Save to Missed Qs" can later suggest the chapter matching the
   // question's own system.
+  // Bounded: this runs on page content with no input from you, and a page that
+  // filled the extension's storage would stop undo records being written.
+  const META_ROWS = 2000, META_LEN = 120, META_TOTAL = 40000;
   function rememberQuestionMeta(rows) {
     const slug = currentQbankSlug();
     let changed = false;
-    rows.forEach(r => {
+    let room = META_TOTAL - Object.keys(trackerLog.answered).length;
+    rows.slice(0, META_ROWS).forEach(r => {
       if (!r.system && !r.subject) return;
       const key = slug + " " + r.qid;
-      const e = trackerLog.answered[key] || (trackerLog.answered[key] = { ts: null, slug, qid: r.qid, src: "results" });
-      if (e.sys !== r.system || e.subj !== r.subject) { e.sys = r.system || ""; e.subj = r.subject || ""; changed = true; }
+      const sys = String(r.system || "").slice(0, META_LEN), subj = String(r.subject || "").slice(0, META_LEN);
+      if (!trackerLog.answered[key]) {
+        if (room <= 0) return;
+        room--;
+        trackerLog.answered[key] = { ts: null, slug, qid: r.qid, src: "results" };
+      }
+      const e = trackerLog.answered[key];
+      if (e.sys !== sys || e.subj !== subj) { e.sys = sys; e.subj = subj; changed = true; }
     });
     if (changed) saveLog();
   }
@@ -1806,19 +1816,31 @@
       if (typeof fn === "function") fn(e);
     };
   }
+  // Focus you moved yourself, by Tab, the arrows, Esc or a click: anything else
+  // that lands on a control got there by script.
+  let navAt = 0, earnedFocus = null;
+  window.addEventListener("keydown", e => { if (e.isTrusted && /^(Tab|Arrow|Escape)/.test(e.key)) navAt = performance.now(); }, true);
+  window.addEventListener("pointerdown", e => { if (e.isTrusted) navAt = performance.now(); }, true);
+  window.addEventListener("focusin", e => { earnedFocus = performance.now() - navAt < 100 ? e.target : null; }, true);
   // A real click can still be a tricked one: the page can fade a control out and
   // slide it under something else. Only what can be seen, and is on top where
   // the click landed, counts. (A keyboard press has no position to check.)
   function plainlyVisible(e) {
     const el = e.currentTarget;
     if (!el || el.nodeType !== 1) return true;
+    // Enter or Space on a button the PAGE just focused isn't you choosing it.
+    // Inside a Mnestic dialog or menu, Mnestic moves focus itself.
+    const keyboard = !e.detail && !e.clientX && !e.clientY;
+    if (keyboard && el !== earnedFocus && !el.closest("#mnx-md-overlay,#mnx-ai-menu,#mnx-confirm,#" + OVERLAY_ID)) return false;
+    let shown = 1;
     for (let n = el; n; n = n.parentElement) {
       const st = getComputedStyle(n);
-      if (st.visibility !== "visible") return false;
-      // One of our own brief fade-ins doesn't count as hidden.
-      const fading = () => n.getAnimations().some(x => x.playState === "running" && /^mnx-/.test(x.animationName || "") && x.effect.getTiming().duration <= 300 && x.effect.getTiming().iterations === 1);
-      if (+st.opacity < 0.35 && !fading()) return false;
+      if (st.visibility !== "visible" || st.clipPath !== "none" || /opacity\(/.test(st.filter)) return false;
+      shown *= +st.opacity;
     }
+    if (shown < 0.35) return false;
+    const box = el.getBoundingClientRect();
+    if (box.width < 6 || box.height < 6) return false;
     if (e.clientX || e.clientY) {
       const top = document.elementFromPoint(e.clientX, e.clientY);
       if (top && !el.contains(top) && !top.contains(el)) return false;
@@ -2999,13 +3021,14 @@
     try { u = new URL(raw, location.href); } catch (e) { return null; }
     return (u.protocol === "https:" || u.protocol === "http:") ? u.href : null;
   }
+  const TAG_NAME = Object.getOwnPropertyDescriptor(Element.prototype, "tagName").get;
   function sanitizeInto(target, html) {
     const doc = new DOMParser().parseFromString("<body>" + (html || "") + "</body>", "text/html");
     (function walk(src, dest) {
       Array.prototype.forEach.call(src.childNodes, node => {
         if (node.nodeType === 3) { dest.appendChild(document.createTextNode(node.nodeValue)); return; }
         if (node.nodeType !== 1) return;                       // drop comments etc.
-        const tag = node.tagName.toUpperCase();
+        const tag = TAG_NAME.call(node).toUpperCase();         // a <form> can shadow node.tagName
         if (!SAFE_TAGS.has(tag)) { walk(node, dest); return; } // unknown tag: keep its text, drop the tag
         if (tag === "IMG" && isRemoteSrc(node.getAttribute("src"))) {
           const note = document.createElement("span");
@@ -3712,10 +3735,29 @@
         keys.sort((a, b) => (map[a].at || 0) - (map[b].at || 0))
             .slice(0, keys.length - SAVES_MAX).forEach(k => delete map[k]);
       }
-      chrome.storage.local.set({ [SAVES_KEY]: map }, r);
+      chrome.storage.local.set({ [SAVES_KEY]: map }, () => {
+        if (chrome.runtime.lastError) toast("Browser storage is full, so this save can't be undone from Mnestic.");
+        r();
+      });
     }));
   }
-  function recordSave(noteId, rec) { return updateSaves(map => { map[String(noteId)] = Object.assign({ at: Date.now() }, rec); }); }
+  // Saving a note again must not lose the first save: that one knows where the
+  // card really came from, and which cards it unsuspended.
+  function recordSave(noteId, rec) {
+    return updateSaves(map => {
+      const old = map[String(noteId)];
+      const next = Object.assign({ at: Date.now() }, rec);
+      if (old) {
+        if (old.mode === "move" && old.from) {
+          next.mode = "move";
+          next.from = old.from;
+          next.to = rec.mode === "move" && rec.to ? rec.to : old.to;
+        }
+        next.unsuspended = Array.from(new Set((old.unsuspended || []).concat(rec.unsuspended || [])));
+      }
+      map[String(noteId)] = next;
+    });
+  }
   function forgetSave(noteId) { return updateSaves(map => { delete map[String(noteId)]; }); }
   function forgetLegacyHome(qid) {
     chrome.storage.local.get({ akHome: {} }, c => {
@@ -3794,22 +3836,18 @@
           out.resuspended += (r && r.suspended) || 0;
         } catch (e) { if (!e || e.code !== "old-addon") throw e; }
       }
-      await bridge("removeTags", { notes: [nid], tags: qs.length ? [MISSED_TAG, Mt.qidTag(id)] : [MISSED_TAG] });
-      out.notes++;
       // Put a moved card back -- only if it is still where Mnestic put it.
       // Someone who has since filed it somewhere of their own keeps that.
+      // First, and a failure stops here: the save stays recorded and tagged, so
+      // trying again can finish the job.
       const home = rec ? (rec.mode === "move" ? rec : null) : (!qs.length ? legacyHome[id] : null);
       if (home && home.from) {
         let still = true;
-        if (home.to) {
-          try {
-            still = ((await bridge("searchNotes", { query: "nid:" + nid + ' "deck:' + searchLiteral(home.to) + '"' })) || []).length > 0;
-          } catch (e) { still = false; }
-        }
-        if (still) {
-          try { await bridge("setDeck", { notes: [nid], deck: home.from }); out.movedBack.push(home.from); } catch (e) {}
-        }
+        if (home.to) still = ((await bridge("searchNotes", { query: "nid:" + nid + ' "deck:' + searchLiteral(home.to) + '"' })) || []).length > 0;
+        if (still) { await bridge("setDeck", { notes: [nid], deck: home.from }); out.movedBack.push(home.from); }
       }
+      await bridge("removeTags", { notes: [nid], tags: qs.length ? [MISSED_TAG, Mt.qidTag(id)] : [MISSED_TAG] });
+      out.notes++;
       await forgetSave(nid);
     }
     if (!onlyNoteId) forgetLegacyHome(id);
@@ -4127,8 +4165,13 @@
         : "Mode: move the card — keeps its history and AnKing updates. Change in the Mnestic popup.";
     m.body.appendChild(modeNote);
 
+    let noteWritten = false;          // a retry after a failed move must not add it twice
     const saveBtn = mdButton("Save to Missed Qs", "mnx-md-ok mnx-md-save", async () => {
       const label = saveBtn.textContent;
+      if ((ta.value.trim() || pics.images.length) && missedMode !== "copy" && !getField(chosenNote, "Missed Questions")) {
+        toast("This card has no Missed Questions field, so your note can't be kept. Clear the note to save it without one.");
+        return;
+      }
       saveBtn.disabled = true; saveBtn.textContent = "Saving…";
       try {
         // The deck list may still be in flight. Without it, an existing
@@ -4143,9 +4186,10 @@
           saveBtn.disabled = false; saveBtn.textContent = label;
           return;
         }
-        const imgTags = await pics.upload(SITE.id + "-" + qid);
-        let noteHtml = ta.value.trim() ? escapeHtml(ta.value.trim()).replace(/\n/g, "<br>") : "";
+        const imgTags = noteWritten ? [] : await pics.upload(SITE.id + "-" + qid);
+        let noteHtml = noteWritten ? "" : ta.value.trim() ? escapeHtml(ta.value.trim()).replace(/\n/g, "<br>") : "";
         if (imgTags.length) noteHtml += (noteHtml ? "<br>" : "") + imgTags.join("<br>");
+        const savedNote = noteWritten;
         // Anki splits tags on whitespace, and a chapter name comes from deck
         // tags we don't control — cleanSeg turns "_" into " ", so a segment
         // like "Cardio_marked_leech" would fan out into three tags and write
@@ -4155,7 +4199,7 @@
         const inChapterDeck = chapterDeckSelected();
         const tagChapter = inChapterDeck ? Tg.cleanSeg(deckLeaf(rawDeck())) : chapter;
         const tagPath = [tagChapter, inChapterDeck ? chapter : null].filter(Boolean)
-          .map(seg => String(seg).split("::").join("_").replace(/\s+/g, "_").replace(/[<>]/g, ""));
+          .map(seg => String(seg).split("::").join("_").replace(/\s+/g, "_").replace(/[<>'\\]/g, "").replace(/&(?=#|[a-z]+;)/gi, "and"));
         const chapTag = tagPath.length ? MISSED_TAG + "::" + tagPath.join("::") : MISSED_TAG;
         // Mnestic::QID::<id> records WHICH question this was missed on, so the
         // missed list and undo work per question rather than per note.
@@ -4188,6 +4232,7 @@
           const params = { noteId: chosenNote.noteId, addTags: tags.slice() };
           if (noteHtml) { params.fieldAppends = { "Missed Questions": noteHtml }; params.addTags.push(PROTECT_TAG); }
           await bridge("updateNote", params);
+          noteWritten = true;
           // Unsuspend the card you chose -- not every card of every note on the
           // question, as 1.3 did -- and keep the list so undo can put it back.
           let unsuspended = [];
@@ -4204,7 +4249,11 @@
             let res = null, tooOld = false;
             try { res = await bridge("setDeck", { notes: [chosenNote.noteId], deck }); }
             catch (err) {
-              if (err && err.code === "old-addon") tooOld = true; else throw err;
+              if (err && err.code !== "old-addon") {
+                await recordSave(chosenNote.noteId, { qid, mode: "tag", unsuspended });   // undo still works
+                throw err;
+              }
+              tooOld = true;
             }
             if (tooOld) {
               await recordSave(chosenNote.noteId, { qid, mode: "tag", unsuspended });
@@ -4216,7 +4265,7 @@
               // knows it, and only right now -- after this it is gone.
               await recordSave(chosenNote.noteId, { qid, mode: "move", from: (res && res.from) || "", to: deck, unsuspended });
               what = "Moved " + n + (n === 1 ? " card" : " cards") + " to " + deckLeaf(deck) +
-                (noteHtml ? " with your note" + extraLabel(imgTags) + "." : ".");
+                (noteHtml || savedNote ? " with your note" + extraLabel(imgTags) + "." : ".");
             }
           } else {
             await recordSave(chosenNote.noteId, { qid, mode: "tag", unsuspended });
@@ -5475,9 +5524,10 @@
     const qid = answered ? findQid() : null;
     if (qid && answered) {
       if (!Q || Q.qid !== qid) {
-        // Moving to a new question takes real input, so a page can't walk the
-        // question ids by itself and read your cards out of the panel.
-        if (qid !== lastBuiltQid && lastBuiltQid !== null && inputSeq === builtAtInput) {
+        // A new question takes real input, the first one after a page load too,
+        // so a page can't walk the question ids by itself, in place or by
+        // reloading, and read your cards out of the panel.
+        if (qid !== lastBuiltQid && inputSeq === builtAtInput) {
           Q = null;
           const stale = document.getElementById(PANEL_ID);
           if (stale) stale.remove();
@@ -5502,8 +5552,10 @@
     syncDock();
   }
   setInterval(mainTick, 1000);
-  let inputSeq = 0, builtAtInput = -1, lastBuiltQid = null;
+  let inputSeq = 0, builtAtInput = 0, lastBuiltQid = null;
   ["pointerdown", "keydown"].forEach(t => window.addEventListener(t, e => { if (e.isTrusted) inputSeq++; }, { capture: true, passive: true }));
+  // Scrolling down to read the explanation is enough for the first panel.
+  window.addEventListener("wheel", e => { if (e.isTrusted && !inputSeq) inputSeq = 1; }, { capture: true, passive: true });
   // The tick alone made every switch wait up to a second: the panel came late,
   // and the last question's Anki button stayed beside the new one. Page changes
   // now bring it forward, at most about three times a second. The interval

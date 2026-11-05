@@ -116,6 +116,15 @@ function listenFree(server, from) {
   }
   await setCfg({ bridgePort: port });
 
+  // A panel needs real input, the first one too. Every page gets a real click
+  // once the content script is up, unless a test is exercising that gate.
+  let autoInput = true;
+  ctx.on("page", (pg) => pg.on("domcontentloaded", async () => {
+    if (!autoInput || !/^https:/.test(pg.url())) return;
+    const up = await pg.waitForSelector("#mnx-qid-open", { timeout: 5000 }).catch(() => null);
+    if (up && autoInput) await pg.mouse.click(1, 1).catch(() => {});
+  }));
+
   for (const site of SITES) {
     console.log(site.id + ":");
     const p = await ctx.newPage();
@@ -1265,6 +1274,83 @@ function listenFree(server, from) {
       await p.locator("#mnx-resources .mnx-unsus").first().click({ force: true }).catch(() => {});
       await p.waitForTimeout(500);
       check("1.6", "a real click on a panel the page made invisible does nothing", opsSince(n1, ["unsuspend"]).length === 0);
+      await p.close();
+    }
+
+    // Reloading is no way round the input gate, and Enter on a page-focused button is nothing.
+    {
+      mock.reset();
+      autoInput = false;
+      const before = mock.calls().length;
+      const p = await openAt(reviewHtml("4211"));
+      await p.waitForSelector("#mnx-qid-open", { timeout: 12000 }).catch(() => {});
+      await p.waitForTimeout(1500);
+      const asked = opsSince(before, ["noteInfo", "searchNotes"]).length;
+      check("1.6", "a fresh page load reads no cards until there's real input", !(await p.$("#mnx-resources")) && asked === 0, String(asked));
+      await p.mouse.move(300, 300);
+      await p.mouse.wheel(0, 40);
+      await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 6000 }).catch(() => {});
+      check("1.6", "…and scrolling or a click brings the panel", !!(await p.$("#mnx-resources .mnx-r-head")));
+      autoInput = true;
+      await p.waitForSelector("#mnx-resources .mnx-unsus", { timeout: 6000 }).catch(() => {});
+      await p.waitForTimeout(500);
+      const n0 = mock.calls().length;
+      await p.evaluate(() => document.querySelector("#mnx-resources .mnx-unsus").focus());
+      await p.keyboard.press("Enter");
+      await p.waitForTimeout(500);
+      check("1.6", "Enter on a button the page focused does nothing", opsSince(n0, ["unsuspend"]).length === 0);
+      await p.evaluate(() => { const b = document.querySelector("#mnx-resources .mnx-unsus"); b.previousElementSibling.tabIndex = 0; b.previousElementSibling.focus(); });
+      await p.keyboard.press("Tab");
+      await p.keyboard.press("Enter");
+      await p.waitForTimeout(600);
+      check("1.6", "…but a button you Tab to works from the keyboard", opsSince(n0, ["unsuspend"]).length === 1, await p.evaluate(() => document.activeElement.className));
+      await p.close();
+    }
+
+    // Saving a note twice keeps what undo needs from the first save.
+    {
+      mock.reset();
+      const p = await openAt(reviewHtml("4211"));
+      await p.waitForSelector("#mnx-resources .mnx-save", { timeout: 12000 });
+      const saveOnce = async () => {
+        await p.keyboard.press("v");
+        await p.waitForSelector("#mnx-md-overlay .mnx-md-save", { timeout: 6000 });
+        await p.locator("#mnx-md-overlay .mnx-md-save").click();
+        await p.waitForFunction(() => !document.getElementById("mnx-md-overlay"), null, { timeout: 8000 }).catch(() => {});
+        await p.waitForTimeout(400);
+      };
+      await saveOnce();
+      const saves = async () => {
+        const c = await ctx.newPage();
+        await c.goto(`chrome-extension://${extId}/popup.html`);
+        const v = await c.evaluate(() => new Promise((r) => chrome.storage.local.get(null, r)));
+        await c.close();
+        const k = Object.keys(v).find((x) => /save/i.test(x) && v[x] && typeof v[x] === "object" && Object.values(v[x]).some((y) => y && y.qid));
+        return v[k] || {};
+      };
+      const first = Object.values(await saves()).find((r) => String(r.qid) === "4211") || {};
+      await p.bringToFront();
+      await saveOnce();
+      const second = Object.values(await saves()).find((r) => String(r.qid) === "4211") || {};
+      check("1.6", "a second save keeps the first save's home deck and unsuspended cards",
+        !!first.from && second.from === first.from && (first.unsuspended || []).every((c) => (second.unsuspended || []).includes(c)), JSON.stringify([first, second]).slice(0, 220));
+      await p.close();
+    }
+
+    // A deck field can't crash the sanitizer by shadowing a form's tagName.
+    {
+      const was = mock.NOTE.fields.Extra.value;
+      mock.NOTE.fields.Extra.value = 'Clobber <form><input name="tagName">kept text</form> done';
+      mock.reset();
+      const p = await openAt(reviewHtml("4211"));
+      const bad = []; p.on("pageerror", (e) => bad.push(e.message));
+      await p.waitForSelector("#mnx-resources .mnx-r-field", { timeout: 12000 }).catch(() => {});
+      await p.locator("#mnx-resources .mnx-r-field .mnx-r-head").first().click().catch(() => {});
+      await p.waitForTimeout(500);
+      const t = await p.evaluate(() => (document.querySelector("#mnx-resources .mnx-r-field") || {}).innerText || "");
+      check("1.6", "a form shadowing tagName renders as text, without an error", /Clobber/.test(t) && /done/.test(t), t.slice(0, 100));
+      mock.NOTE.fields.Extra.value = was;
+      mock.reset();
       await p.close();
     }
 

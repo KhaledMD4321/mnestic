@@ -505,6 +505,20 @@ def main():
     check("readMedia cannot climb out of the media folder",
           D("readMedia", {"filename": "../../../Windows/win.ini"}) is False)
 
+    # ---- independent review: R4, R5, R7, R8, R10 ----
+    for bad in ("tag:Mnestic::Made OR -is:suspended", "(tag:Mnestic::Made OR -is:suspended)", "-tag:Mnestic::Copy OR tag:Mnestic::Made"):
+        refuses("a filter can't widen a search with OR: " + bad, lambda: D("filteredDeck", {"name": "Mnestic X", "search": bad}))
+    check("the extension's own search still passes", M._scoped_query("(tag:Mnestic::Missed OR tag:Mnestic::Missed::*) -is:suspended", allow_modifiers=True))
+    for bad in ('<img src="https&#58;&#47;&#47;evil.example&#47;x.gif">', "[sound:http://evil/x.mp3]", "[latex]x[/latex]", "[$]x[/$]", "\\(\\href{javascript:x}{y}\\)", "\\[x\\]"):
+        refuses("a note can't carry: " + bad, lambda: D("updateNote", {"noteId": 1, "fieldAppends": {"Missed Questions": bad}}))
+    for bad in ("Mnestic::Missed::&lt;img&gt;", "Mnestic::Missed::&#60;x", "Mnestic::Missed::it's", "Mnestic::Missed::a\\b"):
+        refuses("a tag can't carry: " + bad, lambda: D("updateNote", {"noteId": 1, "addTags": [bad]}))
+    D("updateNote", {"noteId": 1, "addTags": ["Mnestic::Missed::Pulmonary_&_Critical_Care"]})
+    check("a real tag with & still goes through", "Mnestic::Missed::Pulmonary_&_Critical_Care" in col.notes[1].tags)
+    plain = D("newNote", {"deck": "Mine", "kind": "basic", "front": "no missed field here", "back": "a"})["noteId"]
+    refuses("a note on a card with no Missed Questions field is an error, not silence",
+            lambda: D("updateNote", {"noteId": plain, "fieldAppends": {"Missed Questions": "kept?"}}))
+
     # ---- what a stolen code can't plant (audit M1, L4, L5, L6) ----
     for bad in ("<script>x()</script>", "<img src=x onerror=x()>", '<img src="a.png" onerror="x()">',
                 '<img src="http://evil/x.png">', '<a href="javascript:x()">y</a>', "<svg onload=x()>",

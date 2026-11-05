@@ -63,8 +63,9 @@ Mnestic itself sends nothing anywhere.
 Mnestic's panel is part of the page, so the question bank's own scripts can read
 what it shows for the current question: card counts, row summaries, and any row or
 dialog you've opened. Mnestic sends nothing to the question bank, but it can't stop
-a page from reading its own contents. Mnestic only loads a new question's cards
-after real input from you, so a page can't walk through your cards by itself.
+a page from reading its own contents. Mnestic only loads a question's cards after
+real input from you, a click, a key or a scroll, so a page can't walk through your
+cards unattended.
 
 ## Permissions, explained
 

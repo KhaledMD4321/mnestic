@@ -79,11 +79,13 @@ _UW_QID_TAG_RE = re.compile(r"^#AK_Step[1-3]_v[^:\s]{0,12}::#UWorld::(?:Step::)?
 # ankihub_id, then call deleteNotes.
 # ---------------------------------------------------------------------------
 _TAG_OK_RE = re.compile(
-    r"^(?:Mnestic::(?:Missed(?:::[^\s\"<>]{1,200})?|Made|QID::\d{1,12})"
+    r"^(?:Mnestic::(?:Missed(?:::[^\s\"<>'\\]{1,200})?|Made|QID::\d{1,12})"
     r"|AnkiHub_Protect::Missed_Questions)$",
     re.I,
 )
 _APPEND_FIELDS = ("missed questions",)
+# An encoded "<" is still HTML to anything that decodes a tag before showing it.
+_TAG_ENTITY_RE = re.compile(r"&(?:#|[a-z]+;)", re.I)
 MAX_BODY = 32 * 1024 * 1024           # a pasted screenshot, base64'd, fits easily
 MAX_UNPAIRED_BODY = 64 * 1024         # no valid code: all that can succeed is a ping
 MAX_MEDIA = 24 * 1024 * 1024          # one media file, decoded
@@ -103,12 +105,15 @@ _MEDIA_EXT = ("png", "jpg", "jpeg", "gif", "webp", "avif", "bmp")
 _FIELD_TAG_RE = re.compile(r"<[^>]*>?")
 _FIELD_OK_RES = (
     re.compile(r'<br ?/?>', re.I),
-    re.compile(r'<img src="[^"<>:/\\]{1,220}">', re.I),      # a media file name
+    re.compile(r'<img src="[^"<>:/\\&]{1,220}">', re.I),     # a media file name, entities refused
     re.compile(r'<a href="https?://[^"<>\s]{1,2000}">', re.I),
     re.compile(r'</a>', re.I),
     re.compile(r'<div style="font-size:12px;opacity:\.7;margin-top:8px">'),   # the source line
     re.compile(r'</div>'),
 )
+# Plain text that Anki itself acts on: media and LaTeX tags, and MathJax, whose
+# \\href can make a link. The extension never needs them.
+_FIELD_BAD_TEXT_RE = re.compile(r"\[(?:sound:|anki:|/?latex\]|/?\$\$?\])|\\[(\[]", re.I)
 
 # A write op's search may only SELECT cards the way Mnestic does: by question-id
 # tag, by Mnestic's own tags, or by explicit note/card ids. No negations and no
@@ -254,7 +259,7 @@ def _tags(value):
         t = t.strip() if isinstance(t, str) else ""
         if not t:
             continue
-        if not _TAG_OK_RE.match(t):
+        if not _TAG_OK_RE.match(t) or _TAG_ENTITY_RE.search(t):
             raise Exception("Mnestic can only add its own tags, not %r" % t[:80])
         out.append(t)
     return out
@@ -281,6 +286,8 @@ def _safe_html(value):
     for tag in _FIELD_TAG_RE.findall(value):
         if not any(r.fullmatch(tag) for r in _FIELD_OK_RES):
             raise Exception("Mnestic only writes plain text, line breaks, images and links, not %r" % tag[:60])
+    if _FIELD_BAD_TEXT_RE.search(value):
+        raise Exception("Mnestic can't store media tags, LaTeX or MathJax in a note")
     return value
 
 
@@ -329,6 +336,7 @@ def _scoped_query(query, allow_modifiers=False):
         raise Exception("the search is too long")
     tokens = query.replace("(", " ( ").replace(")", " ) ").split()
     depth, selectors = 0, 0
+    top_or = top_modifier = False
     for tok in tokens:
         if tok == "(":
             depth += 1
@@ -339,15 +347,21 @@ def _scoped_query(query, allow_modifiers=False):
                 raise Exception("unbalanced parentheses in the search")
             continue
         if tok.upper() == "OR":
+            top_or = top_or or depth == 0
             continue
         if any(r.match(tok) for r in _SELECTOR_RES):
             selectors += 1
             continue
-        if allow_modifiers and any(r.match(tok) for r in _MODIFIER_RES):
+        # A modifier narrows only as a top-level AND: "a OR -is:suspended" and
+        # "(a OR -is:suspended)" would match nearly every card.
+        if allow_modifiers and depth == 0 and any(r.match(tok) for r in _MODIFIER_RES):
+            top_modifier = True
             continue
         raise Exception("this search is outside what Mnestic may change: %r" % tok[:60])
     if depth != 0:
         raise Exception("unbalanced parentheses in the search")
+    if top_or and top_modifier:
+        raise Exception("this search is outside what Mnestic may change: OR beside a filter")
     if not selectors:
         raise Exception("the search does not select any question")
     if selectors > MAX_QUERY_TERMS:
@@ -707,6 +721,9 @@ def _apply_appends(note, appends):
     by_lower = {k.lower(): k for k in note.keys()}
     for name, val in (appends or {}).items():
         key = by_lower.get(name.strip().lower())
+        if val and not key:
+            # Dropping it quietly would report your note as saved when it wasn't.
+            raise Exception("this card has no %s field, so your note can't be kept" % name.strip())
         if key and val:
             cur = note[key] or ""
             note[key] = cur + ("<br><br>" if cur.strip() else "") + val
