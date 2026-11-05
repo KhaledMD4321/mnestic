@@ -215,7 +215,7 @@ const OPS = {
   auth: () => ({ paired: true, version: "1.4.0-mock" }),
   searchNotes: (a) => search(a.query || ""),
   noteInfo: (a) => (a.notes || []).map((id) => notes.get(+id)).filter(Boolean).map(wire),
-  readMedia: () => PNG_B64,
+  readMedia: () => state.mediaB64 || PNG_B64,
   writeMedia: (a) => a.filename,
   openBrowser: () => true,
   // a numbered chapter subdeck, like a real user's

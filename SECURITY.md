@@ -27,28 +27,34 @@ page you're already on, and a local companion add-on on `127.0.0.1`.
 - requires a **per-machine pairing code** on every request except a bare
   liveness `ping` (which names the add-on and nothing else), compared with a
   timing-safe comparison;
-- rejects any request whose `Origin` is a website — the origin's **host is
-  compared exactly** (a prefix test would accept look-alikes such as
-  `http://127.0.0.1.attacker.tld`), and only `chrome-extension://` and loopback
-  are accepted;
+- rejects any request from a web page: only `chrome-extension://` origins are
+  accepted, so a page on loopback (a local dev server, or a shared deck's script
+  in Anki's own webview) is refused too, and a refusal carries no CORS header, so
+  a website can't read it to learn the add-on is there. A local tool that sends
+  no `Origin` still needs the pairing code;
 - rejects any request whose **`Host` header isn't loopback**, which blocks
   DNS-rebinding attacks, and validates the same on `OPTIONS` before answering a
   preflight or granting Private Network Access;
 - decides on the **headers alone, before reading the body**: a refused request,
-  a missing or negative `Content-Length`, or a body over 32 MB is answered at
-  once and the connection closed, and a connection that goes quiet is dropped
-  after 30 seconds — so no request can make Anki buffer or wait indefinitely;
+  a missing or negative `Content-Length`, a body over 32 MB, or over 64 KB
+  without a valid code is answered at once and the connection closed, and a
+  connection that goes quiet for 30 seconds is dropped;
 - resolves media filenames with `basename` only, so a crafted filename can't
-  escape the media folder, and stores only image files (at most 24 MB each).
+  escape the media folder, and stores only real images, checked by their
+  content, at most 24 MB each and never SVG.
 
 **A pairing code can only do what Mnestic does.** The code proves a request
 comes from Mnestic, but anything that learned it (malware, a leaked screenshot,
 clipboard history) could send the same requests. So every write is limited, in
 the add-on, to exactly what the extension needs:
 - the only tags it adds are its own (`Mnestic::Missed…`, `Mnestic::QID::<id>`,
-  `Mnestic::Made`) and `AnkiHub_Protect::Missed_Questions`; the only field it
-  writes to on an existing note is **Missed Questions**, and only by
-  **appending** — it never overwrites a field;
+  `Mnestic::Made`) and `AnkiHub_Protect::Missed_Questions`, with no HTML in them;
+  the only field it writes to on an existing note is **Missed Questions**, and
+  only by **appending** — it never overwrites a field;
+- text it writes into a note may hold only what the extension produces: escaped
+  text, line breaks, images from your media folder, and http(s) links. Script,
+  event handlers and every other tag are refused, because Anki runs script in
+  cards;
 - searches that change cards (unsuspend, filtered decks, removing its tags) may
   only select by question-id tag, by Mnestic's own tags or by explicit note/card
   ids — never `deck:*`, a negation, or an empty search — and an unsuspend may
@@ -71,9 +77,11 @@ requests with the code could delete an arbitrary note (tag it as a Mnestic copy,
 blank its `ankihub_id`, then delete it). `scripts/bridge-test.py` replays that
 attack against the add-on on every test run.
 
-What a stolen code can still do: read your collection, re-file or untag notes
-Mnestic itself saved, suspend or unsuspend cards linked to a question (all
-reversible), and delete the copies Mnestic made. Rotate the code from
+What a stolen code can still do: read your collection, add notes and copies with
+plain text and images, append text to Missed Questions, store images, move notes
+between decks a few at a time, re-file or untag notes Mnestic itself saved,
+suspend or unsuspend cards linked to a question, and delete the copies Mnestic
+made. Rotate the code from
 **Tools → Mnestic Bridge → Issue a new pairing code…** whenever it may have been
 seen, and paste the new one into the extension.
 
@@ -98,11 +106,15 @@ where the anchor is built.
 page's DOM, which the page's own scripts can also touch. Every control that can
 talk to Anki — and every way of adding an image (paste, drop, file picker) —
 requires a trusted event, so a compromised page cannot drive it with synthetic
-clicks, keystrokes, pastes or drops. An end-to-end test clicks every Mnestic
-control from page script and checks that nothing reaches Anki. What a page *can*
-still do is read Mnestic's panel and dialogs while they are open, and edit a
-dialog's fields before you press its button; isolating them from the page is
-planned.
+clicks, keystrokes, pastes or drops. A click must also land on a control that is
+visible and on top at that point, which stops a page hiding a button under
+something else, though a transparent overlay that lets clicks through can't be
+detected. Moving to a new question takes real input since the last one, so a page
+can't walk question ids by itself and read cards out of the panel. An end-to-end
+test clicks every Mnestic control from page script and checks that nothing
+reaches Anki. What a page *can* still do is read the question's panel and open
+dialogs, including text in rows you've opened, and edit a dialog's fields before
+you press its button; isolating them from the page is planned.
 
 **The background worker forwards only known requests.** It checks who is
 asking: the part of Mnestic running inside the question-bank page may only use
@@ -111,8 +123,9 @@ other operation is refused before it reaches Anki.
 
 **The image fetcher is not an open proxy.** The background worker will only
 fetch https images from a supported question bank's own domain — the same short
-list the manifest grants host permissions for — and only if the response is an
-image of at most 15 MB.
+list the manifest grants host permissions for, checked again on the final address
+after any redirect — and only if the response declares an image type other than
+SVG, at most 15 MB.
 
 **Each site adapter only reads.** Support for a new question bank adds selectors
 and page heuristics, never new privileges: the extension still runs only on the

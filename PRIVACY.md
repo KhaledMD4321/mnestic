@@ -31,7 +31,7 @@ leaves your device, and there is nowhere for it to be sent.
 
 | What | Why |
 |---|---|
-| Your settings | Step, theme, how to save missed questions, deck names, toggles, your AI prompt and which one Copy for AI uses |
+| Your settings | Step, which popup tab you last used, whether rows stay open, how to save missed questions, deck names, toggles, your AI prompt and which one Copy for AI uses |
 | Your study-pace log | Which questions you answered and when, how they went (and why, if you said), your last **Test me** score, and the qbank totals it read — this is what draws the tracker |
 | Which resource rows you open | So the panel can put the ones you use at the top |
 | Which cards Mnestic unsuspended, per question | So **Suspend again** puts back exactly those cards and nothing that was already in your reviews (kept 60 days) |
@@ -58,11 +58,17 @@ Mnestic itself sends nothing anywhere.
 - No data sent to the developer or any third party — there is no server to send
   it to.
 
+## The question-bank page itself
+
+Mnestic's panel is part of the page, so the question bank's own scripts can read
+what it shows for the current question: card counts, row summaries, and any row or
+dialog you've opened. Mnestic sends nothing to the question bank, but it can't stop
+a page from reading its own contents. Mnestic only loads a new question's cards
+after real input from you, so a page can't walk through your cards by itself.
+
 ## Permissions, explained
 
 - **storage** — save your settings and study log in your browser.
-- **clipboardWrite** — "Copy for AI" (and its "Copy the explanation only") writes to
-  your clipboard.
 - **Access to your question-bank sites** (Coursology, MedPark, UWorld) — read the current
   question so it can be matched to your Anki cards. The extension runs only on
   those sites.
@@ -72,7 +78,7 @@ Mnestic itself sends nothing anywhere.
 
 The companion add-on (**Mnestic Bridge**) binds to `127.0.0.1` only, so it is
 never reachable from your network. Every request must carry your pairing code,
-and requests whose origin is a website are refused. It has no network access of
+except a bare "are you there?" check, and requests from web pages are refused. It has no network access of
 its own: it does not phone home, check for updates, or report anything.
 
 ## Contact

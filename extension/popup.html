@@ -90,6 +90,8 @@
     .remain { margin-top:8px; }
     .trk-row b.wordy { font-size:11px; font-weight:500; color:var(--muted); text-align:right; }
     .trk > .trk-h h2 { margin-top:0; }
+    /* first run: the setup steps come first, and the popup still fits */
+    #setup:not([hidden]) ~ .trk .later { display:none; }
     .trk-tg { display:flex; gap:8px; margin-top:6px; }
     .trk-tg label { flex:1; font-size:11px; color:var(--muted); display:flex; flex-direction:column; gap:3px; }
     .trk-tg input { width:100%; }
@@ -186,13 +188,15 @@
           <div class="bar"><i id="trkRemainFill"></i></div>
           <div id="trkProj" class="trk-proj muted"></div>
         </div>
-        <h2>Last 16 weeks</h2>
-        <div id="trkCal" class="trk-cal"></div>
-        <div class="trk-callbl"><span id="trkCalHint"></span></div>
-        <h2>Targets</h2>
-        <div class="trk-tg">
-          <label>Daily<input type="number" id="trkDaily" min="0" placeholder="0"></label>
-          <label>Weekly<input type="number" id="trkWeekly" min="0" placeholder="0"></label>
+        <div class="later">
+          <h2>Last 16 weeks</h2>
+          <div id="trkCal" class="trk-cal"></div>
+          <div class="trk-callbl"><span id="trkCalHint"></span></div>
+          <h2>Targets</h2>
+          <div class="trk-tg">
+            <label>Daily<input type="number" id="trkDaily" min="0" placeholder="0"></label>
+            <label>Weekly<input type="number" id="trkWeekly" min="0" placeholder="0"></label>
+          </div>
         </div>
       </div>
     </section>

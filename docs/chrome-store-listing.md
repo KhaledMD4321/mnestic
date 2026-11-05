@@ -143,11 +143,6 @@ without leaving the page.
   Saves the user's own settings and study-pace log in their browser. No data
   leaves the device.
   ```
-- **clipboardWrite**
-  ```
-  Powers the "Copy for AI" button (and its "Copy the explanation only" option),
-  which copies the current question or explanation to the user's clipboard.
-  ```
 - **Host permissions — `https://*.coursology-qbank.com/*`, `https://*.medpark.io/*`, `https://*.uworld.com/*`**
   ```
   The extension runs on the user's own question bank to read the visible question

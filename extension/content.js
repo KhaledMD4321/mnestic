@@ -864,6 +864,7 @@
        disclosure: a one-line summary with enough scent to decide, and the full
        list one click away. What you open is remembered. */
     #${PANEL_ID}.mnx-loading{min-height:260px}
+    #${PANEL_ID}.mnx-loading::after{content:"Finding your cards…";display:block;padding:14px;font-size:13px;color:var(--mnx-muted)}
     #${PANEL_ID} .mnx-r{border-bottom:1px solid var(--mnx-hair)}
     #${PANEL_ID} .mnx-r:last-of-type{border-bottom:none}
     #${PANEL_ID} .mnx-r-head{display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;
@@ -3557,6 +3558,22 @@
     mediaCache.set(fn, uri);
     while (mediaCache.size > MEDIA_CACHE_MAX) mediaCache.delete(mediaCache.keys().next().value);
   }
+  // An AnKing figure can be 2,600 pixels wide and several megabytes. Nothing here
+  // shows it that large, and each one sits in the page and in this cache.
+  async function fitImage(uri) {
+    if (uri.length < 1500000) return uri;
+    try {
+      const im = new Image();
+      im.src = uri;
+      await im.decode();
+      const scale = 1600 / im.naturalWidth;
+      if (scale >= 1) return uri;
+      const c = document.createElement("canvas");
+      c.width = 1600; c.height = Math.round(im.naturalHeight * scale);
+      c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+      return c.toDataURL("image/webp", 0.9);
+    } catch (e) { return uri; }
+  }
   async function resolveMediaImages(container, stillCurrent) {
     for (const img of Array.from(container.querySelectorAll("img"))) {
       const src = img.getAttribute("data-mnx-media") || img.getAttribute("src") || "";
@@ -3565,7 +3582,7 @@
       if (!fn) { continue; }
       let uri = mediaCache.get(fn);
       if (uri === undefined) {
-        try { const b64 = await bridge("readMedia", { filename: fn }); uri = b64 ? ("data:" + mimeFor(fn) + ";base64," + b64) : null; }
+        try { const b64 = await bridge("readMedia", { filename: fn }); uri = b64 ? await fitImage("data:" + mimeFor(fn) + ";base64," + b64) : null; }
         catch (e) { uri = null; }
       }
       cacheMedia(fn, uri);

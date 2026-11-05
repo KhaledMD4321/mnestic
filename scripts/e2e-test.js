@@ -1268,6 +1268,28 @@ function listenFree(server, from) {
       await p.close();
     }
 
+    // A huge figure is fitted before it goes into the page.
+    {
+      mock.reset();
+      const q = await openAt(reviewHtml("4211"));
+      mock.state.mediaB64 = await q.evaluate(() => {
+        const c = document.createElement("canvas"); c.width = 1800; c.height = 700;
+        const x = c.getContext("2d"), d = x.createImageData(1800, 700);
+        for (let i = 0; i < d.data.length; i++) d.data[i] = (i % 4 === 3) ? 255 : Math.random() * 256;
+        x.putImageData(d, 0, 0);
+        return c.toDataURL("image/png").split(",")[1];
+      });
+      await q.close();
+      const p = await openAt(reviewHtml("4211"));
+      await p.waitForSelector("#mnx-resources .mnx-r-field", { timeout: 12000 }).catch(() => {});
+      await p.locator("#mnx-resources .mnx-r-field .mnx-r-head").first().click().catch(() => {});
+      await p.waitForFunction(() => { const i = document.querySelector("#mnx-resources .mnx-r-field img"); return i && i.naturalWidth > 0; }, null, { timeout: 15000 }).catch(() => {});
+      const w = await p.evaluate(() => { const i = document.querySelector("#mnx-resources .mnx-r-field img"); return i && i.naturalWidth; });
+      check("1.6", "a huge card image is fitted to 1600px before it reaches the page", w === 1600, String(w));
+      mock.state.mediaB64 = null;
+      await p.close();
+    }
+
     // The pinned bar: the question's actions while the panel is out of view.
     {
       mock.reset();
