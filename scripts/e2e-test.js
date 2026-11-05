@@ -1403,6 +1403,10 @@ function listenFree(server, from) {
       await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 12000 });
       await p.keyboard.press("g");
       await p.waitForSelector("#mnx-md-overlay.mnx-side .mnx-md", { timeout: 4000 }).catch(() => {});
+      // The dialog puts focus in its text box just after opening; a drag that
+      // starts first loses its selection to that.
+      await p.waitForFunction(() => document.activeElement && document.activeElement.tagName === "TEXTAREA", null, { timeout: 4000 }).catch(() => {});
+      await p.locator("#src").scrollIntoViewIfNeeded();
       const box = await p.locator("#src").boundingBox();
       await p.mouse.move(box.x + 2, box.y + box.height / 2);
       await p.mouse.down(); await p.mouse.move(box.x + 300, box.y + box.height / 2, { steps: 6 }); await p.mouse.up();
