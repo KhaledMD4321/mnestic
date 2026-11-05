@@ -1812,7 +1812,7 @@
   function onUserClick(fn) {
     return e => {
       if (!e || !e.isTrusted) return;
-      if (!plainlyVisible(e)) { toast("Mnestic ignored that click: its button was hidden or covered."); return; }
+      if (!plainlyVisible(e)) { toast("Mnestic ignored that: the page moved or hid its button. Click it directly, or reach it with Tab."); return; }
       if (typeof fn === "function") fn(e);
     };
   }
