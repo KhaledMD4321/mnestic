@@ -66,7 +66,9 @@ async function bridge(op, args) {
   try {
     res = await fetch(`http://127.0.0.1:${port}/`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Mnestic-Token": token },
+      // ping asks whether anything is there, so it doesn't hand the code to
+      // whatever happens to hold this port while Anki is closed.
+      headers: { "Content-Type": "application/json", ...(op === "ping" ? {} : { "X-Mnestic-Token": token }) },
       body: JSON.stringify({ op, args: args || {} }),
       signal: ctl.signal,
     });
@@ -146,13 +148,15 @@ async function fetchImageDataUrl(url) {
   try {
     const res = await fetch(url, { credentials: "omit", signal: ctl.signal });
     if (!res.ok) throw new Error("HTTP " + res.status);
+    // A redirect can land anywhere; the rule is about where the image comes from.
+    if (!IMAGE_URL_OK.test(res.url)) throw new Error("blocked: not a question-bank image URL");
     const type0 = (res.headers.get("content-type") || "").toLowerCase();
-    if (type0 && !type0.startsWith("image/")) throw new Error("blocked: not an image");
+    if (!type0.startsWith("image/") || type0.startsWith("image/svg")) throw new Error("blocked: not an image");
     const declared = parseInt(res.headers.get("content-length") || "0", 10);
     if (declared > MAX_IMAGE) throw new Error("that image is too large");
     const bytes = new Uint8Array(await res.arrayBuffer());
     if (bytes.length > MAX_IMAGE) throw new Error("that image is too large");
-    const type = (type0 || "image/png").split(";")[0];
+    const type = type0.split(";")[0];
     return "data:" + type + ";base64," + toBase64(bytes);
   } finally {
     clearTimeout(timer);

@@ -1801,8 +1801,28 @@
   function onUserClick(fn) {
     return e => {
       if (!e || !e.isTrusted) return;
+      if (!plainlyVisible(e)) { toast("Mnestic ignored that click: its button was hidden or covered."); return; }
       if (typeof fn === "function") fn(e);
     };
+  }
+  // A real click can still be a tricked one: the page can fade a control out and
+  // slide it under something else. Only what can be seen, and is on top where
+  // the click landed, counts. (A keyboard press has no position to check.)
+  function plainlyVisible(e) {
+    const el = e.currentTarget;
+    if (!el || el.nodeType !== 1) return true;
+    for (let n = el; n; n = n.parentElement) {
+      const st = getComputedStyle(n);
+      if (st.visibility !== "visible") return false;
+      // One of our own brief fade-ins doesn't count as hidden.
+      const fading = () => n.getAnimations().some(x => x.playState === "running" && /^mnx-/.test(x.animationName || "") && x.effect.getTiming().duration <= 300 && x.effect.getTiming().iterations === 1);
+      if (+st.opacity < 0.35 && !fading()) return false;
+    }
+    if (e.clientX || e.clientY) {
+      const top = document.elementFromPoint(e.clientX, e.clientY);
+      if (top && !el.contains(top) && !top.contains(el)) return false;
+    }
+    return true;
   }
   function makeBtn(label, getQids, runner) {
     const b = document.createElement("button");
@@ -3129,7 +3149,6 @@
     if (mime.indexOf("jpeg") >= 0 || mime.indexOf("jpg") >= 0) return "jpg";
     if (mime.indexOf("gif") >= 0) return "gif";
     if (mime.indexOf("webp") >= 0) return "webp";
-    if (mime.indexOf("svg") >= 0) return "svg";
     return "png";
   }
 
@@ -4119,7 +4138,7 @@
         const inChapterDeck = chapterDeckSelected();
         const tagChapter = inChapterDeck ? Tg.cleanSeg(deckLeaf(rawDeck())) : chapter;
         const tagPath = [tagChapter, inChapterDeck ? chapter : null].filter(Boolean)
-          .map(seg => String(seg).split("::").join("_").replace(/\s+/g, "_"));
+          .map(seg => String(seg).split("::").join("_").replace(/\s+/g, "_").replace(/[<>]/g, ""));
         const chapTag = tagPath.length ? MISSED_TAG + "::" + tagPath.join("::") : MISSED_TAG;
         // Mnestic::QID::<id> records WHICH question this was missed on, so the
         // missed list and undo work per question rather than per note.
@@ -5439,7 +5458,18 @@
     const qid = answered ? findQid() : null;
     if (qid && answered) {
       if (!Q || Q.qid !== qid) {
-        rebuild(qid);                                    // a new question: a new session
+        // Moving to a new question takes real input, so a page can't walk the
+        // question ids by itself and read your cards out of the panel.
+        if (qid !== lastBuiltQid && lastBuiltQid !== null && inputSeq === builtAtInput) {
+          Q = null;
+          const stale = document.getElementById(PANEL_ID);
+          if (stale) stale.remove();
+          hideOverlay();
+        } else {
+          lastBuiltQid = qid;
+          builtAtInput = inputSeq;
+          rebuild(qid);                                  // a new question: a new session
+        }
       } else if (!document.getElementById(PANEL_ID) && !Q.building) {
         // The qbank can re-render the explanation under us (Coursology does when
         // its question rail is toggled), taking the panel with it while the id
@@ -5455,6 +5485,8 @@
     syncDock();
   }
   setInterval(mainTick, 1000);
+  let inputSeq = 0, builtAtInput = -1, lastBuiltQid = null;
+  ["pointerdown", "keydown"].forEach(t => window.addEventListener(t, e => { if (e.isTrusted) inputSeq++; }, { capture: true, passive: true }));
   // The tick alone made every switch wait up to a second: the panel came late,
   // and the last question's Anki button stayed beside the new one. Page changes
   // now bring it forward, at most about three times a second. The interval

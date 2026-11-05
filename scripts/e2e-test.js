@@ -893,6 +893,7 @@ function listenFree(server, from) {
       mock.state.slowNoteInfo = 3500;
       const p = await openAt(reviewHtml("4211"));
       await p.waitForTimeout(1800);                  // 4211's note lookup is in flight
+      await p.mouse.click(2, 2);                     // moving on takes real input
       await p.evaluate(() => { document.querySelector(".question-header").textContent = "Question Id: 5555"; });
       await p.waitForTimeout(5000);                  // 5555 settles; then 4211's answer arrives
       mock.state.slowNoteInfo = 0;
@@ -1242,6 +1243,29 @@ function listenFree(server, from) {
       check("1.6", "a clean block: Missed goes quiet and Weak areas says there are none",
         idle === "Anki: Missed" && brk.title === "Block breakdown" && /^No weak areas in this block · 1 question · /.test(brk.sub) && brk.foot.join() === "Close", JSON.stringify([idle, brk]));
       await r.close();
+    }
+
+    // Page script can't walk question ids, or win a real click on a hidden control.
+    {
+      mock.reset();
+      const p = await openAt(reviewHtml("4211"));
+      await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 12000 });
+      const n0 = mock.calls().length;
+      await p.evaluate(() => { document.querySelector(".question-header").textContent = "Question Id: 1633"; });
+      await p.waitForTimeout(1600);
+      const walked = await p.evaluate(() => !!document.getElementById("mnx-resources"));
+      const asked = mock.calls().slice(n0).filter((c) => c.op === "searchNotes" || c.op === "noteInfo").length;
+      check("1.6", "a page changing the question id alone loads nothing", !walked && asked === 0, walked + " / " + asked);
+      await p.mouse.click(2, 2);
+      await p.waitForSelector("#mnx-resources .mnx-r-head", { timeout: 6000 }).catch(() => {});
+      check("1.6", "…and real input brings the panel for that question", (await p.getAttribute("#mnx-resources", "data-qid").catch(() => "")) === "1633");
+      await p.waitForTimeout(500);                   // past the panel's own fade-in
+      await p.addStyleTag({ content: "#mnx-resources{opacity:0!important}" });
+      const n1 = mock.calls().length;
+      await p.locator("#mnx-resources .mnx-unsus").first().click({ force: true }).catch(() => {});
+      await p.waitForTimeout(500);
+      check("1.6", "a real click on a panel the page made invisible does nothing", opsSince(n1, ["unsuspend"]).length === 0);
+      await p.close();
     }
 
     // The pinned bar: the question's actions while the panel is out of view.

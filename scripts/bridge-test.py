@@ -307,6 +307,24 @@ def main():
     check("ping names the add-on but not its version", p and "version" not in p["data"], p)
     st, _, _ = post({"op": "ping"}, {"Origin": "https://evil.example"})
     check("a website origin is refused", st == 403, st)
+    # audit L1, L2, L3, L8
+    s = socket.create_connection(("127.0.0.1", port), timeout=5)
+    b = b'{"op":"ping"}'
+    s.sendall(("POST / HTTP/1.1\r\nHost: 127.0.0.1:%d\r\nOrigin: https://evil.example\r\nContent-Length: %d\r\n\r\n" % (port, len(b))).encode() + b)
+    head = s.recv(65536).lower()
+    s.close()
+    check("a refused website gets no CORS header, so it can't read the answer", b"403" in head and b"access-control" not in head, head[:160])
+    for o in ("http://localhost:3000", "http://127.0.0.1:27701", "null"):
+        st, _, _ = post({"op": "ping"}, {"Origin": o})
+        check("a loopback or null page is refused: " + o, st == 403, st)
+    st, _, _ = post({"op": "ping"}, {"Origin": "http://[bad"})
+    check("a malformed Origin is refused, not a crash", st == 403, st)
+    st, p, _ = post({"op": "auth"}, raw_headers=None, headers={"X-Mnestic-Token": "caf\xe9"})
+    check("a non-ASCII code is refused, not a crash", st == 403, st)
+    st, p, _ = post({"op": "auth", "token": TOKEN})
+    check("a code in the body is not a code", st == 403, st)
+    st, _, took = post(b"x", raw_headers={"Content-Length": str(M.MAX_UNPAIRED_BODY + 1)})
+    check("an unpaired caller can't make Anki read a large body", st == 413 and took < 1, (st, took))
     st, _, _ = post({"op": "ping"}, {"Origin": "http://127.0.0.1.evil.example"})
     check("a look-alike loopback origin is refused", st == 403, st)
     st, _, _ = post({"op": "ping"}, {"Origin": "chrome-extension://abcdefghijklmnopabcdefghijklmnop"})
@@ -381,11 +399,11 @@ def main():
     check("...so the real note still cannot be deleted", out["deleted"] == 0 and 1 in col.notes, out)
     check("...and its ankihub_id is intact", col.notes[1]["ankihub_id"] == "ah-1")
 
-    D("updateNote", {"noteId": 1, "fieldAppends": {"missed questions": "<b>new</b>"},
+    D("updateNote", {"noteId": 1, "fieldAppends": {"missed questions": "new<br>line"},
                      "addTags": ["Mnestic::Missed", "Mnestic::Missed::03_Respiratory",
                                  "AnkiHub_Protect::Missed_Questions", "Mnestic::QID::2128"]})
     check("updateNote appends to Missed Questions and keeps what was there",
-          col.notes[1]["Missed Questions"] == "my old notes<br><br><b>new</b>", col.notes[1]["Missed Questions"])
+          col.notes[1]["Missed Questions"] == "my old notes<br><br>new<br>line", col.notes[1]["Missed Questions"])
     check("updateNote adds exactly Mnestic's tags", {"Mnestic::Missed", "Mnestic::QID::2128",
           "AnkiHub_Protect::Missed_Questions"} <= set(col.notes[1].tags), col.notes[1].tags)
 
@@ -486,6 +504,22 @@ def main():
     check("writeMedia keeps only the file's own name", name == "shot.png", name)
     check("readMedia cannot climb out of the media folder",
           D("readMedia", {"filename": "../../../Windows/win.ini"}) is False)
+
+    # ---- what a stolen code can't plant (audit M1, L4, L5, L6) ----
+    for bad in ("<script>x()</script>", "<img src=x onerror=x()>", '<img src="a.png" onerror="x()">',
+                '<img src="http://evil/x.png">', '<a href="javascript:x()">y</a>', "<svg onload=x()>",
+                "<img src=x onerror=x()//", "<iframe src=x>", "<!-- x -->", "<style>*{}</style>"):
+        refuses("newNote refuses markup: " + bad, lambda: D("newNote", {"deck": "Mine", "kind": "basic", "front": bad, "back": "a"}))
+        refuses("updateNote refuses markup: " + bad, lambda: D("updateNote", {"noteId": 1, "fieldAppends": {"Missed Questions": bad}}))
+    ok_html = 'a &lt;b&gt;<br><img src="q-1.png"><div style="font-size:12px;opacity:.7;margin-top:8px"><a href="https://x.example/a?b=1&c=2">Site</a></div>'
+    out = D("newNote", {"deck": "Mine", "kind": "basic", "front": "safe markup test", "back": ok_html})
+    check("what the extension really writes still goes through", out.get("noteId") in col.notes, out)
+    refuses("a tag can't carry HTML", lambda: D("updateNote", {"noteId": 1, "addTags": ["Mnestic::Missed::<img/src=x/onerror=x()>"]}))
+    refuses("cardStats takes a bounded list", lambda: D("cardStats", {"queries": ["tag:x"] * (M.MAX_STAT_QUERIES + 1)}))
+    refuses("cardStats takes a list, not text", lambda: D("cardStats", {"queries": "abc"}))
+    refuses("cardMaturity takes a bounded list", lambda: D("cardMaturity", {"queries": ["tag:x"] * (M.MAX_STAT_QUERIES + 1)}))
+    refuses("writeMedia refuses a page named .png", lambda: D("writeMedia", {"filename": "a.png", "data": "PGh0bWw+PHNjcmlwdD4="}))
+    refuses("writeMedia refuses svg", lambda: D("writeMedia", {"filename": "a.svg", "data": "PHN2ZyBvbmxvYWQ9eD4="}))
 
     # ---- newNote ----
     refuses("newNote refuses a foreign tag",

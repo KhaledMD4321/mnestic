@@ -6,7 +6,7 @@
 # localhost and every request must carry your private pairing code.
 #
 # Wire protocol (ours):
-#   request : POST /  {"op": "<name>", "token": "<pairing code>", "args": {...}}
+#   request : POST /  X-Mnestic-Token: <pairing code>   {"op": "<name>", "args": {...}}
 #   response: {"ok": true, "data": <result>}   or   {"ok": false, "error": "..."}
 #   the "ping" op needs no token; every other op is rejected (403) without it.
 #
@@ -79,19 +79,36 @@ _UW_QID_TAG_RE = re.compile(r"^#AK_Step[1-3]_v[^:\s]{0,12}::#UWorld::(?:Step::)?
 # ankihub_id, then call deleteNotes.
 # ---------------------------------------------------------------------------
 _TAG_OK_RE = re.compile(
-    r"^(?:Mnestic::(?:Missed(?:::[^\s\"]{1,200})?|Made|QID::\d{1,12})"
+    r"^(?:Mnestic::(?:Missed(?:::[^\s\"<>]{1,200})?|Made|QID::\d{1,12})"
     r"|AnkiHub_Protect::Missed_Questions)$",
     re.I,
 )
 _APPEND_FIELDS = ("missed questions",)
 MAX_BODY = 32 * 1024 * 1024           # a pasted screenshot, base64'd, fits easily
+MAX_UNPAIRED_BODY = 64 * 1024         # no valid code: all that can succeed is a ping
 MAX_MEDIA = 24 * 1024 * 1024          # one media file, decoded
 MAX_FIELD = 256 * 1024                # one field's worth of HTML
 MAX_NOTES_PER_WRITE = 50              # a question matches a handful of notes
 MAX_CARDS_PER_UNSUSPEND = 3000        # a 100-question block, with room to spare
 MAX_QUERY_TERMS = 400
 MAX_QUERY_LEN = 100000
-_MEDIA_EXT = ("png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "svg")
+MAX_STAT_QUERIES = 2000               # a whole results table, one query per question
+# No svg: an SVG is a document that can carry script, not just a picture.
+_MEDIA_EXT = ("png", "jpg", "jpeg", "gif", "webp", "avif", "bmp")
+
+# The only markup the extension writes into a note. Everything it takes from the
+# page or a text box is escaped first, so this is exactly its output. Anki runs
+# script in cards, so anything else -- from a stolen pairing code, say -- is
+# refused rather than stored.
+_FIELD_TAG_RE = re.compile(r"<[^>]*>?")
+_FIELD_OK_RES = (
+    re.compile(r'<br ?/?>', re.I),
+    re.compile(r'<img src="[^"<>:/\\]{1,220}">', re.I),      # a media file name
+    re.compile(r'<a href="https?://[^"<>\s]{1,2000}">', re.I),
+    re.compile(r'</a>', re.I),
+    re.compile(r'<div style="font-size:12px;opacity:\.7;margin-top:8px">'),   # the source line
+    re.compile(r'</div>'),
+)
 
 # A write op's search may only SELECT cards the way Mnestic does: by question-id
 # tag, by Mnestic's own tags, or by explicit note/card ids. No negations and no
@@ -153,9 +170,10 @@ def ensure_token():
 
 def _token_ok(supplied):
     want = _token["value"] or ""
-    if not want or not supplied:
+    if not want or not supplied or not isinstance(supplied, str):
         return False
-    return hmac.compare_digest(str(supplied), want)
+    # Bytes: compare_digest raises on a str with non-ASCII characters.
+    return hmac.compare_digest(supplied.encode("utf-8"), want.encode("utf-8"))
 
 
 # --------------------- run work on Anki's main thread ---------------------
@@ -255,8 +273,15 @@ def _appends(value):
             raise Exception("Mnestic only appends to the Missed Questions field, not %r" % str(name)[:60])
         if not isinstance(val, str) or len(val) > MAX_FIELD:
             raise Exception("the note to append is too long")
-        out[name] = val
+        out[name] = _safe_html(val)
     return out
+
+
+def _safe_html(value):
+    for tag in _FIELD_TAG_RE.findall(value):
+        if not any(r.fullmatch(tag) for r in _FIELD_OK_RES):
+            raise Exception("Mnestic only writes plain text, line breaks, images and links, not %r" % tag[:60])
+    return value
 
 
 def _no_field_sets(args):
@@ -273,7 +298,26 @@ def _text(value, what):
         raise Exception("%s must be text" % what)
     if len(value) > MAX_FIELD:
         raise Exception("%s is too long" % what)
+    return _safe_html(value)
+
+
+def _query_list(value):
+    """The search list of a read-only stats op, bounded: each one runs on Anki's
+    main thread."""
+    if value is None:
+        return []
+    if not isinstance(value, (list, tuple)) or len(value) > MAX_STAT_QUERIES:
+        raise Exception("queries must be a list of at most %d" % MAX_STAT_QUERIES)
+    if any(not isinstance(q, str) or len(q) > MAX_QUERY_LEN for q in value):
+        raise Exception("each query must be short text")
     return value
+
+
+def _is_image(raw):
+    """By content, so a page saved as "x.png" is not stored as an image."""
+    return (raw.startswith((b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff", b"GIF87a", b"GIF89a", b"BM"))
+            or (raw[:4] == b"RIFF" and raw[8:12] == b"WEBP")
+            or raw[4:8] == b"ftyp")
 
 
 def _scoped_query(query, allow_modifiers=False):
@@ -376,6 +420,8 @@ def op_write_media(args):
         raw = base64.b64decode(data, validate=True)
     except Exception:
         raise Exception("the image data is not valid")
+    if not _is_image(raw):
+        raise Exception("Mnestic only stores images in your media folder")
     col = _col()
     try:
         return col.media.write_data(name, raw)
@@ -514,7 +560,7 @@ def op_card_stats(args):
     """Per query, one row per card with the fields the readiness estimate uses."""
     col = _col()
     out = []
-    for q in args.get("queries") or []:
+    for q in _query_list(args.get("queries")):
         rows = []
         for cid in _find_cards(col, q):
             c = _get_card(col, cid)
@@ -538,7 +584,7 @@ def op_card_maturity(args):
     """Per query, bucket the linked cards: new / learning / young / mature / suspended."""
     col = _col()
     out = []
-    for q in args.get("queries") or []:
+    for q in _query_list(args.get("queries")):
         b = {"new": 0, "learning": 0, "young": 0, "mature": 0, "suspended": 0, "total": 0}
         for cid in _find_cards(col, q):
             c = _get_card(col, cid)
@@ -1241,16 +1287,17 @@ class _Handler(BaseHTTPRequestHandler):
         pass
 
     def _origin_ok(self, origin):
-        """Compare the origin's HOST exactly. A prefix test would accept
-        hostile look-alikes such as http://127.0.0.1.attacker.tld."""
+        """No browser page may call this: only an extension, or a local tool
+        that sends no Origin at all (and still needs the pairing code). That
+        includes pages on loopback: a local dev server, or a shared deck's
+        script running in Anki's own webview."""
         if not origin:
             return True
-        parts = urlsplit(origin)
-        if parts.scheme == "chrome-extension":
-            return bool(parts.hostname)
-        if parts.scheme in ("http", "https"):
-            return parts.hostname in ("localhost", "127.0.0.1", "::1")
-        return False
+        try:
+            parts = urlsplit(origin)
+            return parts.scheme == "chrome-extension" and bool(parts.hostname)
+        except ValueError:
+            return False
 
     def _host_ok(self):
         """Defence against DNS rebinding. An attacker can point evil.com at
@@ -1265,12 +1312,15 @@ class _Handler(BaseHTTPRequestHandler):
             name = host.rsplit(":", 1)[0] if ":" in host else host
         return name in ("127.0.0.1", "localhost", "[::1]", "::1")
 
-    def _send(self, code, payload=None, origin="*", close=False):
+    def _send(self, code, payload=None, origin=None, close=False):
+        """origin: the caller's, once it has been accepted. A refusal sends no
+        CORS header, so a website can't read it and learn the bridge is here."""
         body = json.dumps(payload).encode("utf-8") if payload is not None else b""
         self.send_response(code)
-        self.send_header("Access-Control-Allow-Origin", origin or "*")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Mnestic-Token")
-        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
+        if origin:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Mnestic-Token")
+            self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         if close:
@@ -1303,64 +1353,65 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         origin = self.headers.get("Origin")
-        echo = origin if origin else "*"
 
         # Decide on the headers alone, BEFORE reading a byte of the body. Reading
         # first meant a request from a refused origin could still make Anki
         # buffer whatever size it claimed -- or wait forever for bytes that were
         # never coming.
         if not self._host_ok():
-            self._send(403, {"ok": False, "error": "bad Host header"}, echo, close=True)
+            self._send(403, {"ok": False, "error": "bad Host header"}, close=True)
             return
         if not self._origin_ok(origin):
-            self._send(403, {"ok": False, "error": "origin not allowed"}, echo, close=True)
+            self._send(403, {"ok": False, "error": "origin not allowed"}, close=True)
             return
         try:
             length = int(self.headers.get("Content-Length", ""))
         except (TypeError, ValueError):
             length = -1
         if length < 0:
-            self._send(411, {"ok": False, "error": "Content-Length is required"}, echo, close=True)
+            self._send(411, {"ok": False, "error": "Content-Length is required"}, origin, close=True)
             return
-        if length > MAX_BODY:
-            self._send(413, {"ok": False, "error": "request too large"}, echo, close=True)
+        # The code travels in a header, so an unpaired caller can be held to a
+        # small body before any of it is read.
+        paired = _token_ok(self.headers.get("X-Mnestic-Token"))
+        if length > (MAX_BODY if paired else MAX_UNPAIRED_BODY):
+            self._send(413, {"ok": False, "error": "request too large"}, origin, close=True)
             return
         raw = self.rfile.read(length) if length else b""
         if len(raw) != length:
-            self._send(400, {"ok": False, "error": "incomplete request"}, echo, close=True)
+            self._send(400, {"ok": False, "error": "incomplete request"}, origin, close=True)
             return
         try:
             req = json.loads(raw.decode("utf-8")) if raw else {}
         except Exception:
-            self._send(200, {"ok": False, "error": "bad JSON"}, echo)
+            self._send(200, {"ok": False, "error": "bad JSON"}, origin)
             return
         if not isinstance(req, dict) or not isinstance(req.get("args") or {}, dict):
-            self._send(200, {"ok": False, "error": "bad request"}, echo)
+            self._send(200, {"ok": False, "error": "bad request"}, origin)
             return
 
         op = req.get("op", "")
         # Health check: no collection access, no token — a fast "are you there?".
         # It names the add-on and nothing more; the version is for paired callers.
         if op == "ping":
-            self._send(200, {"ok": True, "data": {"name": ADDON_NAME}}, echo)
+            self._send(200, {"ok": True, "data": {"name": ADDON_NAME}}, origin)
             return
 
-        token = self.headers.get("X-Mnestic-Token") or req.get("token")
-        if not _token_ok(token):
-            self._send(403, {"ok": False, "error": "invalid or missing pairing code"}, echo)
+        if not paired:
+            self._send(403, {"ok": False, "error": "invalid or missing pairing code"}, origin)
             return
 
         # Pairing check: the token is valid — say so without touching the
         # collection, so the extension can show a green "Ready".
         if op == "auth":
-            self._send(200, {"ok": True, "data": {"paired": True, "version": ADDON_VERSION}}, echo)
+            self._send(200, {"ok": True, "data": {"paired": True, "version": ADDON_VERSION}}, origin)
             return
 
         try:
             data = _on_main(lambda: dispatch(op, req.get("args") or {}))
-            self._send(200, {"ok": True, "data": data}, echo)
+            self._send(200, {"ok": True, "data": data}, origin)
         except Exception as exc:
-            self._send(200, {"ok": False, "error": str(exc)}, echo)
+            self._send(200, {"ok": False, "error": str(exc)}, origin)
 
 
 class _Server(ThreadingHTTPServer):

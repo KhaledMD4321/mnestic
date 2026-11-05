@@ -6,6 +6,18 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
+# Secrets. meta.json is where Anki keeps the real pairing code when the add-on
+# folder is used directly.
+.env
+.env.*
+*.pem
+*.key
+meta.json
+
+# Security working notes stay on this machine
+SECURITY-AUDIT.md
+CLAUDE-SECURITY-*/
+
 # Build artifacts
 dist/*.zip
 
