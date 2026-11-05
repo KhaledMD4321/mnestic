@@ -266,6 +266,9 @@ aiSel.addEventListener("change", () => {
   aiStoredPreset = aiSel.value;
   chrome.storage.local.set({ aiPreset: aiSel.value });
 });
+const keepOpenEl = document.getElementById("keepOpen");
+chrome.storage.local.get({ mnxKeepOpen: false }, (c) => { keepOpenEl.checked = c.mnxKeepOpen === true; });
+keepOpenEl.addEventListener("change", () => chrome.storage.local.set({ mnxKeepOpen: keepOpenEl.checked }));
 const aiBasicsEl = document.getElementById("aiBasics");
 chrome.storage.local.get({ aiBasics: false }, (c) => { aiBasicsEl.checked = c.aiBasics === true; });
 aiBasicsEl.addEventListener("change", () => chrome.storage.local.set({ aiBasics: aiBasicsEl.checked }));

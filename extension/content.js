@@ -794,6 +794,8 @@
     .mnx-btn{background:var(--mnx-accent);color:#fff;border:none;border-radius:var(--mnx-r-pill);padding:8px 16px;font:600 13.5px/1.2 var(--mnx-font);letter-spacing:-.01em;cursor:pointer;box-shadow:0 8px 18px -10px var(--mnx-accent),inset 0 1px 0 rgba(255,255,255,.16);transition:transform .3s var(--mnx-ease),box-shadow .3s var(--mnx-ease),filter .2s var(--mnx-ease)}
     .mnx-btn:hover{filter:brightness(1.06);transform:translateY(-1px)}
     .mnx-btn:active{transform:scale(.97)}
+    .mnx-btn.mnx-btn-idle{opacity:.5;box-shadow:none;cursor:default}
+    .mnx-btn.mnx-btn-idle:hover{filter:none;transform:none}
     .mnx-btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--mnx-accent-ring),var(--mnx-shadow-btn)}
     .mnx-hy{background:var(--mnx-hy-bg);color:var(--mnx-on-hy);box-shadow:0 5px 14px -4px rgba(213,137,28,.5),inset 0 1px 0 rgba(255,255,255,.2)}
     .mnx-brkbtn{background:var(--mnx-brk-bg);color:var(--mnx-on-brk);box-shadow:0 5px 14px -4px rgba(12,165,160,.5),inset 0 1px 0 rgba(255,255,255,.2)}
@@ -855,6 +857,7 @@
        once buried the qbank's own explanation, so each resource is a closed
        disclosure: a one-line summary with enough scent to decide, and the full
        list one click away. What you open is remembered. */
+    #${PANEL_ID}.mnx-loading{min-height:260px}
     #${PANEL_ID} .mnx-r{border-bottom:1px solid var(--mnx-hair)}
     #${PANEL_ID} .mnx-r:last-of-type{border-bottom:none}
     #${PANEL_ID} .mnx-r-head{display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;
@@ -961,7 +964,7 @@
     #${OVERLAY_ID} .mnx-ovl-fieldcard{padding:12px 2px;border-top:1px solid var(--mnx-border)}
     #${OVERLAY_ID} .mnx-ovl-fieldcard:first-child{border-top:none;padding-top:2px}
     #${OVERLAY_ID} .mnx-ovl-fieldcard-h{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mnx-muted);margin-bottom:6px}
-    #${OVERLAY_ID} .mnx-ovl-fieldcard img{max-width:100%;height:auto;display:block;margin:8px 0;border-radius:var(--mnx-r-xs)}
+    #${OVERLAY_ID} .mnx-ovl-fieldcard img{width:min(100%,920px);height:auto;display:block;margin:8px auto;border-radius:var(--mnx-r-xs)}
     #${OVERLAY_ID} .mnx-ovl-fieldcard a{color:var(--mnx-accent)}
     /* multi-page overlay: pager in the header, filmstrip underneath */
     #${OVERLAY_ID} .mnx-ovl-nav{display:flex;align-items:center;gap:10px;margin-left:auto;margin-right:12px}
@@ -1215,6 +1218,9 @@
     #mnx-md-overlay .mnx-md-check{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:13px;color:var(--mnx-text);cursor:pointer}
     /* block breakdown (weak areas) */
     #mnx-md-overlay .mnx-brk-sub{font-size:12.5px;color:var(--mnx-muted);margin:-4px 0 14px}
+    #mnx-md-overlay .mnx-brk-how{margin-top:12px;font-size:12px;color:var(--mnx-muted)}
+    #mnx-md-overlay .mnx-brk-how > summary{cursor:pointer;font-weight:600}
+    #mnx-md-overlay .mnx-brk-how .mnx-md-hint{margin-top:6px;line-height:1.5}
     #mnx-md-overlay .mnx-why{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:-6px 0 14px;font-size:12px}
     #mnx-md-overlay .mnx-why-lbl{color:var(--mnx-muted);font-weight:600}
     #mnx-md-overlay .mnx-why-chip{padding:2px 9px;border-radius:var(--mnx-r-pill);background:var(--mnx-surface-2);border:1px solid var(--mnx-border);color:var(--mnx-text);font-variant-numeric:tabular-nums}
@@ -1298,6 +1304,7 @@
     if (changes.easy) { easyOn = !!changes.easy.newValue; }
     if (changes.highYield) { hyOn = !!changes.highYield.newValue; }
     if ("aiPrompt" in changes) { aiPrompt = changes.aiPrompt.newValue || ""; }
+    if ("mnxKeepOpen" in changes) { keepRowsOpen = changes.mnxKeepOpen.newValue === true; }
     if ("aiBasics" in changes) { aiBasics = changes.aiBasics.newValue === true; }
     if ("aiPreset" in changes) { aiPreset = changes.aiPreset.newValue || null; refreshAiButtons(); }
     if (changes.kbShortcuts) {
@@ -1316,9 +1323,11 @@
   let missedMode = "move";
   let plannedMissedDeck = "";              // base deck name chosen in the popup
   let openResources = new Set();
+  let keepRowsOpen = false;                 // off: every question starts tidy
   let resourceUses = {};
-  chrome.storage.local.get({ mnxOpenResources: [], mnxResourceUses: {}, mnxMissedMode: "move", akMissedDeck: "" }, c => {
+  chrome.storage.local.get({ mnxOpenResources: [], mnxKeepOpen: false, mnxResourceUses: {}, mnxMissedMode: "move", akMissedDeck: "" }, c => {
     openResources = new Set(c.mnxOpenResources || []);
+    keepRowsOpen = c.mnxKeepOpen === true;
     resourceUses = c.mnxResourceUses || {};
     missedMode = c.mnxMissedMode || "move";
     plannedMissedDeck = c.akMissedDeck || "";
@@ -1337,6 +1346,7 @@
   }
 
   function toast(text) {
+    document.querySelectorAll(".mnx-toast").forEach(old => old.remove());
     const t = document.createElement("div");
     t.className = "mnx-toast";
     t.textContent = text;
@@ -1556,7 +1566,8 @@
     const dims = [["system", "System"], ["subject", "Subject"], ["topic", "Topic"]].filter(([k]) => rows.some(r => r[k]));
     if (!dims.length) { toast("No Subject/System/Topic columns found on this results table."); return; }
     let key = dims[0][0];
-    const m = buildModal("Block breakdown — weakest first");
+    const anyMissed = rows.some(isMissed);
+    const m = buildModal(anyMissed ? "Block breakdown — weakest first" : "Block breakdown");
     let seg;
     if (dims.length > 1) {
       seg = document.createElement("div"); seg.className = "mnx-seg"; seg.style.marginBottom = "8px";
@@ -1570,19 +1581,23 @@
     const sub = document.createElement("div"); sub.className = "mnx-brk-sub";
     const list = document.createElement("div");
     m.body.appendChild(sub); m.body.appendChild(whyMissed(rows)); m.body.appendChild(list);
-    const why = document.createElement("div"); why.className = "mnx-md-hint"; why.style.marginTop = "12px";
+    const how = document.createElement("details"); how.className = "mnx-brk-how";
+    const howSum = document.createElement("summary"); howSum.textContent = "How this is ranked";
+    const why = document.createElement("div"); why.className = "mnx-md-hint";
     why.textContent = "Ranked by accuracy adjusted for how many questions each has, so one unlucky question " +
       "doesn't outrank a real weak spot. Groups with fewer than " + Wk.MIN_N + " questions are listed last. " +
       "Guessed answers count as missed, and right answers you narrowed to two count as half." +
       (rows.omittedKnown ? "" : " Omitted questions count as correct here — open the test's Question List once to count them as missed.");
-    m.body.appendChild(why);
+    how.append(howSum, why);
+    m.body.appendChild(how);
     let shownGroups = [];
     function render() {
       const groups = aggregateBy(rows, key);
       shownGroups = groups;
       const total = rows.length, correct = rows.reduce((n, r) => n + (isMissed(r) ? 0 : creditOf(r)), 0);
       const pag = (total === 10 || total === 20 || total === 25) ? " · set page size to All for the whole block" : "";
-      sub.textContent = total + " questions · " + fmtHalf(correct) + " correct (" + Math.round(100 * correct / total) + "%)" + pag;
+      sub.textContent = (anyMissed ? "" : "No weak areas in this block · ") + total + (total === 1 ? " question · " : " questions · ") +
+        fmtHalf(correct) + " correct (" + Math.round(100 * correct / total) + "%)" + pag;
       list.replaceChildren();
       groups.forEach(g => {
         const row = document.createElement("div"); row.className = "mnx-brk-row";
@@ -1624,8 +1639,10 @@
       toast("Opening " + qids.length + " missed from " + weak.map(g => g.name).join(", ") + ".");
       runBrowse(qids);
     }
-    m.foot.appendChild(mdButton("Drill weakest 3", "mnx-md-cancel", drillWeakest));
-    m.foot.appendChild(mdButton("Open all missed", "mnx-md-cancel", () => runBrowse(rows.filter(isMissed).map(r => r.qid))));
+    if (anyMissed) {
+      m.foot.appendChild(mdButton("Drill weakest 3", "mnx-md-cancel", drillWeakest));
+      m.foot.appendChild(mdButton("Open all missed", "mnx-md-cancel", () => runBrowse(rows.filter(isMissed).map(r => r.qid))));
+    }
     m.foot.appendChild(mdButton("Close", "mnx-md-ok", m.close));
   }
   // Marked status only exists in the Question List popup - so require it (cached
@@ -1641,8 +1658,14 @@
     return qids.filter(q => safeQidOrNull(q)).map(q => qidQuery(q, sv)).join(" OR ");
   }
   const HY_LEVELS = ["HighYield", "RelativelyHighYield"];
+  // Anki opens in another window, so without a word here a key press looked
+  // like nothing happened.
+  function openBrowser(query) {
+    toast("Opening in Anki…");
+    return bridge("openBrowser", { query }).catch(e => toast(bridgeFailure(e)));
+  }
   function runBrowse(qids) {
-    if (!qids.length) { toast("No matching questions found on this page."); return; }
+    if (!qids.length) { toast("No questions to open from this page."); return; }
     getSv().then(sv => {
       const query = buildTagQuery(qids, sv);
       // Every id was unreadable. An empty query is not "browse nothing" in
@@ -1650,7 +1673,7 @@
       if (!query) { toast("Couldn't read the question ids on this page."); return; }
       if (easyOn) { easyUnsuspend(query); return; }
       if (hyOn) { browseHighYield(query); return; }
-      bridge("openBrowser", { query }).catch(e => toast(bridgeFailure(e)));
+      openBrowser(query);
     });
   }
   // High Yield Only (Browse): resolve the exact high-yield card ids, then open
@@ -1717,7 +1740,7 @@
   // AnKing #Low/HighYield level), regardless of the popup toggle. Yield is read
   // from the parsed level so the parent tag can't leak in.
   function runBrowseHighYield(qids) {
-    if (!qids.length) { toast("No matching questions found on this page."); return; }
+    if (!qids.length) { toast("No questions to open from this page."); return; }
     getSv().then(sv => {
       const query = buildTagQuery(qids, sv);
       if (!query) { toast("Couldn't read the question ids on this page."); return; }
@@ -1740,10 +1763,25 @@
     b.addEventListener("click", onUserClick(() => (runner || runBrowse)(getQids())));
     return b;
   }
+  // A clean block has nothing for this button to do: show that before the click.
+  function syncMissedButton(host) {
+    const b = host.querySelector("[data-mnx-missed]");
+    if (!b || !SITE.resultRows().length) return;
+    const none = !collectMissed().length;
+    if (b.classList.contains("mnx-btn-idle") === none) return;
+    b.classList.toggle("mnx-btn-idle", none);
+    b.setAttribute("aria-disabled", none ? "true" : "false");
+    b.title = none ? "Nothing missed in this block" : "";
+  }
   function addButtons(toolbar) {
     const host = document.createElement("span");
     host.id = BTN_HOST_ID;
-    host.appendChild(makeBtn("Anki: Missed", () => collectMissed()));          // wrong questions
+    const missed = makeBtn("Anki: Missed", () => collectMissed(), qids => {     // wrong questions
+      if (!qids.length) { toast("Nothing missed in this block."); return; }
+      runBrowse(qids);
+    });
+    missed.dataset.mnxMissed = "1";
+    host.appendChild(missed);
     host.appendChild(makeBtn("Anki: All", () => collectAll()));                // every question on the page
     host.appendChild(makeBtn("Anki: Marked", () => null, runMarked));          // flagged questions (from Question List)
     const hy = makeBtn("Anki: High-Yield", () => collectAll(), runBrowseHighYield);
@@ -1939,6 +1977,7 @@
     panel.id = PANEL_ID;
     if (s) panel.dataset.qid = s.qid;
     if (darkMode) panel.classList.add("mnx-dark");
+    panel.classList.add("mnx-loading");           // holds the space until the rows arrive
     const anchor = SITE.panelAnchor();
     if (anchor) anchor.appendChild(panel);
     else { panel.classList.add("mnx-float"); document.body.appendChild(panel); }
@@ -2281,7 +2320,7 @@
     head.addEventListener("click", onUserClick(() => setOpen(!sec.classList.contains("open"), true)));
 
     sec.append(head, body);
-    if (openResources.has(row.R.label)) setOpen(true, false);   // restore what you had open
+    if (keepRowsOpen && openResources.has(row.R.label)) setOpen(true, false);   // restore what you had open
     return sec;
   }
   // An Extra / Additional Resources row: the field from each matched card,
@@ -2324,14 +2363,16 @@
           card.appendChild(content);
           body.appendChild(card);
         });
-        resolveMediaImages(body, () => isLive(s) && body.isConnected);
+        // isLive, not isConnected: a row reopened on build isn't attached yet, and
+        // a cached image answers at once -- it was left as an empty box for good.
+        resolveMediaImages(body, () => isLive(s));
       }
       body.hidden = !open;
       if (remember) rememberResource(label, open);
     }
     head.addEventListener("click", onUserClick(() => setOpen(!sec.classList.contains("open"), true)));
     sec.append(head, body);
-    if (openResources.has(label)) setOpen(true, false);
+    if (keepRowsOpen && openResources.has(label)) setOpen(true, false);
     return sec;
   }
   // E / A: the whole field over the question, card by card.
@@ -2357,7 +2398,33 @@
     });
     dlg.appendChild(body);
     o.appendChild(dlg);
-    resolveMediaImages(body, () => isLive(s) && o.dataset.key === key && o.style.display === "flex");
+    const open = () => isLive(s) && o.dataset.key === key && o.style.display === "flex";
+    resolveMediaImages(body, open).then(() => { if (open()) addFieldPager(o, dlg, body); });
+  }
+  // More than one image: a count in the header, and the arrow keys step through
+  // them. The images stay one scrolling column, so reading is unchanged.
+  function addFieldPager(o, dlg, body) {
+    const imgs = Array.from(body.querySelectorAll("img"));
+    if (imgs.length < 2) return;
+    const count = document.createElement("span"); count.className = "mnx-ovl-count";
+    const head = dlg.querySelector(".mnx-ovl-head");
+    head.insertBefore(count, head.querySelector(".mnx-x"));
+    const current = () => {
+      const top = body.getBoundingClientRect().top + 4;
+      let at = 0;
+      imgs.forEach((im, i) => { if (im.getBoundingClientRect().top <= top + 40) at = i; });
+      return at;
+    };
+    const paint = () => { count.textContent = (current() + 1) + " of " + imgs.length; };
+    paint();
+    body.addEventListener("scroll", paint, { passive: true });
+    o._mnxPage = {
+      show: d => {
+        const next = imgs[Math.max(0, Math.min(imgs.length - 1, current() + d))];
+        body.scrollTop += next.getBoundingClientRect().top - body.getBoundingClientRect().top;
+        paint();
+      }
+    };
   }
   function addImageHint(s) {
     const panel = document.getElementById(PANEL_ID);
@@ -2406,9 +2473,15 @@
   async function buildTable(s) {
     hideOverlay();
     s.building = true;
+    const held = document.getElementById(PANEL_ID);
+    if (held) held.classList.add("mnx-loading");
     try { await buildSession(s); }
     catch (e) { buildFailed(s, bridgeError(String(e), "anki")); }
-    finally { s.building = false; }
+    finally {
+      s.building = false;
+      const p = document.getElementById(PANEL_ID);
+      if (p && isLive(s)) p.classList.remove("mnx-loading");
+    }
   }
   async function buildSession(s) {
     const qid = s.qid;
@@ -5220,7 +5293,8 @@
   const RESULTS_GRACE = 4;
   let emptyTicks = 0;
 
-  setInterval(() => {
+  function mainTick() {
+    lastTick = performance.now();
     // Result rows are read on a results page and nowhere else (see
     // genericResultRows): elsewhere the toolbar offered to send an
     // explanation's numbered bullets, or a list of test scores, to Anki.
@@ -5234,7 +5308,7 @@
       const fb = document.getElementById("mnx-float-toolbar"); if (fb) fb.remove();
     }
     const host = document.getElementById(BTN_HOST_ID);
-    if (host) syncExpectedButton(host);
+    if (host) { syncExpectedButton(host); syncMissedButton(host); }
 
     trackerTick();
     ensureQidButton();
@@ -5258,7 +5332,19 @@
       if (p) p.remove();
       hideOverlay();
     }
-  }, 1000);
+  }
+  setInterval(mainTick, 1000);
+  // The tick alone made every switch wait up to a second: the panel came late,
+  // and the last question's Anki button stayed beside the new one. Page changes
+  // now bring it forward, at most about three times a second. The interval
+  // stays as the backstop for changes no mutation announces.
+  let lastTick = 0, tickQueued = false;
+  function tickSoon() {
+    if (tickQueued) return;
+    tickQueued = true;
+    setTimeout(() => { tickQueued = false; mainTick(); }, Math.max(40, 300 - (performance.now() - lastTick)));
+  }
+  new MutationObserver(tickSoon).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
 
   // ============================================================
   // Expected Score (Beta)
@@ -5367,7 +5453,7 @@
   // A session (the question on screen: its exact matched search) or a bare
   // question id (a row of the expected-score list).
   function openInAnki(target) {
-    const run = query => bridge("openBrowser", { query }).catch(e => toast(bridgeFailure(e)));
+    const run = openBrowser;
     if (target && typeof target === "object") { run(target.query || qidQuery(target.qid, target.sv || 1)); return; }
     getSv().then(sv => run(qidQuery(target, sv))).catch(() => {});
   }

@@ -39,7 +39,7 @@ const NOTE = {
   fields: {
     Text: { value: "The {{c1::cochlea}} transduces sound.", order: 0 },
     // a remote image: the preview must not load it
-    Extra: { value: 'Extra note text.<img src="https://tracker.invalid/pixel.png">', order: 1 },
+    Extra: { value: 'Extra note text.<img src="https://tracker.invalid/pixel.png"><img src="extra-1.png"><img src="extra-2.png">', order: 1 },
     // several pages, so the overlay pager is covered by the e2e run
     "First Aid": { value: '<img src="fa-1.png"><img src="fa-2.png"><img src="fa-3.png">', order: 2 },
     Sketchy: { value: '<img src="sketchy-1.png">', order: 3 },

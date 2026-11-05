@@ -1183,6 +1183,65 @@ function listenFree(server, from) {
       await p.close();
     }
 
+    // Rows stay closed unless you ask; a row reopened from memory still gets its
+    // images (a cached one used to leave an empty box for good).
+    {
+      mock.reset();
+      let since0 = 0;
+      await setCfg({ mnxKeepOpen: true, mnxOpenResources: [] });
+      const p = await openAt(reviewHtml("4211"));
+      await p.waitForSelector("#mnx-resources .mnx-r-field", { timeout: 12000 });
+      await p.locator("#mnx-resources .mnx-r-field .mnx-r-head").first().click();
+      const loaded = () => p.evaluate(() => {
+        const im = Array.from(document.querySelectorAll("#mnx-resources .mnx-r-field img"));
+        return im.length > 0 && im.every((i) => i.naturalWidth > 0);
+      });
+      await p.waitForFunction(() => { const i = document.querySelector("#mnx-resources .mnx-r-field img"); return i && i.naturalWidth > 0; }, null, { timeout: 6000 }).catch(() => {});
+      const first = await loaded();
+      const t0 = Date.now();
+      await p.evaluate(() => document.getElementById("mnx-resources").remove());
+      await p.waitForSelector("#mnx-resources .mnx-r-field", { timeout: 6000 }).catch(() => {});
+      const backIn = Date.now() - t0;
+      await p.waitForTimeout(1200);
+      check("1.6", "a row reopened from memory loads its cached image, not an empty box", first && await loaded());
+      check("1.6", "the panel reacts to the page at once, not on the next one-second tick", backIn < 900, backIn + " ms");
+      await p.close();
+      await setCfg({ mnxKeepOpen: false });
+      const q = await openAt(reviewHtml("4211"));
+      await q.waitForSelector("#mnx-resources .mnx-r-field", { timeout: 12000 });
+      const open = await q.evaluate(() => document.querySelectorAll("#mnx-resources .mnx-r.open").length);
+      check("1.6", "by default every question starts with its rows closed", open === 0, String(open));
+      await q.keyboard.press("e");
+      await q.waitForSelector("#mnx-overlay .mnx-ovl-count", { timeout: 6000 }).catch(() => {});
+      const c1 = await q.textContent("#mnx-overlay .mnx-ovl-count").catch(() => "");
+      await q.keyboard.press("ArrowRight");
+      await q.waitForTimeout(300);
+      const c2 = await q.textContent("#mnx-overlay .mnx-ovl-count").catch(() => "");
+      check("1.6", "the field overlay counts its images and the arrow keys step through", /^1 of 2$/.test(c1) && /^2 of 2$/.test(c2), c1 + " -> " + c2);
+      await q.keyboard.press("Escape");
+      since0 = mock.calls().length;
+      await q.keyboard.press("d");
+      await q.waitForTimeout(400);
+      const said = await q.locator(".mnx-toast").last().textContent().catch(() => "");
+      check("1.6", "D says it is opening Anki", /Opening in Anki/.test(said) && mock.calls().slice(since0).some((c) => c.op === "openBrowser"), said);
+      await q.close();
+      await setCfg({ mnxOpenResources: [] });
+      // a clean block: nothing to send, and the buttons say so
+      const clean = page(`<table><thead><tr><th>#</th><th>ID</th><th>System</th><th>Result</th></tr></thead><tbody>
+        <tr><td>1</td><td>4211</td><td>Renal</td><td><i class="fa-check"></i></td></tr></tbody></table>`);
+      const r = await openAt(clean, RESULTS_URL);
+      await r.waitForSelector("#mnx-float-toolbar .mnx-btn", { timeout: 12000 });
+      await r.waitForSelector("#mnx-float-toolbar .mnx-btn-idle", { timeout: 4000 }).catch(() => {});
+      const idle = await r.evaluate(() => { const b = document.querySelector("#mnx-float-toolbar .mnx-btn-idle"); return b && b.textContent; });
+      await r.locator("#mnx-float-toolbar .mnx-btn", { hasText: "Weak areas" }).click();
+      await r.waitForSelector("#mnx-md-overlay .mnx-brk-sub", { timeout: 6000 }).catch(() => {});
+      const brk = await r.evaluate(() => ({ title: document.querySelector("#mnx-md-overlay .mnx-md-head b").textContent, sub: document.querySelector("#mnx-md-overlay .mnx-brk-sub").textContent,
+        foot: Array.from(document.querySelectorAll("#mnx-md-overlay .mnx-md-foot button")).map((b) => b.textContent) }));
+      check("1.6", "a clean block: Missed goes quiet and Weak areas says there are none",
+        idle === "Anki: Missed" && brk.title === "Block breakdown" && /^No weak areas in this block · 1 question · /.test(brk.sub) && brk.foot.join() === "Close", JSON.stringify([idle, brk]));
+      await r.close();
+    }
+
     // The whole card in Preview: every filled field, the heavy ones one click away.
     {
       mock.reset();
@@ -1234,7 +1293,7 @@ function listenFree(server, from) {
       });
       check("1.4", "Save's card rows show the card at a glance (answer in bold, Extra, image count)",
         !!glance && glance.ans === "cochlea" && /The cochlea transduces sound/.test(glance.text) && /Extra Extra note text/i.test(glance.text) &&
-        /6 images/.test(glance.text) && glance.imgsLoaded === 0, JSON.stringify(glance));
+        /8 images/.test(glance.text) && glance.imgsLoaded === 0, JSON.stringify(glance));
       await p.locator("#mnx-md-overlay .mnx-fullcard > summary").click();
       await p.waitForTimeout(500);
       const one = await p.evaluate(() => document.querySelector("#mnx-md-overlay .mnx-fullcard-body").innerText);
