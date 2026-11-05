@@ -385,7 +385,7 @@ async function main() {
 
     const moveBtn = page.locator("#mnx-md-overlay .mnx-md-ok").last();
     await say(page, "Saved", "One click, and it moves — keeping its review history and AnKing updates.", 1200);
-    await pointAt(page, moveBtn, "Move it", { holdMs: 1400 });
+    await pointAt(page, moveBtn, "Save to Missed Qs", { holdMs: 1400 });
     await unpoint(page);                // before the click: it closes the dialog the ring is drawn on
     await moveBtn.click();
     await wait(page, 1600);

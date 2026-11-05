@@ -135,9 +135,9 @@ Every feature in 7 minutes, recorded on a real qbank:
 https://github.com/user-attachments/assets/9ba0eec1-44ef-4bc7-9869-10c88d54c0c7
 
 > [!NOTE]
-> The clips were recorded on version 1.3.1. Version **1.5.0** groups the panel's
-> buttons differently and has a calmer look, so what you see in a clip may differ
-> a little from your screen — the text here describes 1.5.0.
+> The clips were recorded on version 1.3.1. Since then the panel, popup and dialogs
+> have been redesigned, so what you see in a clip may differ from your screen — the
+> text here describes 1.6.0.
 
 | | Feature | Where |
 |:---:|---|---|
@@ -178,7 +178,8 @@ page and, right under the explanation, shows:
   one tap unsuspends exactly the cards you missed (and **Suspend them again** if
   you change your mind).
 
-Nothing appears until you've answered, so it can never spoil a question.
+Nothing appears until you've answered, so it can never spoil a question. After a
+page loads, the panel shows up on your first click, key press or scroll.
 
 ![The Mnestic panel under the explanation: the matched cards, every resource, and the chapters they cover](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/01-mnestic-panel.gif)
 

@@ -1,6 +1,6 @@
 # Mnestic — Privacy Policy
 
-_Last updated: 2026-10-01_
+_Last updated: 2026-11-05_
 
 **Mnestic does not collect, transmit, sell, or share any personal data.** It has
 no backend server, no analytics, no accounts, and no ads.
