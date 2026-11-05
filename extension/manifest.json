@@ -35,7 +35,8 @@
             "matches": [
                 "https://coursology-qbank.com/*",
                 "https://*.coursology-qbank.com/*",
-                "https://*.uworld.com/*",
+                "https://apps.uworld.com/*",
+                "https://www.uworld.com/*",
                 "https://medpark.io/*",
                 "https://*.medpark.io/*"
             ],
