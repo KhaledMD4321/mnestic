@@ -236,15 +236,12 @@ topicGo.addEventListener("click", findTopic);
 topicInput.addEventListener("keydown", (e) => { if (e.key === "Enter") findTopic(); });
 
 // ---- Copy for AI: the one-click prompt, and your own (lib/ai.js) ----
-// The text the prompt box used to come pre-filled with. A stored prompt equal
-// to it isn't "your own" -- see Ai.hasOwnPrompt.
-const AI_DEFAULT = "I'm studying for the USMLE. Below is a question with its answer choices and explanation. Explain the correct answer and why each other option is wrong, then give me the single highest-yield fact to remember. Be concise.";
 const Ai = window.Mnx.ai;
 const aiPromptEl = document.getElementById("aiPrompt");
 const aiSel = document.getElementById("aiPresetSel");
 let aiStoredPreset = null;
 function fillAiSelect() {
-  const own = Ai.hasOwnPrompt(aiPromptEl.value, AI_DEFAULT);
+  const own = Ai.hasOwnPrompt(aiPromptEl.value);
   const list = Ai.PRESETS.slice();
   if (own) list.push(Ai.CUSTOM);
   aiSel.replaceChildren();
@@ -253,7 +250,7 @@ function fillAiSelect() {
     o.value = p.key; o.textContent = p.label; o.title = p.hint;
     aiSel.appendChild(o);
   });
-  aiSel.value = Ai.defaultPreset(aiStoredPreset, aiPromptEl.value, AI_DEFAULT);
+  aiSel.value = Ai.defaultPreset(aiStoredPreset, aiPromptEl.value);
 }
 function saveAiPrompt() {
   chrome.storage.local.set({ aiPrompt: aiPromptEl.value });
@@ -261,7 +258,7 @@ function saveAiPrompt() {
 }
 chrome.storage.local.get({ aiPrompt: null, aiPreset: null }, (c) => {
   const stored = c.aiPrompt == null ? "" : c.aiPrompt;
-  aiPromptEl.value = Ai.hasOwnPrompt(stored, AI_DEFAULT) ? stored : "";
+  aiPromptEl.value = Ai.hasOwnPrompt(stored) ? stored : "";
   aiStoredPreset = c.aiPreset || null;
   fillAiSelect();
 });
@@ -269,6 +266,9 @@ aiSel.addEventListener("change", () => {
   aiStoredPreset = aiSel.value;
   chrome.storage.local.set({ aiPreset: aiSel.value });
 });
+const aiBasicsEl = document.getElementById("aiBasics");
+chrome.storage.local.get({ aiBasics: false }, (c) => { aiBasicsEl.checked = c.aiBasics === true; });
+aiBasicsEl.addEventListener("change", () => chrome.storage.local.set({ aiBasics: aiBasicsEl.checked }));
 aiPromptEl.addEventListener("change", saveAiPrompt);
 aiPromptEl.addEventListener("blur", saveAiPrompt);
 

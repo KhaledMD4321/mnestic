@@ -250,16 +250,19 @@ The **▾** next to the button:
 
 | Prompt | What you get |
 |---|---|
-| **Full review** (default) | What it tests, the key clues, how to solve it, why the answer is right, *why yours was wrong* (or what should have made you sure), every other choice in a line, what to remember |
-| **Why I got it wrong** | Why your answer was tempting, the clue that rules it out, your error type, one rule for next time, the same trap again |
-| **Compare the choices** | Every option: what it is, the deciding clue, "it would be correct if…", and a table of the correct answer vs. yours |
-| **High-yield points** | The topic's high-yield points, grouped and ordered from most to least tested |
-| **Quiz me** | Five questions, one at a time, getting harder, ending with a new vignette |
+| **Full Review** (default) | What it tests, the concept behind it, the key clues, how an expert solves it, why the answer wins, *why yours was wrong* (or what should have made you sure), every other choice, and high-yield points with one rule to carry to the next question |
+| **Fix My Mistake** | Why the wrong answer was tempting, the clue that separates it, what would make it right, the likely gap, an "if you see X, think Y" rule, and one new question to test the fix |
+| **Compare the Choices** | Every option: what it means, why it fits or fails, when it would be correct; then the correct answer side by side with yours (or the most tempting distractor) |
+| **High-Yield Review** | Study notes on the whole topic: the core concept and why, ★ high-yield facts, look-alikes, exam traps, "if the question changes…" scenarios |
+| **Quiz Me** | Five questions, one at a time, getting harder, ending with a new vignette — then what you know and what to review |
 | **My own prompt** | The one you wrote in the popup |
 
-Each prompt adapts to the Step (Step 1: mechanisms; Step 2 CK / 3: diagnosis and
-the next best step) and to whether you were right, wrong or unsure. **★** makes a
-prompt the one-click default. Nothing is sent anywhere — you paste it.
+Each prompt adapts to the Step (Step 1: the science behind it; Step 2 CK: diagnosis
+and the next best step; Step 3: management and its order) and to whether you were
+right, wrong or unsure — and never guesses an answer it couldn't read. **★** makes a
+prompt the one-click default. Tick **Explain from Basics** in the popup to have
+any prompt define the terms and teach the foundations first. Nothing is sent
+anywhere — you paste it.
 
 ![Copy for AI: the question copied, ready to paste into an AI assistant](https://github.com/KhaledMD4321/mnestic/releases/download/tutorial-media/06-copy-for-ai.gif)
 
@@ -308,8 +311,8 @@ on the page:
 | Omitted | What happened? | Didn't know it · Ran out of time |
 
 Each answer comes with the one next step that helps — a guess → **Test me**; a
-misread or a reasoning slip → **Copy for AI: Why I got it wrong**; torn between
-two → **Copy for AI: Compare the choices**. In the block breakdown a guess counts
+misread or a reasoning slip → **Copy for AI: Fix My Mistake**; torn between
+two → **Copy for AI: Compare the Choices**. In the block breakdown a guess counts
 as missed, *Narrowed to 2* as half, and once you've rated 3 or more wrong answers
 it shows **why you missed** them.
 

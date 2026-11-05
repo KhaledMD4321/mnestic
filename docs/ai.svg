@@ -34,17 +34,17 @@
   <text x="52" y="88" class="m" font-size="11.5">Your prompt + the full question, copied in one click.</text>
 
   <rect x="52" y="102" width="344" height="96" rx="10" fill="#232c40" stroke="#33425f"/>
-  <g class="m" font-size="11.5"><text x="66" y="126">“I'm studying for the USMLE. Below is a</text>
-    <text x="66" y="144">question with the choices and the correct</text>
-    <text x="66" y="162">answer. <tspan fill="#a48bff" font-weight="700">Differentiate every choice</tspan> and give</text>
-    <text x="66" y="180">a one-line hook for each.”  → [ question ]</text></g>
+  <g class="m" font-size="11.5"><text x="66" y="126">“Act as an expert USMLE tutor. Teach me</text>
+    <text x="66" y="144">to distinguish every answer choice, its</text>
+    <text x="66" y="162">concept, and <tspan fill="#a48bff" font-weight="700">the clue that decides</tspan></text>
+    <text x="66" y="180">between them.”  → [ question ]</text></g>
 
   <text x="52" y="224" class="m" font-size="10.5" font-weight="700" letter-spacing="1">PRESETS</text>
   <g font-size="11.5" font-weight="700">
-    <rect x="52" y="232" width="70" height="26" rx="8" fill="#232c40" stroke="#33425f"/><text x="87" y="249" class="m" text-anchor="middle">Explain</text>
-    <rect x="130" y="232" width="104" height="26" rx="8" fill="#6d40e0"/><text x="182" y="249" fill="#fff" text-anchor="middle">Differentiate</text>
-    <rect x="242" y="232" width="82" height="26" rx="8" fill="#232c40" stroke="#33425f"/><text x="283" y="249" class="m" text-anchor="middle">One-liner</text>
-    <rect x="332" y="232" width="64" height="26" rx="8" fill="#232c40" stroke="#33425f"/><text x="364" y="249" class="m" text-anchor="middle">Simplify</text>
+    <rect x="52" y="232" width="84" height="26" rx="8" fill="#232c40" stroke="#33425f"/><text x="94" y="249" class="m" text-anchor="middle">Full Review</text>
+    <rect x="144" y="232" width="76" height="26" rx="8" fill="#6d40e0"/><text x="182" y="249" fill="#fff" text-anchor="middle">Compare</text>
+    <rect x="228" y="232" width="104" height="26" rx="8" fill="#232c40" stroke="#33425f"/><text x="280" y="249" class="m" text-anchor="middle">Fix My Mistake</text>
+    <rect x="340" y="232" width="56" height="26" rx="8" fill="#232c40" stroke="#33425f"/><text x="368" y="249" class="m" text-anchor="middle">Quiz Me</text>
   </g>
 
   <!-- copy button -->
@@ -52,7 +52,7 @@
   <g id="btnDone"><rect x="52" y="286" width="344" height="42" rx="11" fill="#16a34a"/><text x="224" y="312" fill="#fff" font-size="14" font-weight="800" text-anchor="middle">✓ Copied — paste into any assistant</text></g>
 
   <text x="52" y="360" class="m" font-size="11">Works with ChatGPT, Claude, Gemini — your choice.</text>
-  <text x="52" y="384" class="m" font-size="11">Edit the base prompt once in the extension settings.</text>
+  <text x="52" y="384" class="m" font-size="11">Five prompts, or your own. ★ sets the one-click one.</text>
 
   <!-- flying token -->
   <g id="token"><rect x="180" y="292" width="120" height="30" rx="8" fill="#a48bff"/><rect x="192" y="301" width="70" height="4" rx="2" fill="#fff" opacity=".9"/><rect x="192" y="311" width="94" height="4" rx="2" fill="#fff" opacity=".6"/></g>
@@ -67,7 +67,7 @@
   <line x1="504" y1="74" x2="848" y2="74" stroke="#2c3850"/>
 
   <!-- user bubble -->
-  <g id="ubub"><rect x="560" y="86" width="288" height="58" rx="12" fill="#6d40e0"/><text x="576" y="110" fill="#fff" font-size="11.5" font-weight="600">USMLE Q — differentiate every choice,</text><text x="576" y="128" fill="#f1ecfc" font-size="11.5">one-line hook each. [full question]</text></g>
+  <g id="ubub"><rect x="560" y="86" width="288" height="58" rx="12" fill="#6d40e0"/><text x="576" y="110" fill="#fff" font-size="11.5" font-weight="600">USMLE Q — compare every choice and</text><text x="576" y="128" fill="#f1ecfc" font-size="11.5">the deciding clue. [full question]</text></g>
 
   <!-- assistant bubble -->
   <rect x="504" y="160" width="320" height="238" rx="12" fill="#141d33" stroke="#26314a"/>

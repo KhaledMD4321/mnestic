@@ -1427,11 +1427,12 @@ function listenFree(server, from) {
       await p.waitForTimeout(600);
       const t = (await p.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, "\n");
       check("1.5", "Copy for AI: one click copies the full-review prompt with the question in parts",
-        /Copy for AI · Full review/.test(label) && /^You are an expert USMLE tutor/.test(t) &&
+        /Copy for AI · Full Review/.test(label) && /^You are an expert USMLE tutor/.test(t) &&
         /=== QUESTION \(USMLE Step 1\) ===\nA 56-year-old man has crushing chest pain/.test(t) &&
         /C\. Neutrophil-rich fluid filling the alveoli {3}← my answer/.test(t) &&
         /E\. Engorged capillaries and acellular pink alveolar fluid {3}← correct answer/.test(t) &&
-        /Result: incorrect/.test(t) && /Why my answer was wrong/.test(t) &&
+        /Result: incorrect/.test(t) && /6\. WHY I GOT IT WRONG\nCompare my answer/.test(t) &&
+        /- This is USMLE Step 1\./.test(t) && !/Explain from Basics/.test(t) &&
         /=== EXPLANATION \(from the question bank\) ===\nLeft ventricular failure/.test(t), t.slice(0, 160).replace(/\n/g, " / "));
       check("1.5", "…without the block's navigation, the qbank's name, the percentages or the link",
         !/Item 20 of 40|^\d{1,2}$|Test ID|Block Time|Consult AI Tutor|coursology|https?:|\(9%\)/im.test(t), t.match(/Item 20 of 40|^\d{1,2}$|Test ID|Block Time|Consult AI Tutor|coursology|https?:|\(9%\)/im));
@@ -1439,16 +1440,16 @@ function listenFree(server, from) {
       await p.locator("#mnx-resources .mnx-split-caret").click();
       await p.waitForSelector("#mnx-ai-menu", { timeout: 3000 });
       const items = await p.evaluate(() => Array.from(document.querySelectorAll("#mnx-ai-menu .mnx-aim-label")).map((e) => e.textContent));
-      await p.locator("#mnx-ai-menu .mnx-aim-item", { hasText: "High-yield points" }).click();
+      await p.locator("#mnx-ai-menu .mnx-aim-item", { hasText: "High-Yield Review" }).click();
       await p.waitForTimeout(500);
       const hy = (await p.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, "\n");
       const closed = await p.evaluate(() => !document.getElementById("mnx-ai-menu"));
       check("1.5", "▾ offers the five prompts, and one copies with its own brief",
-        items.join("|") === "Full review|Why I got it wrong|Compare the choices|High-yield points|Quiz me|Copy the explanation only" &&
-        /^Arrange the high-yield points/.test(hy) && closed, items.join("|"));
+        items.join("|") === "Full Review|Fix My Mistake|Compare the Choices|High-Yield Review|Quiz Me|Copy the explanation only" &&
+        /^Act as an expert USMLE tutor\. Turn this question into organized, high-yield study notes/.test(hy) && closed, items.join("|"));
       await p.locator("#mnx-resources .mnx-split-caret").click();
       await p.waitForSelector("#mnx-ai-menu", { timeout: 3000 });
-      await p.locator("#mnx-ai-menu .mnx-aim-row", { hasText: "Quiz me" }).locator(".mnx-aim-star").click();
+      await p.locator("#mnx-ai-menu .mnx-aim-row", { hasText: "Quiz Me" }).locator(".mnx-aim-star").click();
       await p.keyboard.press("Escape");
       await p.waitForTimeout(300);
       const label2 = await p.textContent("#mnx-resources .mnx-split-main");
@@ -1458,9 +1459,27 @@ function listenFree(server, from) {
       const stored = await ext.evaluate(() => new Promise((r) => chrome.storage.local.get({ aiPreset: null }, r)));
       const sel = await ext.evaluate(() => document.getElementById("aiPresetSel").value);
       await ext.evaluate(() => new Promise((r) => chrome.storage.local.set({ aiPreset: null }, r)));
+      // Explain from Basics: a popup checkbox, stored, and added to the copy
+      await ext.locator("#aiBasics").check();
+      await ext.waitForTimeout(300);
+      const basicsStored = await ext.evaluate(() => new Promise((r) => chrome.storage.local.get({ aiBasics: false }, r)));
+      await ext.reload();
+      await ext.waitForTimeout(500);
+      const basicsShown = await ext.evaluate(() => document.getElementById("aiBasics").checked);
+      await p.waitForTimeout(300);
+      await p.evaluate(() => navigator.clipboard.writeText(""));
+      await p.locator("#mnx-resources .mnx-split-main").click();
+      await p.waitForTimeout(500);
+      const basicsCopy = (await p.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, "\n");
+      await ext.locator("#aiBasics").uncheck();
+      await ext.waitForTimeout(300);
       await ext.close();
+      check("1.5", "Explain from Basics: the popup switch is kept, and the copy gets it between the brief and the rules",
+        basicsStored.aiBasics === true && basicsShown &&
+        /Transfer rule[^]*\n\nExplain from Basics is enabled\.[^]*\n\nRules:\n/.test(basicsCopy),
+        JSON.stringify(basicsStored) + " | " + basicsShown + " | " + basicsCopy.slice(0, 60));
       check("1.5", "★ makes a prompt the one-click default, and the popup shows it",
-        /Copy for AI · Quiz me/.test(label2) && stored.aiPreset === "quiz" && sel === "quiz", label2 + " | " + JSON.stringify(stored) + " | " + sel);
+        /Copy for AI · Quiz Me/.test(label2) && stored.aiPreset === "quiz" && sel === "quiz", label2 + " | " + JSON.stringify(stored) + " | " + sel);
 
       // "How did that go?" follows the result on the page: a wrong answer asks
       // why, each reason brings one next step, and it never blocks anything.
@@ -1482,12 +1501,13 @@ function listenFree(server, from) {
                       on: (document.querySelector("#mnx-resources .mnx-recall-btn.on") || {}).textContent };
       });
       await p.evaluate(() => navigator.clipboard.writeText(""));
-      await p.locator("#mnx-resources .mnx-recall-act", { hasText: "Compare the choices" }).click();
+      await p.locator("#mnx-resources .mnx-recall-act", { hasText: "Compare the Choices" }).click();
       await p.waitForTimeout(500);
       const cmp = (await p.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, "\n");
       check("1.5", "…\"Torn between 2\" points to comparing the choices, and the copy carries how it went",
-        !!next && next.on === "Torn between 2" && /separates the two choices/.test(next.text) && next.acts[0] === "Copy for AI: Compare the choices" &&
-        /^Go through every answer choice/.test(cmp) && /How it went: I was torn between two choices/.test(cmp), JSON.stringify(next) + " | " + cmp.slice(0, 60));
+        !!next && next.on === "Torn between 2" && /separates the two choices/.test(next.text) && next.acts[0] === "Copy for AI: Compare the Choices" &&
+        /^Act as an expert USMLE tutor\. Teach me to distinguish every answer choice/.test(cmp) &&
+        /Compare the official correct answer with my answer side by side/.test(cmp) && /How it went: I was torn between two choices/.test(cmp), JSON.stringify(next) + " | " + cmp.slice(0, 60));
       await p.locator("#mnx-resources .mnx-recall-btn", { hasText: "Torn between 2" }).click();
       await p.waitForTimeout(200);
       const cleared = await p.evaluate(() => !document.querySelector("#mnx-resources .mnx-recall-btn.on") && !document.querySelector("#mnx-resources .mnx-recall-next"));

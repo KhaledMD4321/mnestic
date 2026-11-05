@@ -270,10 +270,11 @@ got it right, how it went, and the explanation — never the block's navigation,
 the qbank's name or a link. Paste it into ChatGPT, Claude or Gemini; Mnestic
 itself never calls an AI.
 
-The **▾** next to the button picks the prompt: **Full review** (the default),
-**Why I got it wrong**, **Compare the choices**, **High-yield points**, **Quiz me**,
+The **▾** next to the button picks the prompt: **Full Review** (the default),
+**Fix My Mistake**, **Compare the Choices**, **High-Yield Review**, **Quiz Me**,
 or your own (written in the popup). Each one adapts to whether you were right,
-wrong or unsure, and to the Step. **★** makes one the one-click default.
+wrong or unsure, and to the Step. Tick **Explain from Basics** in the popup and
+any of them teaches the foundations first. **★** makes one the one-click default.
 **Copy the explanation only** (at the bottom of the **▾** menu) copies just the
 explanation, for your own notes.
 

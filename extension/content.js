@@ -1246,9 +1246,9 @@
   let esOn = false;
   let easyOn = false;
   let hyOn = false;
-  const DEFAULT_AI_PROMPT = "I'm studying for the USMLE. Below is a question with its answer choices and explanation. Explain the correct answer and why each other option is wrong, then give me the single highest-yield fact to remember. Be concise.";
-  let aiPrompt = DEFAULT_AI_PROMPT;   // "My own prompt" in Copy for AI (set in the popup)
+  let aiPrompt = "";                  // "My own prompt" in Copy for AI (set in the popup)
   let aiPreset = null;                // the preset one click uses (lib/ai.js); null = the default
+  let aiBasics = false;               // "Explain from Basics" (set in the popup)
   let kbShortcuts = true;             // review-page action hotkeys
   // "auto" (the default) reads the qbank's own theme, then the OS. A stored
   // true/false is an explicit override and always wins — a white slab on a dark
@@ -1286,7 +1286,7 @@
       .observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme", "data-mode", "style"] });
     matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (darkPref === "auto") applyTheme(); });
   } catch (e) {}
-  chrome.storage.local.get({ dark: "auto", expectedScore: false, easy: false, highYield: false, aiPrompt: DEFAULT_AI_PROMPT, aiPreset: null, kbShortcuts: true }, c => { aiPreset = c.aiPreset || null; darkPref = (c.dark === true || c.dark === false) ? c.dark : "auto"; esOn = !!c.expectedScore; easyOn = !!c.easy; hyOn = !!c.highYield; aiPrompt = c.aiPrompt == null ? DEFAULT_AI_PROMPT : c.aiPrompt; kbShortcuts = c.kbShortcuts !== false; applyTheme(); });
+  chrome.storage.local.get({ dark: "auto", expectedScore: false, easy: false, highYield: false, aiPrompt: "", aiPreset: null, aiBasics: false, kbShortcuts: true }, c => { aiPreset = c.aiPreset || null; aiBasics = c.aiBasics === true; darkPref = (c.dark === true || c.dark === false) ? c.dark : "auto"; esOn = !!c.expectedScore; easyOn = !!c.easy; hyOn = !!c.highYield; aiPrompt = c.aiPrompt || ""; kbShortcuts = c.kbShortcuts !== false; applyTheme(); });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     if ("dark" in changes) {
@@ -1297,7 +1297,8 @@
     if (changes.expectedScore) { esOn = !!changes.expectedScore.newValue; }
     if (changes.easy) { easyOn = !!changes.easy.newValue; }
     if (changes.highYield) { hyOn = !!changes.highYield.newValue; }
-    if ("aiPrompt" in changes) { aiPrompt = changes.aiPrompt.newValue == null ? "" : changes.aiPrompt.newValue; }
+    if ("aiPrompt" in changes) { aiPrompt = changes.aiPrompt.newValue || ""; }
+    if ("aiBasics" in changes) { aiBasics = changes.aiBasics.newValue === true; }
     if ("aiPreset" in changes) { aiPreset = changes.aiPreset.newValue || null; refreshAiButtons(); }
     if (changes.kbShortcuts) {
       kbShortcuts = changes.kbShortcuts.newValue !== false;
@@ -3207,13 +3208,13 @@
     const parts = readQuestionParts();
     const conf = ((trackerLog.answered[currentQbankSlug() + " " + qid] || {}).conf) || null;
     const step = detectStepFromUrl() || (Q && Q.sv) || null;     // the exam you're on, from the URL first
-    const text = Ai.compose(parts, k, { step, conf, custom: aiPrompt });
+    const text = Ai.compose(parts, k, { step, conf, custom: aiPrompt, basics: aiBasics });
     const p = Ai.preset(k) || Ai.PRESETS[0];
     const missing = !parts.mine && parts.result !== "omitted" ? " (couldn't read your answer — the AI is told so)" : "";
     copyText(text, "Copied: " + p.label + missing + " — paste it to your assistant.");
   }
   function copyFullQuestion(qid) { copyForAI(qid); }
-  function aiPresetKey() { return Ai.defaultPreset(aiPreset, aiPrompt, DEFAULT_AI_PROMPT); }
+  function aiPresetKey() { return Ai.defaultPreset(aiPreset, aiPrompt); }
   // Explanation only - for adding to your notes.
   function copyExplanation() {
     copyText(explanationText(), "Explanation copied — paste into your note.");
@@ -4237,7 +4238,7 @@
     menu.appendChild(head);
     const current = aiPresetKey();
     const list = Ai.PRESETS.slice();
-    const ownPrompt = Ai.hasOwnPrompt(aiPrompt, DEFAULT_AI_PROMPT);
+    const ownPrompt = Ai.hasOwnPrompt(aiPrompt);
     if (ownPrompt) list.push(Ai.CUSTOM);
     const items = [];
     list.forEach(p => {
@@ -4377,23 +4378,23 @@
   function reflectNext(key, s) {
     const qid = s.qid, has = s.notes.length > 0;
     const save = has ? ["Save to Missed Qs", () => openSaveDialog(s)] : null;
-    const ai = (k, label) => ["Copy for AI: " + label, () => copyForAI(qid, k)];
+    const ai = (k) => ["Copy for AI: " + Ai.preset(k).label, () => copyForAI(qid, k)];
     switch (key) {
       case "knew": return { text: "Counts as known. Nothing to do here." };
       case "narrowed": return { text: "Counts as half — you had a coin flip left. Find the one feature that separates the two.",
-                                acts: [ai("choices", "Compare the choices")] };
+                                acts: [ai("choices")] };
       case "guessed": return { text: "Counts as missed — a lucky answer isn't knowledge yet. Check whether you really know the cards behind it.",
-                               acts: [has && testItems(s.notes).items.length ? ["Test me on the cards", () => openCardTest(s)] : ai("hy", "High-yield points"), save] };
+                               acts: [has && testItems(s.notes).items.length ? ["Test me on the cards", () => openCardTest(s)] : ai("hy"), save] };
       case "noknow": return { text: "A knowledge gap: learn it from the cards, then keep them in rotation.",
-                              acts: [has ? ["Preview the cards", () => openPreview(s.notes, 0)] : ai("hy", "High-yield points"), save] };
+                              acts: [has ? ["Preview the cards", () => openPreview(s.notes, 0)] : ai("hy"), save] };
       case "misread": return { text: "Go back to the stem and find the clue you skipped — usually the timing, the age, a negative (NOT, EXCEPT) or a lab value.",
-                               acts: [ai("mistake", "Why I got it wrong")] };
+                               acts: [ai("mistake")] };
       case "reasoning": return { text: "You had the facts; the reasoning slipped. See exactly where it went wrong.",
-                                 acts: [ai("mistake", "Why I got it wrong")] };
+                                 acts: [ai("mistake")] };
       case "torn": return { text: "Find the one feature that separates the two choices you were stuck between.",
-                            acts: [ai("choices", "Compare the choices"), save] };
+                            acts: [ai("choices"), save] };
       case "time": return { text: "Learn the first clue to look for, so a question like this goes faster.",
-                            acts: [ai("full", "Full review")] };
+                            acts: [ai("full")] };
       default: return null;
     }
   }
